@@ -1,0 +1,16 @@
+node_modules/
+coverage/
+
+*.log
+*.js.map
+.DS_Store
+
+# Keep only the ESM bundle used by action.yml
+dist/*
+!dist/index.mjs
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+.claude/*.local.json
