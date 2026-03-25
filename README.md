@@ -132,3 +132,8 @@ pnpm run build    # TypeScript check + Rolldown bundle
 ## License
 
 [MIT](LICENSE)
+
+## Legal
+
+- [Privacy Policy](PRIVACY.md)
+- [Terms of Service](TERMS.md)
