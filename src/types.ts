@@ -1,0 +1,137 @@
+/**
+ * Possible states of a pull request review.
+ * @see {@link https://docs.github.com/en/graphql/reference/enums#pullrequestreviewstate}
+ */
+export type ReviewState =
+  | "APPROVED"
+  | "CHANGES_REQUESTED"
+  | "COMMENTED"
+  | "DISMISSED"
+  | "PENDING";
+
+/**
+ * Possible states of a pull request.
+ * @see {@link https://docs.github.com/en/graphql/reference/enums#pullrequeststate}
+ */
+export type PullRequestState = "OPEN" | "CLOSED" | "MERGED";
+
+/**
+ * A single review submission on a pull request.
+ * @see {@link https://docs.github.com/en/graphql/reference/objects#pullrequestreview}
+ */
+export interface ReviewRecord {
+  reviewer: string;
+  reviewerIsBot: boolean;
+  author: string;
+  state: ReviewState;
+  createdAt: string;
+  prNumber: number;
+}
+
+/**
+ * Normalized pull request with associated reviews and metadata.
+ * @see {@link https://docs.github.com/en/graphql/reference/objects#pullrequest}
+ */
+export interface PullRequestRecord {
+  number: number;
+  title: string;
+  state: PullRequestState;
+  author: string;
+  authorIsBot: boolean;
+  createdAt: string;
+  mergedAt: string | null;
+  closedAt: string | null;
+  mergedBy: string | null;
+  reviews: ReviewRecord[];
+  reviewRequests: string[];
+  commitMessages: string[];
+}
+
+/** Aggregated review statistics for a single user. */
+export interface UserReviewStats {
+  login: string;
+  /** Number of unique PRs this user reviewed (each PR counted at most once). */
+  reviewsGiven: number;
+  /** Total review submissions received on this user's PRs (includes multiple reviews on the same PR). */
+  reviewsReceived: number;
+  approvals: number;
+  changeRequests: number;
+  comments: number;
+  dismissed: number;
+  avgTimeToFirstReviewMs: number | null;
+}
+
+/** Per-author merge statistics. */
+export interface MergeCorrelation {
+  login: string;
+  prsAuthored: number;
+  prsMerged: number;
+  avgReviewsBeforeMerge: number;
+  zeroReviewMerges: number;
+}
+
+/** Nested map of reviewer -> author -> review count. */
+export type ReviewMatrix = Map<string, Map<string, number>>;
+
+/** A reviewer-author pair flagged for unusually high review frequency. */
+export interface FlaggedPair {
+  reviewer: string;
+  author: string;
+  count: number;
+  zScore: number;
+}
+
+/** Results of the bias detection analysis. */
+export interface BiasResult {
+  matrix: ReviewMatrix;
+  flaggedPairs: FlaggedPair[];
+  giniCoefficient: number;
+}
+
+/** A bot account that has submitted reviews. */
+export interface BotReviewer {
+  login: string;
+  reviewCount: number;
+}
+
+/** Results of the AI/bot pattern analysis. */
+export interface AIPatternResult {
+  botReviewers: BotReviewer[];
+  coAuthoredPRs: number;
+  totalPRs: number;
+  botReviewPercentage: number;
+}
+
+/** Supported output destinations for the report. */
+export type OutputMode = "summary" | "comment" | "artifact";
+
+/** Validated action configuration derived from workflow inputs. */
+export interface ActionConfig {
+  token: string;
+  owner: string;
+  repo: string;
+  since: string;
+  until: string;
+  outputModes: OutputMode[];
+  biasThreshold: number;
+  includeBots: boolean;
+  maxPRs: number;
+}
+
+/** ISO 8601 date range for the analysis period. */
+export interface DateRange {
+  since: string;
+  until: string;
+}
+
+/** Complete output of all analysis modules. */
+export interface AnalysisResult {
+  userStats: UserReviewStats[];
+  mergeCorrelations: MergeCorrelation[];
+  bias: BiasResult;
+  aiPatterns: AIPatternResult;
+  pullRequests: PullRequestRecord[];
+  dateRange: DateRange;
+  biasThreshold: number;
+  includeBots: boolean;
+}
