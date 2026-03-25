@@ -1,0 +1,75 @@
+name: "Review Insights"
+description: "Analyze PR review statistics per user with matrices, heatmaps, and time-series visualizations"
+author: "review-insights"
+
+branding:
+  icon: "bar-chart-2"
+  color: "blue"
+
+inputs:
+  github-token:
+    description: >
+      GitHub token with repo read access. Defaults to the workflow token.
+      Required permissions: contents:read and pull-requests:read.
+      For output-mode "comment", also pull-requests:write.
+    required: false
+    default: ${{ github.token }}
+
+  repository:
+    description: "Repository to analyze (owner/repo). Defaults to current repository."
+    required: false
+    default: ${{ github.repository }}
+
+  since:
+    description: >
+      Start date for analysis (ISO 8601, e.g. 2025-01-01). Defaults to 90 days ago.
+      NOTE: For large repositories with high PR volume, use a shorter range (e.g., 30 days)
+      to avoid hitting GitHub API rate limits.
+    required: false
+
+  until:
+    description: "End date for analysis (ISO 8601). Defaults to now."
+    required: false
+
+  output-mode:
+    description: 'Where to publish results: "summary", "comment", "artifact", or comma-separated combination.'
+    required: false
+    default: "summary,artifact"
+
+  bias-threshold:
+    description: "Standard deviations above mean to flag review imbalance (default: 2.0)."
+    required: false
+    default: "2.0"
+
+  include-bots:
+    description: >
+      Whether to include bot accounts in statistics.
+      When false, bot-authored PRs (and all reviews on them) and bot reviews are excluded.
+      See docs/filtering.md (default: false).
+    required: false
+    default: "false"
+
+  max-prs:
+    description: >
+      Maximum number of PRs to analyze (default: 500).
+      IMPORTANT: Values above 1000 on very active repositories may consume significant
+      API quota and increase execution time.
+    required: false
+    default: "500"
+
+outputs:
+  report-path:
+    description: "Path to the generated HTML report file"
+
+  total-prs-analyzed:
+    description: "Number of PRs analyzed"
+
+  top-reviewer:
+    description: "Login of the most active reviewer"
+
+  bias-detected:
+    description: "Whether review imbalance was detected (true/false)"
+
+runs:
+  using: "node24"
+  main: "dist/index.mjs"

@@ -1,0 +1,20 @@
+name: Dogfood
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 1"  # Weekly Monday at 00:00 UTC
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # NOTE: Upgrade to pull-requests:write if output-mode includes "comment"
+      pull-requests: read
+      # actions:write is NOT required for artifact uploads within the same
+      # workflow. @actions/artifact v6+ uses the default GITHUB_TOKEN which
+      # has implicit write access to the current run's artifacts.
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: ./
+        with:
+          output-mode: "summary,artifact"
