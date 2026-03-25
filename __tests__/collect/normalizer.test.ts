@@ -1,0 +1,368 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type {
+  RawPullRequestNode,
+  RawReview,
+} from "../../src/collect/graphql-queries";
+import {
+  isBot,
+  normalizePullRequests,
+  normalizeReview,
+} from "../../src/collect/normalizer";
+
+vi.mock("../../src/utils/logger", () => ({
+  logger: {
+    info: vi.fn(),
+    debug: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+const { logger } = await import("../../src/utils/logger");
+
+function makeRawReview(overrides?: Partial<RawReview>): RawReview {
+  return {
+    author: {
+      login: "reviewer-a",
+      __typename: "User",
+    },
+    state: "APPROVED",
+    createdAt: "2025-06-02T12:00:00Z",
+    ...overrides,
+  };
+}
+
+function makeRawNode(
+  overrides?: Partial<RawPullRequestNode>,
+): RawPullRequestNode {
+  return {
+    number: 1,
+    title: "Test PR",
+    state: "MERGED",
+    createdAt: "2025-06-01T00:00:00Z",
+    mergedAt: "2025-06-02T00:00:00Z",
+    closedAt: "2025-06-02T00:00:00Z",
+    author: {
+      login: "author-a",
+      __typename: "User",
+    },
+    mergedBy: {
+      login: "merger",
+    },
+    reviews: {
+      nodes: [
+        makeRawReview(),
+      ],
+    },
+    reviewRequests: {
+      nodes: [],
+    },
+    commits: {
+      nodes: [
+        {
+          commit: {
+            message: "fix: something",
+          },
+        },
+      ],
+    },
+    ...overrides,
+  };
+}
+
+describe("isBot", () => {
+  it("returns false for null", () => {
+    expect(isBot(null)).toBe(false);
+  });
+
+  it("returns false for regular user string", () => {
+    expect(isBot("alice")).toBe(false);
+  });
+
+  it("returns true for [bot] suffix string", () => {
+    expect(isBot("dependabot[bot]")).toBe(true);
+  });
+
+  it("returns true for -bot suffix string", () => {
+    expect(isBot("snyk-bot")).toBe(true);
+  });
+
+  it("is case-insensitive for suffix check", () => {
+    expect(isBot("MyApp-BOT")).toBe(true);
+    expect(isBot("app[BOT]")).toBe(true);
+  });
+
+  it("returns true for object with __typename Bot", () => {
+    expect(
+      isBot({
+        login: "some-app",
+        __typename: "Bot",
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false for object with __typename User", () => {
+    expect(
+      isBot({
+        login: "alice",
+        __typename: "User",
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false for object without __typename and no bot suffix", () => {
+    expect(
+      isBot({
+        login: "alice",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("normalizeReview", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("normalizes a valid review", () => {
+    const result = normalizeReview(makeRawReview(), 42, "author-a");
+    expect(result).toEqual({
+      reviewer: "reviewer-a",
+      reviewerIsBot: false,
+      author: "author-a",
+      state: "APPROVED",
+      createdAt: "2025-06-02T12:00:00Z",
+      prNumber: 42,
+    });
+  });
+
+  it("uses 'ghost' when review author is null", () => {
+    const result = normalizeReview(
+      makeRawReview({
+        author: null,
+      }),
+      1,
+      "author-a",
+    );
+    expect(result.reviewer).toBe("ghost");
+    expect(result.reviewerIsBot).toBe(false);
+  });
+
+  it("detects bot reviewer", () => {
+    const result = normalizeReview(
+      makeRawReview({
+        author: {
+          login: "dependabot[bot]",
+          __typename: "Bot",
+        },
+      }),
+      1,
+      "author-a",
+    );
+    expect(result.reviewerIsBot).toBe(true);
+  });
+
+  it("falls back to COMMENTED for unknown review state and warns", () => {
+    const result = normalizeReview(
+      makeRawReview({
+        state: "UNKNOWN_STATE",
+      }),
+      99,
+      "author-a",
+    );
+    expect(result.state).toBe("COMMENTED");
+    expect(logger.warning).toHaveBeenCalledWith(
+      expect.stringContaining('Unknown review state "UNKNOWN_STATE"'),
+    );
+    expect(logger.warning).toHaveBeenCalledWith(
+      expect.stringContaining("PR #99"),
+    );
+  });
+
+  it("handles all valid review states without warning", () => {
+    for (const state of [
+      "APPROVED",
+      "CHANGES_REQUESTED",
+      "COMMENTED",
+      "DISMISSED",
+      "PENDING",
+    ]) {
+      vi.clearAllMocks();
+      const result = normalizeReview(
+        makeRawReview({
+          state,
+        }),
+        1,
+        "author-a",
+      );
+      expect(result.state).toBe(state);
+      expect(logger.warning).not.toHaveBeenCalled();
+    }
+  });
+});
+
+describe("normalizePullRequests", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("normalizes a basic PR node", () => {
+    const result = normalizePullRequests([
+      makeRawNode(),
+    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      number: 1,
+      title: "Test PR",
+      state: "MERGED",
+      author: "author-a",
+      authorIsBot: false,
+      mergedBy: "merger",
+    });
+    expect(result[0].reviews).toHaveLength(1);
+    expect(result[0].commitMessages).toEqual([
+      "fix: something",
+    ]);
+  });
+
+  it("uses 'ghost' when PR author is null", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        author: null,
+      }),
+    ]);
+    expect(result[0].author).toBe("ghost");
+    expect(result[0].authorIsBot).toBe(false);
+  });
+
+  it("detects bot PR author", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        author: {
+          login: "renovate[bot]",
+          __typename: "Bot",
+        },
+      }),
+    ]);
+    expect(result[0].authorIsBot).toBe(true);
+  });
+
+  it("returns null mergedBy when not merged", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        mergedBy: null,
+        mergedAt: null,
+        state: "OPEN",
+      }),
+    ]);
+    expect(result[0].mergedBy).toBeNull();
+  });
+
+  it("warns when reviews reach MAX_REVIEWS_PER_PR", () => {
+    const reviews = Array.from(
+      {
+        length: 100,
+      },
+      () => makeRawReview(),
+    );
+    normalizePullRequests([
+      makeRawNode({
+        number: 42,
+        reviews: {
+          nodes: reviews,
+        },
+      }),
+    ]);
+    expect(logger.warning).toHaveBeenCalledWith(
+      expect.stringContaining("PR #42"),
+    );
+    expect(logger.warning).toHaveBeenCalledWith(
+      expect.stringContaining("truncated"),
+    );
+  });
+
+  it("does not warn when reviews are below threshold", () => {
+    normalizePullRequests([
+      makeRawNode(),
+    ]);
+    expect(logger.warning).not.toHaveBeenCalled();
+  });
+
+  it("extracts User review requests by login", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        reviewRequests: {
+          nodes: [
+            {
+              requestedReviewer: {
+                login: "alice",
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+    expect(result[0].reviewRequests).toEqual([
+      "alice",
+    ]);
+  });
+
+  it("extracts Team review requests by name", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        reviewRequests: {
+          nodes: [
+            {
+              requestedReviewer: {
+                name: "core-team",
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+    expect(result[0].reviewRequests).toEqual([
+      "core-team",
+    ]);
+  });
+
+  it("filters out null requestedReviewer", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        reviewRequests: {
+          nodes: [
+            {
+              requestedReviewer: null,
+            },
+          ],
+        },
+      }),
+    ]);
+    expect(result[0].reviewRequests).toEqual([]);
+  });
+
+  it("normalizes multiple PRs", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        number: 1,
+      }),
+      makeRawNode({
+        number: 2,
+      }),
+      makeRawNode({
+        number: 3,
+      }),
+    ]);
+    expect(result).toHaveLength(3);
+    expect(result.map((pr) => pr.number)).toEqual([
+      1,
+      2,
+      3,
+    ]);
+  });
+
+  it("handles empty nodes array", () => {
+    const result = normalizePullRequests([]);
+    expect(result).toEqual([]);
+  });
+});
