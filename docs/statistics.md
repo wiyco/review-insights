@@ -1,0 +1,130 @@
+# Statistical Methodology
+
+This document defines the metrics computed by review-insights and their mathematical foundations.
+
+## Per-user statistics
+
+Source: `per-user-stats.ts`
+
+### reviewsGiven
+
+Number of **unique PRs** a user reviewed (not total review submissions). If a reviewer submits multiple reviews on the same PR, it counts as 1.
+
+$$\text{reviewsGiven}(u) = |\{pr \mid \exists\, r \in pr.\text{reviews},\; r.\text{reviewer} = u\}|$$
+
+### reviewsReceived
+
+Total review submissions received across all PRs authored by a user. Multiple reviews on the same PR each count separately.
+
+$$\text{reviewsReceived}(u) = \sum_{pr \in \text{PRs}(u)} |\{r \in pr.\text{reviews} \mid r.\text{reviewer} \neq u\}|$$
+
+### approvals, changeRequests, comments, dismissed
+
+Count of review submissions by state for each reviewer. These are per-submission counts (not per-PR), so:
+
+$$\text{approvals}(u) + \text{changeRequests}(u) + \text{comments}(u) + \text{dismissed}(u) \geq \text{reviewsGiven}(u)$$
+
+The inequality holds because the left side counts every submission while the right counts unique PRs.
+
+### avgTimeToFirstReview
+
+For each PR authored by a user, the time from PR creation to the earliest qualifying review. Averaged across all PRs that received at least one review.
+
+$$\text{avgTimeToFirstReview}(u) = \frac{1}{|P_u|} \sum_{pr \in P_u} (\min_{r \in pr.\text{reviews}} r.\text{createdAt} - pr.\text{createdAt})$$
+
+where $P_u$ is the set of PRs authored by $u$ that have at least one qualifying review with `createdAt >= pr.createdAt`.
+
+## Bias detection
+
+Source: `bias-detector.ts`
+
+### Review matrix
+
+A matrix $M$ where $M[reviewer][author]$ is the count of review submissions from reviewer to author. Every qualifying review submission is counted (not unique PRs), capturing the full frequency of interactions.
+
+### Z-Score
+
+For each reviewer-author pair, the z-score measures how many standard deviations the pair's count is above the population mean.
+
+$$z_{ij} = \frac{M_{ij} - \mu}{\sigma}$$
+
+where:
+
+- $\mu = \frac{1}{n} \sum_{ij} M_{ij}$ (mean across all non-zero cells)
+- $\sigma = \sqrt{\frac{1}{n} \sum_{ij} (M_{ij} - \mu)^2}$ (population standard deviation)
+- $n$ = number of non-zero (populated) reviewer-author pairs in the matrix
+
+A pair is flagged when $M_{ij} > \mu + t \cdot \sigma$, where $t$ is the `bias-threshold` input (default: 2.0).
+
+Note: the population standard deviation ($\div n$) is used, not the sample standard deviation ($\div (n-1)$). This is appropriate because the matrix represents the complete observed review population within the analysis window, not a sample drawn from a larger population.
+
+### Gini coefficient
+
+Measures inequality of review distribution. Computed from the sorted array of all matrix cell values $x_1 \leq x_2 \leq \cdots \leq x_n$:
+
+$$G = \frac{2 \sum_{i=1}^{n} i \cdot x_i}{n \sum_{i=1}^{n} x_i} - \frac{n+1}{n}$$
+
+- $G = 0$: perfectly equal distribution (every pair has the same review count)
+- $G \to 1$: maximally unequal (all reviews concentrated in one pair)
+
+> [!NOTE]
+>
+> **Note on structural zeros**
+>
+> Both the z-score and Gini coefficient are computed exclusively over populated (non-zero) cells of the review matrix. Reviewer-author pairs with zero interactions are excluded. This means:
+>
+> - If only one pair exists in the matrix, $G = 0$ and $\sigma = 0$ regardless of the count — there is no inequality to measure with a single data point.
+> - In sparse matrices (typical for real teams), including structural zeros would drive the mean close to zero and inflate standard deviations, causing nearly every active pair to appear as an outlier. The populated-cells-only approach avoids this false-positive noise and focuses on detecting skew *among pairs that actually interact*.
+
+## Merge correlation
+
+Source: `merge-correlation.ts`
+
+### avgReviewsBeforeMerge
+
+For each author, the average number of qualifying review submissions on their merged PRs.
+
+$$\text{avgReviewsBeforeMerge}(u) = \frac{\sum_{pr \in M_u} |pr.\text{reviews}|}{|M_u|}$$
+
+where $M_u$ is the set of merged PRs authored by $u$, and reviews are filtered by the same bot/PENDING rules.
+
+### zeroReviewMerges
+
+Count of merged PRs by an author that had zero qualifying reviews.
+
+$$\text{zeroReviewMerges}(u) = |\{pr \in M_u \mid |pr.\text{reviews}| = 0\}|$$
+
+## AI / Bot patterns
+
+Source: `ai-patterns.ts`
+
+This module ignores the `include-bots` flag and always operates on the full unfiltered dataset.
+
+### botReviewPercentage
+
+$$\text{botReviewPercentage} = \frac{\sum_{b \in \text{bots}} \text{reviewCount}(b)}{\text{totalReviews}} \times 100$$
+
+where totalReviews includes all reviews (including PENDING and bot reviews) across all PRs.
+
+> [!NOTE]
+>
+> **Note on PENDING review counting**
+>
+> This module intentionally counts PENDING reviews in `totalReviews`, unlike `per-user-stats.ts`, `bias-detector.ts`, and `merge-correlation.ts` which exclude them. The purpose of this module is to observe the full scope of bot activity, and PENDING bot reviews (e.g., automated checks in progress) are part of that picture. As a result, `botReviewPercentage` has a different denominator than metrics in other modules — direct cross-module comparison of review counts should account for this difference.
+
+### coAuthoredPRs
+
+Count of PRs where any commit message matches the pattern `Co-authored-by:` (case-insensitive). Only the last commit per PR is inspected (GraphQL limitation), so this is a lower-bound estimate.
+
+## HTML report KPIs
+
+Source: `html-report.ts`
+
+| KPI | Definition |
+|---|---|
+| Pull Requests | `filteredPRs.length` — total PRs after bot filtering |
+| Unique PR Reviews | $\sum_u \text{reviewsGiven}(u)$ — sum of unique PRs reviewed per user (double-counts PRs reviewed by multiple people) |
+| Active Reviewers | Count of users with `reviewsGiven > 0` |
+| PR Authors | Count of distinct `pr.author` values in filtered PRs |
+| Avg Reviewers/PR | Unique PR Reviews $\div$ Pull Requests |
+| Gini Coefficient | From bias detection (see above) |
