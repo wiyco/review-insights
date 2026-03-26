@@ -21,6 +21,8 @@ const BOT_LOGIN_SUFFIXES = [
 
 const AI_TOOL_PREFIXES = [
   "openclaw-",
+  "devin-ai-integration",
+  "copilot-swe-agent",
 ] as const;
 
 /**
@@ -165,7 +167,7 @@ export function normalizePullRequests(
 ): PullRequestRecord[] {
   return rawNodes.map((node) => {
     const author = node.author?.login ?? UNKNOWN_USER;
-    const authorIsBot = isBot(node.author);
+    const authorIsBot = isAIToolAccount(author) ? false : isBot(node.author);
     const state: PullRequestState = node.state;
 
     if (node.reviews.nodes.length >= MAX_REVIEWS_PER_PR) {
