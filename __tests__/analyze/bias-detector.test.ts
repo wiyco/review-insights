@@ -371,14 +371,12 @@ describe("detectBias", () => {
       expect(result.giniCoefficient).toBeCloseTo(2 / 3, 10);
     });
 
-    it("detects concentration when single pair exists in multi-user matrix", () => {
-      // bob reviews alice once. carol authors a PR reviewed by bob too,
-      // but dave also reviews carol. This creates a matrix with zeros.
+    it("reflects inequality across disjoint reviewer-author pairs with structural zeros", () => {
+      // bob reviews alice once, dave reviews carol 10 times.
       // Reviewers: {bob, dave}, Authors: {alice, carol}. No overlap.
-      // Cells: 2*2=4. bob→alice=1, bob→carol=0, dave→alice=0, dave→carol=1.
-      // Values: [0, 0, 1, 1]. Gini = 0 (equal among the 4 cells).
-      // But if dave reviews carol 10 times:
-      // Values: [0, 0, 1, 10], n=4, sum=11.
+      // Total cells = 2*2 - 0 = 4. Non-zero: 2 (bob→alice=1, dave→carol=10).
+      // Zero cells: 2 (bob→carol=0, dave→alice=0).
+      // Gini values sorted: [0, 0, 1, 10], n=4, sum=11.
       // G = 2*(1*0+2*0+3*1+4*10)/(4*11) - 5/4 = 86/44 - 55/44 = 31/44 ≈ 0.705
       const prs: PullRequestRecord[] = [
         makePR({
