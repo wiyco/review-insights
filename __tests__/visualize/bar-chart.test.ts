@@ -15,6 +15,7 @@ function makeUserStats(
     comments: 0,
     dismissed: 0,
     avgTimeToFirstReviewMs: null,
+    medianTimeToFirstReviewMs: null,
     ...overrides,
   };
 }

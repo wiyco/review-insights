@@ -409,6 +409,111 @@ describe("computeUserStats", () => {
       const alice = findUser(stats, "alice");
       // Review was before PR creation, so no valid first-review time
       expect(alice?.avgTimeToFirstReviewMs).toBeNull();
+      expect(alice?.medianTimeToFirstReviewMs).toBeNull();
+    });
+  });
+
+  describe("medianTimeToFirstReviewMs", () => {
+    it("returns the middle value for odd number of PRs", () => {
+      // 3 PRs with first-review latencies: 1h, 3h, 10h
+      // median = 3h, avg = (1+3+10)/3 ≈ 4.67h
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 801,
+          author: "alice",
+          createdAt: "2025-06-01T10:00:00Z",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              createdAt: "2025-06-01T11:00:00Z",
+              prNumber: 801,
+            }),
+          ],
+        }),
+        makePR({
+          number: 802,
+          author: "alice",
+          createdAt: "2025-06-01T10:00:00Z",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              createdAt: "2025-06-01T13:00:00Z",
+              prNumber: 802,
+            }),
+          ],
+        }),
+        makePR({
+          number: 803,
+          author: "alice",
+          createdAt: "2025-06-01T10:00:00Z",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              createdAt: "2025-06-01T20:00:00Z",
+              prNumber: 803,
+            }),
+          ],
+        }),
+      ];
+
+      const stats = computeUserStats(prs, true);
+      const alice = findUser(stats, "alice");
+      expect(alice?.medianTimeToFirstReviewMs).toBe(3 * 60 * 60 * 1000);
+    });
+
+    it("returns the average of two middle values for even number of PRs", () => {
+      // 2 PRs with first-review latencies: 1h, 5h
+      // median = (1+5)/2 = 3h
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 811,
+          author: "alice",
+          createdAt: "2025-06-01T10:00:00Z",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              createdAt: "2025-06-01T11:00:00Z",
+              prNumber: 811,
+            }),
+          ],
+        }),
+        makePR({
+          number: 812,
+          author: "alice",
+          createdAt: "2025-06-01T10:00:00Z",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              createdAt: "2025-06-01T15:00:00Z",
+              prNumber: 812,
+            }),
+          ],
+        }),
+      ];
+
+      const stats = computeUserStats(prs, true);
+      const alice = findUser(stats, "alice");
+      expect(alice?.medianTimeToFirstReviewMs).toBe(3 * 60 * 60 * 1000);
+    });
+
+    it("returns null when author has no reviewed PRs", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 821,
+          author: "alice",
+          createdAt: "2025-06-01T10:00:00Z",
+          reviews: [],
+        }),
+      ];
+
+      const stats = computeUserStats(prs, true);
+      const alice = findUser(stats, "alice");
+      expect(alice?.medianTimeToFirstReviewMs).toBeNull();
     });
   });
 

@@ -61,6 +61,7 @@ function makeAnalysis(): AnalysisResult {
         comments: 3,
         dismissed: 0,
         avgTimeToFirstReviewMs: 3600000,
+        medianTimeToFirstReviewMs: 3600000,
       },
       {
         login: "bob",
@@ -71,6 +72,7 @@ function makeAnalysis(): AnalysisResult {
         comments: 2,
         dismissed: 0,
         avgTimeToFirstReviewMs: 7200000,
+        medianTimeToFirstReviewMs: 7200000,
       },
     ],
     mergeCorrelations: [],
@@ -406,6 +408,44 @@ describe("postPRComment", () => {
 
     const body = mock.createComment.mock.calls[0][0].body as string;
     expect(body).toContain("N/A");
+  });
+
+  it("comment body contains Median 1st Review column header and formatted value", async () => {
+    const { mock, octokit } = makeOctokit([]);
+    const analysis = makeAnalysis();
+    analysis.userStats = [
+      {
+        ...analysis.userStats[0],
+        avgTimeToFirstReviewMs: 3600000,
+        medianTimeToFirstReviewMs: 7200000,
+      },
+    ];
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
+
+    const body = mock.createComment.mock.calls[0][0].body as string;
+    expect(body).toContain("Median 1st Review");
+    // avg=1.0h then median=2.0h in the same row, pipe-separated
+    expect(body).toMatch(/1\.0h \| 2\.0h/);
+  });
+
+  it("comment body shows N/A for null medianTimeToFirstReviewMs", async () => {
+    const { mock, octokit } = makeOctokit([]);
+    const analysis = makeAnalysis();
+    analysis.userStats = [
+      {
+        ...analysis.userStats[0],
+        avgTimeToFirstReviewMs: null,
+        medianTimeToFirstReviewMs: null,
+      },
+    ];
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
+
+    const body = mock.createComment.mock.calls[0][0].body as string;
+    expect(body).toContain("Median 1st Review");
+    // Both avg and median null → row contains two N/A values
+    expect(body).toMatch(/N\/A \| N\/A/);
   });
 
   it("excludes bot-authored PRs from totalPRs when includeBots is false", async () => {
