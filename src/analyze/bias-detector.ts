@@ -97,7 +97,25 @@ export function detectBias(
 
   flaggedPairs.sort((a, b) => b.zScore - a.zScore);
 
-  const giniCoefficient = computeGiniCoefficient(allValues);
+  // Build the full matrix (including structural zeros) for Gini coefficient.
+  // The total number of possible reviewer-author cells is |reviewers| × |authors|
+  // minus self-review pairs (users who appear as both reviewer and author).
+  const reviewers = new Set(matrix.keys());
+  const authors = new Set<string>();
+  for (const row of matrix.values()) {
+    for (const author of row.keys()) {
+      authors.add(author);
+    }
+  }
+  let selfPairs = 0;
+  for (const r of reviewers) {
+    if (authors.has(r)) selfPairs++;
+  }
+  const totalCells = reviewers.size * authors.size - selfPairs;
+  const zeroCellCount = totalCells - allValues.length;
+  const giniValues = new Array<number>(zeroCellCount).fill(0).concat(allValues);
+
+  const giniCoefficient = computeGiniCoefficient(giniValues);
 
   return {
     matrix,
