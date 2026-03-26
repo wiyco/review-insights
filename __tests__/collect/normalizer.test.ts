@@ -139,6 +139,14 @@ describe("isAIToolAccount", () => {
   it("returns false for bot accounts", () => {
     expect(isAIToolAccount("dependabot[bot]")).toBe(false);
   });
+
+  it("returns true for devin-ai-integration[bot]", () => {
+    expect(isAIToolAccount("devin-ai-integration[bot]")).toBe(true);
+  });
+
+  it("returns true for copilot-swe-agent[bot]", () => {
+    expect(isAIToolAccount("copilot-swe-agent[bot]")).toBe(true);
+  });
 });
 
 describe("hasAICoAuthor", () => {
@@ -504,6 +512,32 @@ describe("normalizePullRequests", () => {
       makeRawNode(),
     ]);
     expect(result[0].aiCategory).toBe("human-only");
+  });
+
+  it("classifies Devin AI as ai-authored with authorIsBot false", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        author: {
+          login: "devin-ai-integration[bot]",
+          __typename: "Bot",
+        },
+      }),
+    ]);
+    expect(result[0].aiCategory).toBe("ai-authored");
+    expect(result[0].authorIsBot).toBe(false);
+  });
+
+  it("classifies Copilot coding agent as ai-authored with authorIsBot false", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        author: {
+          login: "copilot-swe-agent[bot]",
+          __typename: "Bot",
+        },
+      }),
+    ]);
+    expect(result[0].aiCategory).toBe("ai-authored");
+    expect(result[0].authorIsBot).toBe(false);
   });
 
   it("ai-authored takes precedence over ai-assisted", () => {

@@ -47,7 +47,7 @@ For full descriptions and validation rules, see [docs/inputs.md](docs/inputs.md)
 
 > [!NOTE]
 >
-> `include-bots` controls traditional bot accounts (Dependabot, Renovate, etc.) only. AI tool accounts (e.g., OpenClaw) are always included in analysis because they produce substantive code changes that require peer review. See [docs/ai-human-review-burden.md](docs/ai-human-review-burden.md) for classification details.
+> `include-bots` controls traditional bot accounts (Dependabot, Renovate, etc.) only. AI tool accounts (e.g., OpenClaw, Devin, Copilot) are always included in analysis because they produce substantive code changes that require peer review. See [docs/ai-human-review-burden.md](docs/ai-human-review-burden.md) for classification details.
 
 ## Outputs
 

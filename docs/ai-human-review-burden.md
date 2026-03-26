@@ -21,8 +21,16 @@ An account is an AI tool account if its login matches any of the following **pre
 | Prefix | Tool |
 |---|---|
 | `openclaw-` | OpenClaw (Claude, Codex, etc.) |
+| `devin-ai-integration` | Devin AI |
+| `copilot-swe-agent` | GitHub Copilot coding agent |
 
-AI tool accounts are **distinct from bots**. The existing `isBot()` function (which detects `__typename === "Bot"`, `[bot]` suffix, `-bot` suffix) is not modified. A PR authored by an AI tool account has `authorIsBot === false` but `aiCategory === "ai-authored"`.
+AI tool accounts are **distinct from bots**. Even when an AI tool account's login matches bot detection patterns (e.g., `devin-ai-integration[bot]` has the `[bot]` suffix), the AI tool account classification takes precedence. A PR authored by an AI tool account has `authorIsBot === false` but `aiCategory === "ai-authored"`.
+
+> [!IMPORTANT]
+>
+> **Precedence rule**
+>
+> `isAIToolAccount()` is evaluated before `isBot()`. If a login matches both, the account is treated as an AI tool account, not a bot.
 
 > [!TIP]
 >
