@@ -329,6 +329,89 @@ describe("detectBias", () => {
       expect(result.matrix.size).toBe(0);
       expect(result.flaggedPairs).toEqual([]);
     });
+
+    it("includes structural zeros in Gini calculation", () => {
+      // bob reviews alice 5 times, carol reviews dave once.
+      // Reviewers: {bob, carol}, Authors: {alice, dave}. No overlap.
+      // Total cells = 2*2 - 0 = 4. Non-zero: 2. Zero: 2.
+      // Gini values sorted: [0, 0, 1, 5], n=4, sum=6.
+      // G = 2*(1*0 + 2*0 + 3*1 + 4*5)/(4*6) - 5/4 = 46/24 - 30/24 = 16/24 = 2/3
+      const prs: PullRequestRecord[] = [];
+      for (let i = 1; i <= 5; i++) {
+        prs.push(
+          makePR({
+            number: i,
+            author: "alice",
+            reviews: [
+              makeReview({
+                reviewer: "bob",
+                author: "alice",
+                prNumber: i,
+              }),
+            ],
+          }),
+        );
+      }
+      prs.push(
+        makePR({
+          number: 6,
+          author: "dave",
+          reviews: [
+            makeReview({
+              reviewer: "carol",
+              author: "dave",
+              prNumber: 6,
+            }),
+          ],
+        }),
+      );
+
+      const result = detectBias(prs, 2.0, false);
+      // With zeros: 2/3 ≈ 0.667. Without zeros (old): 1/3 ≈ 0.333.
+      expect(result.giniCoefficient).toBeCloseTo(2 / 3, 10);
+    });
+
+    it("detects concentration when single pair exists in multi-user matrix", () => {
+      // bob reviews alice once. carol authors a PR reviewed by bob too,
+      // but dave also reviews carol. This creates a matrix with zeros.
+      // Reviewers: {bob, dave}, Authors: {alice, carol}. No overlap.
+      // Cells: 2*2=4. bob→alice=1, bob→carol=0, dave→alice=0, dave→carol=1.
+      // Values: [0, 0, 1, 1]. Gini = 0 (equal among the 4 cells).
+      // But if dave reviews carol 10 times:
+      // Values: [0, 0, 1, 10], n=4, sum=11.
+      // G = 2*(1*0+2*0+3*1+4*10)/(4*11) - 5/4 = 86/44 - 55/44 = 31/44 ≈ 0.705
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              prNumber: 1,
+            }),
+          ],
+        }),
+      ];
+      for (let i = 2; i <= 11; i++) {
+        prs.push(
+          makePR({
+            number: i,
+            author: "carol",
+            reviews: [
+              makeReview({
+                reviewer: "dave",
+                author: "carol",
+                prNumber: i,
+              }),
+            ],
+          }),
+        );
+      }
+
+      const result = detectBias(prs, 2.0, false);
+      expect(result.giniCoefficient).toBeCloseTo(31 / 44, 10);
+    });
   });
 
   describe("bot filtering", () => {
