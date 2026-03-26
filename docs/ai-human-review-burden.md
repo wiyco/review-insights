@@ -24,7 +24,11 @@ An account is an AI tool account if its login matches any of the following **pre
 
 AI tool accounts are **distinct from bots**. The existing `isBot()` function (which detects `__typename === "Bot"`, `[bot]` suffix, `-bot` suffix) is not modified. A PR authored by an AI tool account has `authorIsBot === false` but `aiCategory === "ai-authored"`.
 
-> **Rationale:** Traditional bots (Dependabot, Renovate) perform mechanical dependency updates. AI tool accounts produce substantive code changes that require genuine peer review. Conflating them would distort both bot metrics and human review burden analysis.
+> [!TIP]
+>
+> **Rationale**
+>
+> Traditional bots (Dependabot, Renovate) perform mechanical dependency updates. AI tool accounts produce substantive code changes that require genuine peer review. Conflating them would distort both bot metrics and human review burden analysis.
 
 ### AI co-author detection
 
@@ -116,7 +120,11 @@ Let $x_i = |R_{\text{human}}(pr_i)|$ for each $pr_i \in PR_g$, sorted in ascendi
 
 All three return `null` when $|PR_g| = 0$.
 
-> **Rationale:** Review counts follow a right-skewed distribution. The median captures typical burden, p90 captures worst-case burden, and the mean is provided for backward compatibility but should not be used alone for comparison.
+> [!TIP]
+>
+> **Rationale**
+>
+> Review counts follow a right-skewed distribution. The median captures typical burden, p90 captures worst-case burden, and the mean is provided for backward compatibility but should not be used alone for comparison.
 
 #### Percentile computation
 
@@ -154,7 +162,11 @@ where $P_g$ is the subset of $PR_g$ with at least one qualifying human review.
 
 Returns `null` when $|PR_g| = 0$.
 
-> **Interpretation:** If `unreviewedRate` is significantly higher for AI-authored PRs than human-only PRs, the latency comparison is incomplete — the "missing" PRs may represent the hardest-to-review work. A high `unreviewedRate` is itself an indicator of review burden (avoidance).
+> [!TIP]
+>
+> **Interpretation**
+>
+> If `unreviewedRate` is significantly higher for AI-authored PRs than human-only PRs, the latency comparison is incomplete — the "missing" PRs may represent the hardest-to-review work. A high `unreviewedRate` is itself an indicator of review burden (avoidance).
 
 #### changeRequestRate — Per-PR macro average
 
@@ -173,7 +185,11 @@ Then:
 
 Both return `null` when $|Q_g| = 0$.
 
-> **Rationale:** The macro average weights each PR equally, regardless of how many reviews it received. This prevents a single PR with 50 `CHANGES_REQUESTED` reviews from inflating the group rate. The median further protects against outlier PRs.
+> [!TIP]
+>
+> **Rationale**
+>
+> The macro average weights each PR equally, regardless of how many reviews it received. This prevents a single PR with 50 `CHANGES_REQUESTED` reviews from inflating the group rate. The median further protects against outlier PRs.
 
 #### reviewRounds — Review iteration distribution
 
@@ -198,7 +214,11 @@ All per-group metrics above are computed **twice**:
 
 The stratified view controls for the confounding effect of PR size. Comparing AI-authored vs human-only PRs **within the same size tier** isolates the effect of AI involvement from the effect of PR size.
 
-> **Example:** If AI-authored Large PRs have a median of 3 review rounds while human-only Large PRs have a median of 2, the difference is more likely attributable to AI involvement than to PR size.
+> [!TIP]
+>
+> **Example**
+>
+> If AI-authored Large PRs have a median of 3 review rounds while human-only Large PRs have a median of 2, the difference is more likely attributable to AI involvement than to PR size.
 
 Groups with fewer than 3 PRs in a given size tier report `null` for all metrics in that cell to avoid misleading statistics from tiny samples.
 
