@@ -12,7 +12,7 @@ import {
   type RawReview,
 } from "./graphql-queries";
 
-const UNKNOWN_USER = "ghost";
+export const UNKNOWN_USER = "ghost";
 
 const BOT_LOGIN_SUFFIXES = [
   "[bot]",
