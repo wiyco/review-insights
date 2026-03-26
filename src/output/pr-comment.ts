@@ -39,7 +39,7 @@ function buildCommentBody(analysis: AnalysisResult): string {
     .slice(0, 15)
     .map(
       (u) =>
-        `| ${escapeHtml(u.login)} | ${u.reviewsGiven} | ${u.reviewsReceived} | ${u.approvals} | ${u.changeRequests} | ${u.avgTimeToFirstReviewMs != null ? formatDuration(u.avgTimeToFirstReviewMs) : "N/A"} |`,
+        `| ${escapeHtml(u.login)} | ${u.reviewsGiven} | ${u.reviewsReceived} | ${u.approvals} | ${u.changeRequests} | ${u.avgTimeToFirstReviewMs != null ? formatDuration(u.avgTimeToFirstReviewMs) : "N/A"} | ${u.medianTimeToFirstReviewMs != null ? formatDuration(u.medianTimeToFirstReviewMs) : "N/A"} |`,
     )
     .join("\n");
 
@@ -68,8 +68,8 @@ ${truncationWarning}**Date range:** ${escapeHtml(dateRange.since)} to ${escapeHt
 
 ### Reviewer Stats
 
-| User | Given <sup title="Unique PRs reviewed">?</sup> | Received <sup title="Total review submissions received, including multiple reviews on the same PR">?</sup> | Approvals | Change Requests | Avg 1st Review |
-|------|-------|----------|-----------|-----------------|----------------|
+| User | Given <sup title="Unique PRs reviewed">?</sup> | Received <sup title="Total review submissions received, including multiple reviews on the same PR">?</sup> | Approvals | Change Requests | Avg 1st Review | Median 1st Review |
+|------|-------|----------|-----------|-----------------|----------------|-------------------|
 ${statsRows}
 
 ${biasSection}

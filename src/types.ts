@@ -62,6 +62,7 @@ export interface UserReviewStats {
   comments: number;
   dismissed: number;
   avgTimeToFirstReviewMs: number | null;
+  medianTimeToFirstReviewMs: number | null;
 }
 
 /** Per-author merge statistics. */
@@ -70,6 +71,7 @@ export interface MergeCorrelation {
   prsAuthored: number;
   prsMerged: number;
   avgReviewsBeforeMerge: number;
+  medianReviewsBeforeMerge: number | null;
   zeroReviewMerges: number;
 }
 

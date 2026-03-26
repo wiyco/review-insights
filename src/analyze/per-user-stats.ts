@@ -1,8 +1,9 @@
 import type { PullRequestRecord, UserReviewStats } from "../types";
+import { computeMedian } from "../utils/median";
 
 /**
  * Computes per-user review statistics from pull request data.
- * Tracks reviews given/received, approval counts, and average time to first review.
+ * Tracks reviews given/received, approval counts, and average/median time to first review.
  */
 export function computeUserStats(
   pullRequests: PullRequestRecord[],
@@ -107,11 +108,11 @@ export function computeUserStats(
   const results: UserReviewStats[] = [];
 
   for (const [login, stats] of statsMap) {
+    const times = stats.firstReviewTimesMs;
     const avgTimeToFirstReviewMs =
-      stats.firstReviewTimesMs.length > 0
-        ? stats.firstReviewTimesMs.reduce((a, b) => a + b, 0) /
-          stats.firstReviewTimesMs.length
-        : null;
+      times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : null;
+
+    const medianTimeToFirstReviewMs = computeMedian(times);
 
     results.push({
       login,
@@ -122,6 +123,7 @@ export function computeUserStats(
       comments: stats.comments,
       dismissed: stats.dismissed,
       avgTimeToFirstReviewMs,
+      medianTimeToFirstReviewMs,
     });
   }
 

@@ -62,6 +62,7 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
         <td>${u.changeRequests}</td>
         <td>${u.comments}</td>
         <td>${u.avgTimeToFirstReviewMs != null ? formatDuration(u.avgTimeToFirstReviewMs) : "N/A"}</td>
+        <td>${u.medianTimeToFirstReviewMs != null ? formatDuration(u.medianTimeToFirstReviewMs) : "N/A"}</td>
       </tr>`,
     )
     .join("\n");
@@ -76,6 +77,7 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
         <td>${m.prsAuthored}</td>
         <td>${m.prsMerged}</td>
         <td>${m.avgReviewsBeforeMerge.toFixed(1)}</td>
+        <td>${m.medianReviewsBeforeMerge != null ? m.medianReviewsBeforeMerge.toFixed(1) : "N/A"}</td>
         <td class="${m.zeroReviewMerges > 0 ? "warn" : ""}">${m.zeroReviewMerges}</td>
       </tr>`,
     )
@@ -186,7 +188,7 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
   <div class="card">
     <h2>Summary Statistics</h2>
     <table>
-      <thead><tr><th>User</th><th title="Unique PRs reviewed">Given</th><th title="Total review submissions received (includes multiple reviews on the same PR)">Received</th><th>Approvals</th><th>Change Requests</th><th>Comments</th><th>Avg Time to 1st Review</th></tr></thead>
+      <thead><tr><th>User</th><th title="Unique PRs reviewed">Given</th><th title="Total review submissions received (includes multiple reviews on the same PR)">Received</th><th>Approvals</th><th>Change Requests</th><th>Comments</th><th>Avg Time to 1st Review</th><th>Median Time to 1st Review</th></tr></thead>
       <tbody>${summaryRows}</tbody>
     </table>
   </div>
@@ -219,7 +221,7 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
   <div class="card">
     <h2>Merge Correlations</h2>
     <table>
-      <thead><tr><th>User</th><th>PRs Authored</th><th>PRs Merged</th><th>Avg Reviews Before Merge</th><th>Zero-Review Merges</th></tr></thead>
+      <thead><tr><th>User</th><th>PRs Authored</th><th>PRs Merged</th><th>Avg Reviews Before Merge</th><th>Median Reviews Before Merge</th><th>Zero-Review Merges</th></tr></thead>
       <tbody>${mergeRows}</tbody>
     </table>
   </div>
