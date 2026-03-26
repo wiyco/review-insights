@@ -45,6 +45,10 @@ jobs:
 
 For full descriptions and validation rules, see [docs/inputs.md](docs/inputs.md).
 
+> [!NOTE]
+>
+> `include-bots` controls traditional bot accounts (Dependabot, Renovate, etc.) only. AI tool accounts (e.g., OpenClaw) are always included in analysis because they produce substantive code changes that require peer review. See [docs/ai-human-review-burden.md](docs/ai-human-review-burden.md) for classification details.
+
 ## Outputs
 
 | Output | Description |
@@ -86,7 +90,7 @@ Uploads a self-contained HTML report as a downloadable artifact.
 
 For detailed metric definitions, see [docs/statistics.md](docs/statistics.md).
 For filtering behavior, see [docs/filtering.md](docs/filtering.md).
-For the AI/bot review burden methodology, see [docs/ai-human-review-burden.md](docs/ai-human-review-burden.md).
+For the AI impact on human review burden methodology, see [docs/ai-human-review-burden.md](docs/ai-human-review-burden.md).
 
 ## Permissions
 
@@ -117,8 +121,6 @@ permissions:
 - **Co-authored-by detection is approximate.** Only the last commit of each PR is fetched from the GraphQL API (`commits(last: 1)`). This means co-authorship trailers on earlier commits are not inspected, and the result varies by merge strategy: merge commits typically do not carry the trailer, squash merges may or may not preserve it depending on the repository's settings, and rebase merges only expose the final commit. The `coAuthoredPRs` metric should be treated as a lower-bound estimate.
 - **Review data is capped at 100 per PR.** The GitHub GraphQL API limits nested connections. PRs with more than 100 reviews will have truncated data; a warning is shown when this occurs.
 - **Large repositories may cause long execution times.** When the GitHub API rate limit is exhausted during pagination, the action waits up to 5 minutes per reset cycle. For very active repositories with high `max-prs` values, this can result in extended run times. Set `timeout-minutes` in your workflow job to guard against this (e.g. `timeout-minutes: 15`), and consider using a shorter date range or lower `max-prs` value.
-- **AI tool accounts are distinct from bots.** Traditional bots (Dependabot, Renovate) are controlled by the `include-bots` flag. AI tool accounts (e.g., OpenClaw) are always included in analysis because they produce substantive code changes that require peer review. See [docs/ai-human-review-burden.md](docs/ai-human-review-burden.md) for classification details.
-
 ## Security
 
 - GitHub token is only passed to the Octokit client, never logged or written to files
