@@ -1,23 +1,40 @@
 import type { BiasResult, PullRequestRecord, ReviewMatrix } from "../types";
 
-/** Computes the Gini coefficient for a set of values (0 = equal, 1 = maximally unequal). */
-function computeGiniCoefficient(values: number[]): number {
-  if (values.length === 0) return 0;
+/**
+ * Computes the Gini coefficient (0 = equal, 1 = maximally unequal).
+ *
+ * @param nonZeroValues - The non-zero cell values from the matrix.
+ * @param totalCells - The total number of cells in the full matrix (including
+ *   structural zeros). When greater than `nonZeroValues.length`, the difference
+ *   is treated as zero-valued cells without materializing them — only the
+ *   non-zero values are sorted, and their rank indices are offset by the
+ *   implicit leading zeros.
+ */
+function computeGiniCoefficient(
+  nonZeroValues: number[],
+  totalCells: number,
+): number {
+  if (totalCells === 0) return 0;
 
   const sorted = [
-    ...values,
+    ...nonZeroValues,
   ].sort((a, b) => a - b);
-  const n = sorted.length;
   const total = sorted.reduce((a, b) => a + b, 0);
 
   if (total === 0) return 0;
 
+  const zeroCount = totalCells - sorted.length;
   let weightedSum = 0;
-  for (let i = 0; i < n; i++) {
-    weightedSum += (i + 1) * sorted[i];
+  // Zeros occupy ranks 1..zeroCount; their contribution is 0.
+  // Non-zero values occupy ranks (zeroCount+1)..(zeroCount+sorted.length).
+  for (let i = 0; i < sorted.length; i++) {
+    weightedSum += (zeroCount + i + 1) * sorted[i];
   }
 
-  return Math.max(0, (2 * weightedSum) / (n * total) - (n + 1) / n);
+  return Math.max(
+    0,
+    (2 * weightedSum) / (totalCells * total) - (totalCells + 1) / totalCells,
+  );
 }
 
 /**
@@ -97,25 +114,23 @@ export function detectBias(
 
   flaggedPairs.sort((a, b) => b.zScore - a.zScore);
 
-  // Build the full matrix (including structural zeros) for Gini coefficient.
-  // The total number of possible reviewer-author cells is |reviewers| × |authors|
-  // minus self-review pairs (users who appear as both reviewer and author).
+  // Build the full matrix dimensions for Gini coefficient.
+  // Reviewers: users with ≥1 qualifying review (from the matrix).
+  // Authors: all PR authors in the filtered set (including those with zero reviews).
+  // Self-review diagonal entries (user is both reviewer and author) are excluded.
   const reviewers = new Set(matrix.keys());
   const authors = new Set<string>();
-  for (const row of matrix.values()) {
-    for (const author of row.keys()) {
-      authors.add(author);
-    }
+  for (const pr of pullRequests) {
+    if (!includeBots && pr.authorIsBot) continue;
+    authors.add(pr.author);
   }
   let selfPairs = 0;
   for (const r of reviewers) {
     if (authors.has(r)) selfPairs++;
   }
   const totalCells = reviewers.size * authors.size - selfPairs;
-  const zeroCellCount = totalCells - allValues.length;
-  const giniValues = new Array<number>(zeroCellCount).fill(0).concat(allValues);
 
-  const giniCoefficient = computeGiniCoefficient(giniValues);
+  const giniCoefficient = computeGiniCoefficient(allValues, totalCells);
 
   return {
     matrix,
