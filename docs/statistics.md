@@ -71,10 +71,21 @@ $$G = \frac{2 \sum_{i=1}^{n} i \cdot x_i}{n \sum_{i=1}^{n} x_i} - \frac{n+1}{n}$
 >
 > **Note on structural zeros**
 >
-> Both the z-score and Gini coefficient are computed exclusively over populated (non-zero) cells of the review matrix. Reviewer-author pairs with zero interactions are excluded. This means:
+> The z-score and Gini coefficient use **different** treatments of zero cells in the review matrix, because they measure different things:
 >
-> - If only one pair exists in the matrix, $G = 0$ and $\sigma = 0$ regardless of the count — there is no inequality to measure with a single data point.
-> - In sparse matrices (typical for real teams), including structural zeros would drive the mean close to zero and inflate standard deviations, causing nearly every active pair to appear as an outlier. The populated-cells-only approach avoids this false-positive noise and focuses on detecting skew *among pairs that actually interact*.
+> **Z-score (non-zero cells only)**
+>
+> The z-score statistics ($\mu$, $\sigma$) are computed exclusively over populated (non-zero) cells. In sparse matrices (typical for real teams), including structural zeros would drive the mean close to zero and inflate standard deviations, causing nearly every active pair to appear as an outlier. The populated-cells-only approach avoids this false-positive noise and focuses on detecting skew *among pairs that actually interact*. If only one pair exists, $\sigma = 0$ and no pairs are flagged.
+>
+> **Gini coefficient (full matrix including zeros)**
+>
+> The Gini coefficient is computed over the **full** reviewer-author matrix, including zero cells. The total number of cells is $|R| \times |A| - |R \cap A|$, where:
+>
+> - $R$ = the set of users who submitted at least one qualifying review (i.e., the row keys of the review matrix)
+> - $A$ = the set of all PR authors in the filtered PR set, **including authors whose PRs received zero qualifying reviews**
+> - $R \cap A$ excludes self-review diagonal entries (a user who is both reviewer and author)
+>
+> Zero cells represent pairs that *could* interact but did not — this absence of interaction is essential for measuring inequality. Without zeros, a reviewer who reviews only one author would yield $G = 0$ (single data point), masking extreme concentration. The implementation avoids materializing the zero-padded array; only non-zero values are sorted, with rank indices offset by the implicit zero count.
 
 ## Merge correlation
 
