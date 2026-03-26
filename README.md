@@ -43,6 +43,8 @@ jobs:
 | `include-bots` | Include bot accounts in statistics ([details](docs/filtering.md)) | `false` |
 | `max-prs` | Maximum PRs to analyze (1–5000) | `500` |
 
+For full descriptions and validation rules, see [docs/inputs.md](docs/inputs.md).
+
 ## Outputs
 
 | Output | Description |
@@ -51,6 +53,8 @@ jobs:
 | `total-prs-analyzed` | Number of PRs analyzed |
 | `top-reviewer` | Login of the most active reviewer |
 | `bias-detected` | Whether review imbalance was detected (`true`/`false`) |
+
+For details on each output, see [docs/outputs.md](docs/outputs.md).
 
 ## Output Modes
 
@@ -79,7 +83,9 @@ Uploads a self-contained HTML report as a downloadable artifact.
 - **Bias detection** — Statistical imbalance via z-score and Gini coefficient
 - **AI/Bot patterns** — Bot review percentage, co-authored commits detection
 
-For detailed metric definitions, see [docs/statistics.md](docs/statistics.md). For filtering behavior, see [docs/filtering.md](docs/filtering.md).
+For detailed metric definitions, see [docs/statistics.md](docs/statistics.md).
+For filtering behavior, see [docs/filtering.md](docs/filtering.md).
+For the AI/bot review burden methodology, see [docs/ai-human-review-burden.md](docs/ai-human-review-burden.md).
 
 ## Permissions
 
