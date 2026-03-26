@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { postPRComment } from "../../src/output/pr-comment";
 import type { AnalysisResult } from "../../src/types";
+import { EMPTY_BURDEN } from "../fixtures/empty-burden";
 
 vi.mock("../../src/utils/logger", () => ({
   logger: {
@@ -83,6 +84,7 @@ function makeAnalysis(): AnalysisResult {
       coAuthoredPRs: 0,
       totalPRs: 10,
       botReviewPercentage: 0,
+      humanReviewBurden: EMPTY_BURDEN,
     },
     pullRequests: [],
     dateRange: {
@@ -272,6 +274,9 @@ describe("postPRComment", () => {
         reviews,
         reviewRequests: [],
         commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
       }),
     );
 
@@ -325,6 +330,9 @@ describe("postPRComment", () => {
         reviews,
         reviewRequests: [],
         commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
       },
     ];
 
@@ -418,6 +426,9 @@ describe("postPRComment", () => {
         reviews: [],
         reviewRequests: [],
         commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
       },
       {
         number: 2,
@@ -432,6 +443,9 @@ describe("postPRComment", () => {
         reviews: [],
         reviewRequests: [],
         commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
       },
     ];
 
@@ -459,6 +473,9 @@ describe("postPRComment", () => {
         reviews: [],
         reviewRequests: [],
         commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
       },
       {
         number: 2,
@@ -473,6 +490,9 @@ describe("postPRComment", () => {
         reviews: [],
         reviewRequests: [],
         commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
       },
     ];
 
@@ -513,6 +533,9 @@ describe("postPRComment", () => {
         reviews,
         reviewRequests: [],
         commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
       },
     ];
 

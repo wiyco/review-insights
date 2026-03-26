@@ -6,6 +6,7 @@ import type {
   UserReviewStats,
 } from "../../src/types";
 import { generateHtmlReport } from "../../src/visualize/html-report";
+import { EMPTY_BURDEN } from "../fixtures/empty-burden";
 
 vi.mock("../../src/utils/logger", () => ({
   logger: {
@@ -48,6 +49,9 @@ function makePR(overrides?: Partial<PullRequestRecord>): PullRequestRecord {
     commitMessages: [
       "fix: something",
     ],
+    additions: 10,
+    deletions: 5,
+    aiCategory: "human-only",
     ...overrides,
   };
 }
@@ -90,6 +94,7 @@ function makeAnalysis(overrides?: Partial<AnalysisResult>): AnalysisResult {
       coAuthoredPRs: 0,
       totalPRs: 1,
       botReviewPercentage: 0,
+      humanReviewBurden: EMPTY_BURDEN,
     },
     pullRequests: [
       makePR(),
@@ -189,6 +194,7 @@ describe("generateHtmlReport", () => {
           coAuthoredPRs: 2,
           totalPRs: 5,
           botReviewPercentage: 20,
+          humanReviewBurden: EMPTY_BURDEN,
         },
       }),
     );
@@ -306,6 +312,7 @@ describe("generateHtmlReport", () => {
             coAuthoredPRs: 0,
             totalPRs: 1,
             botReviewPercentage: 50,
+            humanReviewBurden: EMPTY_BURDEN,
           },
         }),
       );
@@ -375,6 +382,7 @@ describe("generateHtmlReport", () => {
           coAuthoredPRs: 0,
           totalPRs: 5,
           botReviewPercentage: 20,
+          humanReviewBurden: EMPTY_BURDEN,
         },
       }),
     );
@@ -476,6 +484,7 @@ describe("generateHtmlReport", () => {
             coAuthoredPRs: 0,
             totalPRs: 0,
             botReviewPercentage: 0,
+            humanReviewBurden: EMPTY_BURDEN,
           },
         }),
       );

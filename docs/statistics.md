@@ -116,6 +116,10 @@ where totalReviews includes all reviews (including PENDING and bot reviews) acro
 
 Count of PRs where any commit message matches the pattern `Co-authored-by:` (case-insensitive). Only the last commit per PR is inspected (GraphQL limitation), so this is a lower-bound estimate.
 
+### Human review burden (per AI category)
+
+See [ai-human-review-burden.md](ai-human-review-burden.md) for the full specification of PR classification (`ai-authored` / `ai-assisted` / `human-only`) and per-group human review burden metrics (`humanReviewsPerPR`, `firstReviewLatencyMs`, `unreviewedRate`, `changeRequestRate`, `reviewRounds`) — each reported as distribution statistics (median, p90, mean) rather than a single average.
+
 ## HTML report KPIs
 
 Source: `html-report.ts`

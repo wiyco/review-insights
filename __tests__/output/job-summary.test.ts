@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AnalysisResult } from "../../src/types";
+import { EMPTY_BURDEN } from "../fixtures/empty-burden";
 
 vi.mock("@actions/core", () => {
   const addedContent: string[] = [];
@@ -63,6 +64,7 @@ function makeAnalysis(): AnalysisResult {
       coAuthoredPRs: 0,
       totalPRs: 10,
       botReviewPercentage: 0,
+      humanReviewBurden: EMPTY_BURDEN,
     },
     pullRequests: [],
     dateRange: {
@@ -133,6 +135,9 @@ describe("writeJobSummary", () => {
         reviews: [],
         reviewRequests: [],
         commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
       },
       {
         number: 2,
@@ -147,6 +152,9 @@ describe("writeJobSummary", () => {
         reviews: [],
         reviewRequests: [],
         commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
       },
     ];
 
@@ -179,6 +187,9 @@ describe("writeJobSummary", () => {
         reviews: [],
         reviewRequests: [],
         commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
       },
       {
         number: 2,
@@ -193,6 +204,9 @@ describe("writeJobSummary", () => {
         reviews: [],
         reviewRequests: [],
         commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
       },
     ];
 

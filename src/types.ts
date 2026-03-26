@@ -45,6 +45,9 @@ export interface PullRequestRecord {
   reviews: ReviewRecord[];
   reviewRequests: string[];
   commitMessages: string[];
+  additions: number;
+  deletions: number;
+  aiCategory: AICategory;
 }
 
 /** Aggregated review statistics for a single user. */
@@ -88,10 +91,51 @@ export interface BiasResult {
   giniCoefficient: number;
 }
 
+/** Classification of a PR's AI involvement level. */
+export type AICategory = "ai-authored" | "ai-assisted" | "human-only";
+
+/** PR size tier based on total changed lines (additions + deletions). */
+export type PRSizeTier = "S" | "M" | "L" | "Empty";
+
 /** A bot account that has submitted reviews. */
 export interface BotReviewer {
   login: string;
   reviewCount: number;
+}
+
+/** Distribution statistics with outlier-resistant percentiles. */
+export interface DistributionStats {
+  median: number | null;
+  p90: number | null;
+  mean: number | null;
+}
+
+/** Human review burden metrics for a single PR group. */
+export interface HumanReviewBurdenGroup {
+  prCount: number;
+  humanReviewsPerPR: DistributionStats;
+  firstReviewLatencyMs: DistributionStats;
+  unreviewedRate: number | null;
+  changeRequestRate: {
+    median: number | null;
+    mean: number | null;
+  };
+  reviewRounds: DistributionStats;
+}
+
+/** Human review burden analysis across AI category groups and size tiers. */
+export interface HumanReviewBurden {
+  aiAuthored: HumanReviewBurdenGroup;
+  aiAssisted: HumanReviewBurdenGroup;
+  humanOnly: HumanReviewBurdenGroup;
+  stratifiedBySize: Record<
+    PRSizeTier,
+    {
+      aiAuthored: HumanReviewBurdenGroup | null;
+      aiAssisted: HumanReviewBurdenGroup | null;
+      humanOnly: HumanReviewBurdenGroup | null;
+    }
+  >;
 }
 
 /** Results of the AI/bot pattern analysis. */
@@ -100,6 +144,7 @@ export interface AIPatternResult {
   coAuthoredPRs: number;
   totalPRs: number;
   botReviewPercentage: number;
+  humanReviewBurden: HumanReviewBurden;
 }
 
 /** Supported output destinations for the report. */
