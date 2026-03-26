@@ -4,6 +4,8 @@ import type {
   RawReview,
 } from "../../src/collect/graphql-queries";
 import {
+  hasAICoAuthor,
+  isAIToolAccount,
   isBot,
   normalizePullRequests,
   normalizeReview,
@@ -42,6 +44,8 @@ function makeRawNode(
     createdAt: "2025-06-01T00:00:00Z",
     mergedAt: "2025-06-02T00:00:00Z",
     closedAt: "2025-06-02T00:00:00Z",
+    additions: 42,
+    deletions: 10,
     author: {
       login: "author-a",
       __typename: "User",
@@ -116,6 +120,94 @@ describe("isBot", () => {
         login: "alice",
       }),
     ).toBe(false);
+  });
+});
+
+describe("isAIToolAccount", () => {
+  it("returns true for openclaw- prefix", () => {
+    expect(isAIToolAccount("openclaw-myuser")).toBe(true);
+  });
+
+  it("is case-insensitive", () => {
+    expect(isAIToolAccount("OpenClaw-MyUser")).toBe(true);
+  });
+
+  it("returns false for regular user", () => {
+    expect(isAIToolAccount("alice")).toBe(false);
+  });
+
+  it("returns false for bot accounts", () => {
+    expect(isAIToolAccount("dependabot[bot]")).toBe(false);
+  });
+});
+
+describe("hasAICoAuthor", () => {
+  it("detects Claude Code co-author", () => {
+    expect(
+      hasAICoAuthor([
+        "feat: add feature\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+      ]),
+    ).toBe(true);
+  });
+
+  it("detects Claude with model name variant", () => {
+    expect(
+      hasAICoAuthor([
+        "fix: bug\n\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
+      ]),
+    ).toBe(true);
+  });
+
+  it("detects Cursor Agent co-author", () => {
+    expect(
+      hasAICoAuthor([
+        "feat: stuff\n\nCo-authored-by: Cursor Agent <cursoragent@cursor.com>",
+      ]),
+    ).toBe(true);
+  });
+
+  it("detects GitHub Copilot co-author", () => {
+    expect(
+      hasAICoAuthor([
+        "fix: thing\n\nCo-authored-by: copilot-swe-agent[bot] <198982749+Copilot@users.noreply.github.com>",
+      ]),
+    ).toBe(true);
+  });
+
+  it("detects Devin AI co-author", () => {
+    expect(
+      hasAICoAuthor([
+        "feat: impl\n\nCo-authored-by: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+      ]),
+    ).toBe(true);
+  });
+
+  it("returns false for non-AI co-author", () => {
+    expect(
+      hasAICoAuthor([
+        "feat: pair programming\n\nCo-authored-by: Bob <bob@example.com>",
+      ]),
+    ).toBe(false);
+  });
+
+  it("returns false for empty commit messages", () => {
+    expect(hasAICoAuthor([])).toBe(false);
+  });
+
+  it("returns false for message without co-author trailer", () => {
+    expect(
+      hasAICoAuthor([
+        "just a normal commit message",
+      ]),
+    ).toBe(false);
+  });
+
+  it("is case-insensitive on the trailer prefix", () => {
+    expect(
+      hasAICoAuthor([
+        "fix: stuff\n\nco-authored-by: Claude <noreply@anthropic.com>",
+      ]),
+    ).toBe(true);
   });
 });
 
@@ -364,5 +456,75 @@ describe("normalizePullRequests", () => {
   it("handles empty nodes array", () => {
     const result = normalizePullRequests([]);
     expect(result).toEqual([]);
+  });
+
+  it("maps additions and deletions from raw node", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        additions: 100,
+        deletions: 25,
+      }),
+    ]);
+    expect(result[0].additions).toBe(100);
+    expect(result[0].deletions).toBe(25);
+  });
+
+  it("classifies AI tool account author as ai-authored", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        author: {
+          login: "openclaw-user1",
+          __typename: "User",
+        },
+      }),
+    ]);
+    expect(result[0].aiCategory).toBe("ai-authored");
+  });
+
+  it("classifies PR with AI co-author as ai-assisted", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        commits: {
+          nodes: [
+            {
+              commit: {
+                message:
+                  "feat: add feature\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+    expect(result[0].aiCategory).toBe("ai-assisted");
+  });
+
+  it("classifies regular PR as human-only", () => {
+    const result = normalizePullRequests([
+      makeRawNode(),
+    ]);
+    expect(result[0].aiCategory).toBe("human-only");
+  });
+
+  it("ai-authored takes precedence over ai-assisted", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        author: {
+          login: "openclaw-agent",
+          __typename: "User",
+        },
+        commits: {
+          nodes: [
+            {
+              commit: {
+                message:
+                  "feat: impl\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+    expect(result[0].aiCategory).toBe("ai-authored");
   });
 });

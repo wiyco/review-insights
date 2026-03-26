@@ -1,4 +1,5 @@
 import type {
+  AICategory,
   PullRequestRecord,
   PullRequestState,
   ReviewRecord,
@@ -16,6 +17,22 @@ const UNKNOWN_USER = "ghost";
 const BOT_LOGIN_SUFFIXES = [
   "[bot]",
   "-bot",
+] as const;
+
+const AI_TOOL_PREFIXES = [
+  "openclaw-",
+] as const;
+
+/**
+ * Email patterns for AI co-author detection in commit trailers.
+ * Only the email address is checked — the name field is ignored to
+ * avoid brittleness from model name changes.
+ */
+const AI_COAUTHOR_EMAIL_PATTERNS = [
+  "noreply@anthropic.com",
+  "cursoragent@cursor.com",
+  "+copilot@users.noreply.github.com",
+  "+devin-ai-integration[bot]@users.noreply.github.com",
 ] as const;
 
 const VALID_REVIEW_STATES: ReadonlySet<ReviewState> = new Set<ReviewState>([
@@ -58,6 +75,59 @@ export function isBot(
   // Check common bot login suffixes (e.g. "dependabot[bot]", "snyk-bot")
   const lower = login.toLowerCase();
   return BOT_LOGIN_SUFFIXES.some((suffix) => lower.endsWith(suffix));
+}
+
+/**
+ * Determines whether an account is an AI tool account (e.g., OpenClaw).
+ * Distinct from bot detection — AI tool accounts produce substantive code
+ * changes that require genuine peer review.
+ */
+export function isAIToolAccount(login: string): boolean {
+  const lower = login.toLowerCase();
+  return AI_TOOL_PREFIXES.some((prefix) => lower.startsWith(prefix));
+}
+
+/**
+ * Checks whether any commit message contains an AI co-author trailer.
+ * Matches `Co-authored-by: <name> <email>` where email matches a known
+ * AI tool pattern.
+ */
+export function hasAICoAuthor(commitMessages: string[]): boolean {
+  const pattern = /co-authored-by:\s*[^<]*<([^>]+)>/gi;
+  for (const msg of commitMessages) {
+    pattern.lastIndex = 0;
+    for (
+      let match = pattern.exec(msg);
+      match !== null;
+      match = pattern.exec(msg)
+    ) {
+      const email = match[1].toLowerCase();
+      if (
+        AI_COAUTHOR_EMAIL_PATTERNS.some((p) =>
+          p.startsWith("+") ? email.endsWith(p) : email === p,
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Classifies a PR into an AI category based on author and commit trailers.
+ */
+function classifyAICategory(
+  login: string,
+  commitMessages: string[],
+): AICategory {
+  if (isAIToolAccount(login)) {
+    return "ai-authored";
+  }
+  if (hasAICoAuthor(commitMessages)) {
+    return "ai-assisted";
+  }
+  return "human-only";
 }
 
 /**
@@ -116,6 +186,7 @@ export function normalizePullRequests(
       .filter((name): name is string => name !== null);
 
     const commitMessages = node.commits.nodes.map((c) => c.commit.message);
+    const aiCategory = classifyAICategory(author, commitMessages);
 
     return {
       number: node.number,
@@ -130,6 +201,9 @@ export function normalizePullRequests(
       reviews,
       reviewRequests,
       commitMessages,
+      additions: node.additions,
+      deletions: node.deletions,
+      aiCategory,
     };
   });
 }

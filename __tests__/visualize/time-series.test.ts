@@ -36,6 +36,9 @@ function makePR(
     commitMessages: [
       "fix stuff",
     ],
+    additions: 10,
+    deletions: 5,
+    aiCategory: "human-only",
     ...overrides,
   };
 }

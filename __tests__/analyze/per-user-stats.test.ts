@@ -34,6 +34,9 @@ function makePR(
     reviews: [],
     reviewRequests: [],
     commitMessages: [],
+    additions: 10,
+    deletions: 5,
+    aiCategory: "human-only",
     ...overrides,
   };
 }

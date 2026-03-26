@@ -45,6 +45,8 @@ export const PULL_REQUESTS_QUERY = `
             login
             __typename
           }
+          additions
+          deletions
           mergedBy {
             login
           }
@@ -153,6 +155,8 @@ export interface RawPullRequestNode {
   createdAt: string;
   mergedAt: string | null;
   closedAt: string | null;
+  additions: number;
+  deletions: number;
   author: RawAuthor | null;
   mergedBy: {
     login: string;
