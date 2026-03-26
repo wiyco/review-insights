@@ -174,7 +174,7 @@ To avoid a single high-churn PR dominating the group rate (Simpson's paradox), t
 
 For each PR $pr_i \in Q_g$ (PRs with at least one qualifying human review where `review.createdAt >= pr.createdAt`):
 
-$$cr_i = \frac{|\{r \in R_{\text{human}}(pr_i) \mid r.\text{state} = \text{CHANGES\_REQUESTED}\}|}{|R_{\text{human}}(pr_i)|}$$
+$$cr_i = \frac{|\{r \in R_{\text{human}}(pr_i) \mid r.\text{state} = \text{CHANGES}\_\text{REQUESTED}\}|}{|R_{\text{human}}(pr_i)|}$$
 
 Then:
 
