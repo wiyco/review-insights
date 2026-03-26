@@ -41,6 +41,7 @@ function makeAnalysis(): AnalysisResult {
         comments: 3,
         dismissed: 0,
         avgTimeToFirstReviewMs: 3600000,
+        medianTimeToFirstReviewMs: 3600000,
       },
       {
         login: "bob",
@@ -51,6 +52,7 @@ function makeAnalysis(): AnalysisResult {
         comments: 2,
         dismissed: 0,
         avgTimeToFirstReviewMs: 7200000,
+        medianTimeToFirstReviewMs: 7200000,
       },
     ],
     mergeCorrelations: [],

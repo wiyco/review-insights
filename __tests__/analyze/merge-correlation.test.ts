@@ -374,6 +374,152 @@ describe("computeMergeCorrelations", () => {
     expect(alice?.prsAuthored).toBe(2);
     expect(alice?.prsMerged).toBe(0);
     expect(alice?.avgReviewsBeforeMerge).toBe(0);
+    expect(alice?.medianReviewsBeforeMerge).toBeNull();
     expect(alice?.zeroReviewMerges).toBe(0);
+  });
+
+  describe("medianReviewsBeforeMerge", () => {
+    it("returns the middle value for odd number of merged PRs", () => {
+      // 3 merged PRs with review counts: 0, 1, 4
+      // median = 1, avg = 5/3 ≈ 1.67
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "alice",
+          reviews: [],
+        }),
+        makePR({
+          number: 2,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              prNumber: 2,
+            }),
+          ],
+        }),
+        makePR({
+          number: 3,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              prNumber: 3,
+            }),
+            makeReview({
+              reviewer: "carol",
+              author: "alice",
+              prNumber: 3,
+            }),
+            makeReview({
+              reviewer: "dave",
+              author: "alice",
+              prNumber: 3,
+            }),
+            makeReview({
+              reviewer: "eve",
+              author: "alice",
+              prNumber: 3,
+            }),
+          ],
+        }),
+      ];
+
+      const result = computeMergeCorrelations(prs, false);
+      const alice = result.find((r) => r.login === "alice");
+      expect(alice?.medianReviewsBeforeMerge).toBe(1);
+    });
+
+    it("returns the average of two middle values for even number of merged PRs", () => {
+      // 4 merged PRs with review counts: 0, 1, 3, 4
+      // median = (1+3)/2 = 2
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "alice",
+          reviews: [],
+        }),
+        makePR({
+          number: 2,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              prNumber: 2,
+            }),
+          ],
+        }),
+        makePR({
+          number: 3,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              prNumber: 3,
+            }),
+            makeReview({
+              reviewer: "carol",
+              author: "alice",
+              prNumber: 3,
+            }),
+            makeReview({
+              reviewer: "dave",
+              author: "alice",
+              prNumber: 3,
+            }),
+          ],
+        }),
+        makePR({
+          number: 4,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              prNumber: 4,
+            }),
+            makeReview({
+              reviewer: "carol",
+              author: "alice",
+              prNumber: 4,
+            }),
+            makeReview({
+              reviewer: "dave",
+              author: "alice",
+              prNumber: 4,
+            }),
+            makeReview({
+              reviewer: "eve",
+              author: "alice",
+              prNumber: 4,
+            }),
+          ],
+        }),
+      ];
+
+      const result = computeMergeCorrelations(prs, false);
+      const alice = result.find((r) => r.login === "alice");
+      expect(alice?.medianReviewsBeforeMerge).toBe(2);
+    });
+
+    it("returns null when author has no merged PRs", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "alice",
+          state: "OPEN",
+          mergedAt: null,
+          reviews: [],
+        }),
+      ];
+
+      const result = computeMergeCorrelations(prs, false);
+      const alice = result.find((r) => r.login === "alice");
+      expect(alice?.medianReviewsBeforeMerge).toBeNull();
+    });
   });
 });

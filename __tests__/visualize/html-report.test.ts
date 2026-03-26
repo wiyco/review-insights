@@ -66,6 +66,7 @@ function makeUserStats(overrides?: Partial<UserReviewStats>): UserReviewStats {
     comments: 2,
     dismissed: 0,
     avgTimeToFirstReviewMs: 3600000,
+    medianTimeToFirstReviewMs: 3600000,
     ...overrides,
   };
 }
@@ -81,6 +82,7 @@ function makeAnalysis(overrides?: Partial<AnalysisResult>): AnalysisResult {
         prsAuthored: 3,
         prsMerged: 2,
         avgReviewsBeforeMerge: 1.5,
+        medianReviewsBeforeMerge: 1.5,
         zeroReviewMerges: 0,
       },
     ],
@@ -146,11 +148,82 @@ describe("generateHtmlReport", () => {
     expect(html).toContain("<td>4</td>"); // approvals
   });
 
+  it("renders median time-to-first-review column header and value", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        userStats: [
+          makeUserStats({
+            avgTimeToFirstReviewMs: 3600000,
+            medianTimeToFirstReviewMs: 7200000,
+          }),
+        ],
+      }),
+    );
+    expect(html).toContain("<th>Median Time to 1st Review</th>");
+    // avg=1.0h then median=2.0h in adjacent cells
+    expect(html).toMatch(/<td>1\.0h<\/td>\s*<td>2\.0h<\/td>/);
+  });
+
+  it("renders N/A for null medianTimeToFirstReviewMs", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        userStats: [
+          makeUserStats({
+            avgTimeToFirstReviewMs: null,
+            medianTimeToFirstReviewMs: null,
+          }),
+        ],
+      }),
+    );
+    expect(html).toContain("<th>Median Time to 1st Review</th>");
+    // Both avg and median are null → two consecutive N/A cells
+    expect(html).toMatch(/<td>N\/A<\/td>\s*<td>N\/A<\/td>/);
+  });
+
   it("renders merge correlation rows", () => {
     const html = generateHtmlReport(makeAnalysis());
     expect(html).toContain("<td>author-a</td>");
     expect(html).toContain("<td>3</td>"); // prsAuthored
     expect(html).toContain("<td>1.5</td>"); // avgReviewsBeforeMerge
+  });
+
+  it("renders median reviews-before-merge column header and value", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        mergeCorrelations: [
+          {
+            login: "author-a",
+            prsAuthored: 3,
+            prsMerged: 2,
+            avgReviewsBeforeMerge: 1.5,
+            medianReviewsBeforeMerge: 2.0,
+            zeroReviewMerges: 0,
+          },
+        ],
+      }),
+    );
+    expect(html).toContain("<th>Median Reviews Before Merge</th>");
+    // avg=1.5 then median=2.0 in adjacent cells
+    expect(html).toMatch(/<td>1\.5<\/td>\s*<td>2\.0<\/td>/);
+  });
+
+  it("renders N/A for null medianReviewsBeforeMerge", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        mergeCorrelations: [
+          {
+            login: "author-a",
+            prsAuthored: 1,
+            prsMerged: 0,
+            avgReviewsBeforeMerge: 0,
+            medianReviewsBeforeMerge: null,
+            zeroReviewMerges: 0,
+          },
+        ],
+      }),
+    );
+    expect(html).toContain("<th>Median Reviews Before Merge</th>");
+    expect(html).toContain("<td>N/A</td>");
   });
 
   it("shows 'no bias detected' when flaggedPairs is empty", () => {
@@ -262,6 +335,7 @@ describe("generateHtmlReport", () => {
               prsAuthored: 1,
               prsMerged: 1,
               avgReviewsBeforeMerge: 1,
+              medianReviewsBeforeMerge: 1,
               zeroReviewMerges: 0,
             },
           ],
@@ -348,6 +422,7 @@ describe("generateHtmlReport", () => {
             prsAuthored: 1,
             prsMerged: 1,
             avgReviewsBeforeMerge: 1,
+            medianReviewsBeforeMerge: 1,
             zeroReviewMerges: 0,
           },
           {
@@ -355,6 +430,7 @@ describe("generateHtmlReport", () => {
             prsAuthored: 10,
             prsMerged: 8,
             avgReviewsBeforeMerge: 2,
+            medianReviewsBeforeMerge: 2,
             zeroReviewMerges: 0,
           },
         ],
@@ -428,6 +504,7 @@ describe("generateHtmlReport", () => {
             prsAuthored: 5,
             prsMerged: 3,
             avgReviewsBeforeMerge: 0.5,
+            medianReviewsBeforeMerge: 0.5,
             zeroReviewMerges: 2,
           },
         ],
