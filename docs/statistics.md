@@ -34,6 +34,12 @@ $$\text{avgTimeToFirstReview}(u) = \frac{1}{|P_u|} \sum_{pr \in P_u} (\min_{r \i
 
 where $P_u$ is the set of PRs authored by $u$ that have at least one qualifying review with `createdAt >= pr.createdAt`.
 
+### medianTimeToFirstReview
+
+The median of the same per-PR first-review latencies used by `avgTimeToFirstReview`. The median is more robust to outliers (e.g., a single PR left unreviewed for days) and better represents the typical review experience.
+
+For an even number of PRs, the median is the arithmetic mean of the two middle values. Returns `null` when the user has no PRs with a qualifying first review.
+
 ## Bias detection
 
 Source: `bias-detector.ts`
@@ -57,6 +63,18 @@ where:
 A pair is flagged when $M_{ij} > \mu + t \cdot \sigma$, where $t$ is the `bias-threshold` input (default: 2.0).
 
 Note: the population standard deviation ($\div n$) is used, not the sample standard deviation ($\div (n-1)$). This is appropriate because the matrix represents the complete observed review population within the analysis window, not a sample drawn from a larger population.
+
+> [!NOTE]
+>
+> **Limitation: normality assumption**
+>
+> The z-score threshold ($\mu + t \cdot \sigma$) implicitly assumes that review counts are approximately normally distributed. In practice, review counts follow a right-skewed distribution (closer to Poisson or negative binomial): most pairs interact infrequently, while a few pairs interact heavily. Under right-skewed distributions, the standard deviation $\sigma$ is inflated by the long right tail, causing the flagging threshold to be higher than intended and increasing the false-negative rate.
+>
+> This is a known trade-off. The z-score approach is retained as a simple, interpretable heuristic that works reasonably well for the purpose of surfacing the most extreme outliers. For teams requiring more rigorous detection, potential improvements include:
+>
+> - **Log-transformation** — applying $\ln(M_{ij} + 1)$ before computing z-scores to compress the right tail
+> - **Non-parametric methods** — Tukey's fences ($Q_3 + 1.5 \cdot \text{IQR}$), which make no distributional assumption
+> - **Count-based models** — fitting a Poisson or negative binomial model and flagging pairs exceeding expected counts
 
 ### Gini coefficient
 
@@ -98,6 +116,12 @@ For each author, the average number of qualifying review submissions on their me
 $$\text{avgReviewsBeforeMerge}(u) = \frac{\sum_{pr \in M_u} |pr.\text{reviews}|}{|M_u|}$$
 
 where $M_u$ is the set of merged PRs authored by $u$, and reviews are filtered by the same bot/PENDING rules.
+
+### medianReviewsBeforeMerge
+
+The median of per-PR review counts across merged PRs for each author. Like `medianTimeToFirstReview`, this is more robust to outliers (e.g., a single PR with an unusually high number of review rounds) and better represents the typical merge experience.
+
+For an even number of merged PRs, the median is the arithmetic mean of the two middle values. Returns `null` when the author has no merged PRs.
 
 ### zeroReviewMerges
 
