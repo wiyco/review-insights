@@ -107,13 +107,15 @@ $$G = \frac{2 \sum_{i=1}^{n} i \cdot x_i}{n \sum_{i=1}^{n} x_i} - \frac{n+1}{n}$
 >
 > **Gini coefficient (full matrix including zeros)**
 >
-> The Gini coefficient is computed over the **full** reviewer-author matrix, including zero cells. The total number of cells is $|R| \times |A| - |R \cap A|$, where:
+> The Gini coefficient is computed over the **full** reviewer-author matrix, including zero cells. The total number of cells is $|R| \times |A| - |D|$, where:
 >
 > - $R$ = the set of users who submitted at least one qualifying review (i.e., the row keys of the review matrix)
 > - $A$ = the set of all PR authors in the filtered PR set, **including authors whose PRs received zero qualifying reviews**
-> - $R \cap A$ excludes self-review diagonal entries (a user who is both reviewer and author)
+> - $D = \{u \in R \cap A \mid u \ne \texttt{ghost}\}$, the set of genuine identity overlaps whose diagonal cells are excluded as self-reviews
 >
 > Zero cells represent pairs that *could* interact but did not — this absence of interaction is essential for measuring inequality. Without zeros, a reviewer who reviews only one author would yield $G = 0$ (single data point), masking extreme concentration. The implementation avoids materializing the zero-padded array; only non-zero values are sorted, with rank indices offset by the implicit zero count.
+
+> For the shared `ghost` placeholder, the diagonal is retained instead of being subtracted from the Gini matrix domain. `ghost -> ghost` may represent two different deleted accounts that GitHub exposed as `null`, so treating it as a guaranteed self-review would bias the denominator downward.
 
 ## Merge correlation
 
