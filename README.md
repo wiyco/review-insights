@@ -79,6 +79,7 @@ Uploads a self-contained HTML report as a downloadable artifact.
 - **Review Heatmap** — Reviewer × Author matrix showing who reviews whom. Flagged pairs highlighted.
 - **Bar Charts** — Per-user reviews given, reviews received, and approval counts.
 - **Time Series** — Weekly/monthly review activity and PR volume trends.
+- **Human Review Burden** — Grouped bar charts comparing median review workload (with p90 whiskers) across AI-authored, AI-assisted, and human-only PRs. Includes a detailed metrics table and size-stratified breakdown.
 
 ## Analysis Features
 

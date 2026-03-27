@@ -167,3 +167,26 @@ Source: `html-report.ts`
 | PR Authors | Count of distinct `pr.author` values in filtered PRs |
 | Avg Reviewers/PR | Unique PR Reviews $\div$ Pull Requests |
 | Gini Coefficient | From bias detection (see above) |
+
+## HTML report: Human Review Burden section
+
+Source: `burden-chart.ts`, rendered in `html-report.ts`
+
+This section visualizes the human review burden metrics from [ai-human-review-burden.md](ai-human-review-burden.md). It appears after the AI & Bot Patterns card.
+
+### Components
+
+| Component | Content |
+|---|---|
+| PR count cards | Sample size (n) and percentage for each AI category (ai-authored, ai-assisted, human-only) |
+| Grouped bar charts | One chart per metric — bars show **median**, whisker lines extend to **p90**. Metrics: Reviews/PR, Time to 1st Review, Change Request Rate, Review Rounds |
+| Detailed metrics table | Median and p90 columns per category, plus Unreviewed Rate (highlighted in red when > 20%) |
+| Size-stratified table | Median values per (AI category × size tier) cell, with sample sizes. Cells with < 3 PRs show "—" |
+
+### Design rationale
+
+- **Median over mean** — Review counts and latencies follow right-skewed distributions. The median represents typical burden; the mean is inflated by outliers.
+- **P90 whiskers** — Show worst-case burden without requiring box plots.
+- **Sample sizes everywhere** — Small-n comparisons are misleading; displaying n= lets readers judge statistical reliability.
+- **Unreviewed Rate alongside latency** — Latency is only computed for PRs that received reviews. A high unreviewed rate means the latency metric suffers from survivorship bias.
+- **Size stratification** — PR size confounds review burden. Comparing within the same size tier (S/M/L) isolates the effect of AI involvement.
