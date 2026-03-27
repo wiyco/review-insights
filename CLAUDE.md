@@ -71,7 +71,6 @@ Entry point is `src/main.ts` → `run()` which orchestrates the full pipeline. A
 
 - **No external resources in output** — all HTML/SVG reports must be fully self-contained (inline styles, no CDN links)
 - **XSS prevention** — all user-derived content must go through `src/utils/sanitize.ts` before embedding in HTML/SVG
-- **Bot detection** — `analyzeAIPatterns()` always uses the full dataset (ignores `include-bots` flag) for observability
 - **Coverage** — 90% threshold, `src/main.ts` excluded (side-effectful entry point)
 - **dist freshness** — CI verifies `dist/index.mjs` is committed and up-to-date after build
 
