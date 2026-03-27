@@ -36,14 +36,16 @@ jobs:
 |---|---|---|
 | `github-token` | GitHub token with repo read access | `${{ github.token }}` |
 | `repository` | Repository to analyze (`owner/repo`) | Current repository |
-| `since` | Start date (ISO 8601, e.g. `2025-01-01`) | 90 days ago |
-| `until` | End date (ISO 8601) | Now |
+| `since` | Start date for the PR creation window (ISO 8601, e.g. `2025-01-01`) | 90 days ago |
+| `until` | End date for the snapshot. Reviews and merge/close state after this timestamp are ignored. | Now |
 | `output-mode` | Output targets: `summary`, `comment`, `artifact` (comma-separated) | `summary,artifact` |
 | `bias-threshold` | Std deviations to flag review imbalance (0.5–10.0) | `2.0` |
 | `include-bots` | Include bot accounts in statistics ([details](docs/filtering.md)) | `false` |
 | `max-prs` | Maximum PRs to analyze (1–5000) | `500` |
 
 For full descriptions and validation rules, see [docs/inputs.md](docs/inputs.md).
+
+The date range selects PRs by `createdAt`. For those PRs, review activity and merge/close state are observed only through `until`, so rerunning the same historical window produces a stable snapshot instead of drifting as later reviews arrive.
 
 > [!NOTE]
 >

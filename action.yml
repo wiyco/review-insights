@@ -22,13 +22,16 @@ inputs:
 
   since:
     description: >
-      Start date for analysis (ISO 8601, e.g. 2025-01-01). Defaults to 90 days ago.
+      Start date for the PR creation window (ISO 8601, e.g. 2025-01-01).
+      Defaults to 90 days ago.
       NOTE: For large repositories with high PR volume, use a shorter range (e.g., 30 days)
       to avoid hitting GitHub API rate limits.
     required: false
 
   until:
-    description: "End date for analysis (ISO 8601). Defaults to now."
+    description: >
+      End date for the historical snapshot (ISO 8601). Defaults to now.
+      Reviews and merge/close state after this timestamp are ignored.
     required: false
 
   output-mode:

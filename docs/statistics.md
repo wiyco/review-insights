@@ -2,6 +2,16 @@
 
 This document defines the metrics computed by review-insights and their mathematical foundations.
 
+## Observation window
+
+The analysis dataset is a censored snapshot:
+
+- A PR is included when `since <= pr.createdAt <= until`
+- For included PRs, reviews with `review.createdAt > until` are excluded
+- PR merge/close state is evaluated as of `until`; a PR merged or closed after `until` is treated as still open
+
+This makes historical reruns stable instead of letting later review activity leak into an older window.
+
 ## Per-user statistics
 
 Source: `per-user-stats.ts`
@@ -115,7 +125,7 @@ For each author, the average number of qualifying review submissions on their me
 
 $$\text{avgReviewsBeforeMerge}(u) = \frac{\sum_{pr \in M_u} |pr.\text{reviews}|}{|M_u|}$$
 
-where $M_u$ is the set of merged PRs authored by $u$, and reviews are filtered by the same bot/PENDING rules.
+where $M_u$ is the set of PRs authored by $u$ that were merged on or before `until`, and reviews are filtered by the same bot/PENDING/self-review rules and must satisfy `review.createdAt <= pr.mergedAt`.
 
 ### medianReviewsBeforeMerge
 
@@ -127,7 +137,7 @@ For an even number of merged PRs, the median is the arithmetic mean of the two m
 
 Count of merged PRs by an author that had zero qualifying reviews.
 
-$$\text{zeroReviewMerges}(u) = |\{pr \in M_u \mid |pr.\text{reviews}| = 0\}|$$
+$$\text{zeroReviewMerges}(u) = |\{pr \in M_u \mid |\{r \in pr.\text{reviews} \mid r.\text{createdAt} \le pr.\text{mergedAt}\}| = 0\}|$$
 
 ## AI / Bot patterns
 

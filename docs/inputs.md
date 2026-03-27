@@ -4,6 +4,13 @@ This document defines validation rules for all action inputs parsed by `src/inpu
 
 ## `since` / `until` (date inputs)
 
+These inputs define a historical snapshot in two steps:
+
+1. PRs are included when `since <= pr.createdAt <= until`
+2. For included PRs, reviews and merge/close state are observed only up to `until`
+
+This prevents later review activity from changing the results of the same historical rerun.
+
 ### Accepted format
 
 Any valid **ISO 8601** date or datetime string. The following forms are accepted:
