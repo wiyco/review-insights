@@ -726,4 +726,46 @@ describe("detectBias", () => {
       }
     });
   });
+
+  describe("ghost user handling", () => {
+    it("does not exclude reviews between ghost users as self-reviews", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "ghost",
+          reviews: [
+            makeReview({
+              reviewer: "ghost",
+              author: "ghost",
+              prNumber: 1,
+            }),
+          ],
+        }),
+      ];
+
+      const result = detectBias(prs, 2.0, true);
+      const ghostRow = result.matrix.get("ghost");
+      expect(ghostRow).toBeDefined();
+      expect(ghostRow?.get("ghost")).toBe(1);
+    });
+
+    it("still excludes genuine self-reviews for normal users", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "alice",
+              author: "alice",
+              prNumber: 1,
+            }),
+          ],
+        }),
+      ];
+
+      const result = detectBias(prs, 2.0, true);
+      expect(result.matrix.size).toBe(0);
+    });
+  });
 });

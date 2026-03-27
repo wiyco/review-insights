@@ -1,3 +1,4 @@
+import { UNKNOWN_USER } from "../collect/normalizer";
 import type { PullRequestRecord, UserReviewStats } from "../types";
 import { computeMedian } from "../utils/median";
 
@@ -61,8 +62,15 @@ export function computeUserStats(
       // they should not count toward any reviewer metrics.
       if (review.state === "PENDING") continue;
 
-      // Self-reviews don't count (consistent with bias-detector)
-      if (reviewer === author) continue;
+      // Self-reviews don't count (consistent with bias-detector).
+      // Skip this check when either login is the UNKNOWN_USER placeholder
+      // to avoid incorrectly collapsing two unrelated deleted users.
+      if (
+        reviewer !== UNKNOWN_USER &&
+        author !== UNKNOWN_USER &&
+        reviewer === author
+      )
+        continue;
 
       // Track unique PR reviews given
       const reviewerStats = getOrCreate(reviewer);
