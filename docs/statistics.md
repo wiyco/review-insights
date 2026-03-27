@@ -147,9 +147,9 @@ where totalReviews includes all reviews (including PENDING and bot reviews) acro
 >
 > This module intentionally counts PENDING reviews in `totalReviews`, unlike `per-user-stats.ts`, `bias-detector.ts`, and `merge-correlation.ts` which exclude them. The purpose of this module is to observe the full scope of bot activity, and PENDING bot reviews (e.g., automated checks in progress) are part of that picture. As a result, `botReviewPercentage` has a different denominator than metrics in other modules — direct cross-module comparison of review counts should account for this difference.
 
-### coAuthoredPRs
+### aiCoAuthoredPRs
 
-Count of PRs where any commit message matches the pattern `Co-authored-by:` (case-insensitive). Only the last commit per PR is inspected (GraphQL limitation), so this is a lower-bound estimate.
+Count of PRs where any commit message contains an AI co-author trailer as defined in [ai-human-review-burden.md](ai-human-review-burden.md#ai-co-author-detection). Only the last commit per PR is inspected (GraphQL limitation), so this is a lower-bound estimate.
 
 ### Human review burden (per AI category)
 

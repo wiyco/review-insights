@@ -230,7 +230,7 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
   <!-- AI Patterns -->
   <div class="card">
     <h2>AI &amp; Bot Patterns</h2>
-    <p>Co-authored PRs: <strong>${aiPatterns.coAuthoredPRs}</strong> of ${aiPatterns.totalPRs} (${aiPatterns.botReviewPercentage.toFixed(1)}% of reviews by bots)</p>
+    <p>AI co-authored PRs: <strong>${aiPatterns.aiCoAuthoredPRs}</strong> of ${aiPatterns.totalPRs} (${aiPatterns.botReviewPercentage.toFixed(1)}% of reviews by bots)</p>
     ${
       botRows.length > 0
         ? `<table style="margin-top:12px"><thead><tr><th>Bot Reviewer</th><th>Reviews</th></tr></thead><tbody>${botRows}</tbody></table>`

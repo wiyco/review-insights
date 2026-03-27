@@ -86,33 +86,33 @@ describe("analyzeAIPatterns", () => {
     expect(coderabbit?.reviewCount).toBe(1);
   });
 
-  it("detects co-authored PRs via commitMessages containing Co-authored-by: (case insensitive)", () => {
+  it("detects AI co-authored PRs via known AI co-author email patterns", () => {
     const prs: PullRequestRecord[] = [
       makePR({
         number: 1,
         author: "alice",
         commitMessages: [
-          "feat: add feature\n\nCo-authored-by: bot <bot@example.com>",
+          "feat: add feature\n\nCo-authored-by: Claude <noreply@anthropic.com>",
         ],
       }),
       makePR({
         number: 2,
         author: "bob",
         commitMessages: [
-          "fix: patch\n\nco-authored-by: ai <ai@example.com>",
+          "fix: patch\n\nco-authored-by: Copilot <123+Copilot@users.noreply.github.com>",
         ],
       }),
       makePR({
         number: 3,
         author: "carol",
         commitMessages: [
-          "docs: update readme",
+          "docs: update readme\n\nCo-authored-by: Teammate <teammate@example.com>",
         ],
       }),
     ];
 
     const result = analyzeAIPatterns(prs);
-    expect(result.coAuthoredPRs).toBe(2);
+    expect(result.aiCoAuthoredPRs).toBe(2);
     expect(result.totalPRs).toBe(3);
   });
 
@@ -156,7 +156,7 @@ describe("analyzeAIPatterns", () => {
   it("returns zeros for empty input", () => {
     const result = analyzeAIPatterns([]);
     expect(result.botReviewers).toEqual([]);
-    expect(result.coAuthoredPRs).toBe(0);
+    expect(result.aiCoAuthoredPRs).toBe(0);
     expect(result.totalPRs).toBe(0);
     expect(result.botReviewPercentage).toBe(0);
   });
@@ -266,7 +266,7 @@ describe("analyzeAIPatterns", () => {
     expect(result.botReviewPercentage).toBe(50);
   });
 
-  it("PRs with no commit messages don't count as co-authored", () => {
+  it("PRs with no AI co-author trailers don't count as AI co-authored", () => {
     const prs: PullRequestRecord[] = [
       makePR({
         number: 1,
@@ -276,7 +276,7 @@ describe("analyzeAIPatterns", () => {
     ];
 
     const result = analyzeAIPatterns(prs);
-    expect(result.coAuthoredPRs).toBe(0);
+    expect(result.aiCoAuthoredPRs).toBe(0);
   });
 });
 
