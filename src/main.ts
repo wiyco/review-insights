@@ -8,6 +8,7 @@ import { detectBias } from "./analyze/bias-detector";
 import { computeMergeCorrelations } from "./analyze/merge-correlation";
 import { computeUserStats } from "./analyze/per-user-stats";
 import { fetchAllPullRequests } from "./collect/fetcher";
+import { applyObservationWindow } from "./collect/observation-window";
 import { getConfig } from "./inputs";
 import { uploadReportArtifact } from "./output/artifact";
 import { writeJobSummary } from "./output/job-summary";
@@ -29,10 +30,17 @@ async function run(): Promise<void> {
   );
 
   // 3. Fetch PR data
-  const pullRequests = await fetchAllPullRequests(octokit, config);
-  logger.info(`Fetched ${pullRequests.length} pull requests`);
+  const fetchedPullRequests = await fetchAllPullRequests(octokit, config);
+  logger.info(`Fetched ${fetchedPullRequests.length} pull requests`);
 
-  // 4. Run analysis modules
+  // 4. Freeze the dataset at config.until so reruns over the same date range
+  // observe the same review/merge state instead of drifting over time.
+  const pullRequests = applyObservationWindow(
+    fetchedPullRequests,
+    config.until,
+  );
+
+  // 5. Run analysis modules
   //    All functions are pure & synchronous (CPU-bound, no I/O), so
   //    sequential and Promise.all execution are equivalent on a single
   //    thread. True parallelism would require worker_threads, but the
@@ -49,7 +57,7 @@ async function run(): Promise<void> {
   );
   const aiPatterns = analyzeAIPatterns(pullRequests);
 
-  // 5. Build AnalysisResult
+  // 6. Build AnalysisResult
   const analysis: AnalysisResult = {
     userStats,
     mergeCorrelations,
@@ -64,7 +72,7 @@ async function run(): Promise<void> {
     includeBots: config.includeBots,
   };
 
-  // 6. Generate HTML report and write to temp file
+  // 7. Generate HTML report and write to temp file
   const htmlReport = generateHtmlReport(analysis);
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "review-insights-"));
   const reportPath = path.join(tmpDir, "review-insights-report.html");
@@ -72,7 +80,7 @@ async function run(): Promise<void> {
     await fs.writeFile(reportPath, htmlReport, "utf-8");
     logger.info(`HTML report written to ${reportPath}`);
 
-    // 7. Process output modes — each mode is independent; one failure
+    // 8. Process output modes — each mode is independent; one failure
     //    must not prevent the remaining modes from executing.
     const outputErrors: Array<{
       mode: string;
@@ -127,7 +135,7 @@ async function run(): Promise<void> {
       );
     }
 
-    // 8. Set outputs
+    // 9. Set outputs
     core.setOutput("report-path", reportPath);
     const analyzedPRs = config.includeBots
       ? pullRequests.length

@@ -113,6 +113,60 @@ describe("computeMergeCorrelations", () => {
     expect(alice?.avgReviewsBeforeMerge).toBe(1.5);
   });
 
+  it("excludes reviews created after mergedAt from before-merge counts", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        mergedAt: "2025-06-03T14:00:00Z",
+        reviews: [
+          makeReview({
+            reviewer: "bob",
+            author: "alice",
+            createdAt: "2025-06-03T13:00:00Z",
+            prNumber: 1,
+          }),
+          makeReview({
+            reviewer: "carol",
+            author: "alice",
+            createdAt: "2025-06-03T15:00:00Z",
+            prNumber: 1,
+          }),
+        ],
+      }),
+    ];
+
+    const result = computeMergeCorrelations(prs, false);
+    const alice = result.find((r) => r.login === "alice");
+
+    expect(alice?.avgReviewsBeforeMerge).toBe(1);
+    expect(alice?.zeroReviewMerges).toBe(0);
+  });
+
+  it("counts a merged PR as zero-review when all reviews were submitted after merge", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        mergedAt: "2025-06-03T14:00:00Z",
+        reviews: [
+          makeReview({
+            reviewer: "bob",
+            author: "alice",
+            createdAt: "2025-06-03T15:00:00Z",
+            prNumber: 1,
+          }),
+        ],
+      }),
+    ];
+
+    const result = computeMergeCorrelations(prs, false);
+    const alice = result.find((r) => r.login === "alice");
+
+    expect(alice?.avgReviewsBeforeMerge).toBe(0);
+    expect(alice?.zeroReviewMerges).toBe(1);
+  });
+
   it("counts zeroReviewMerges correctly", () => {
     const prs: PullRequestRecord[] = [
       makePR({
