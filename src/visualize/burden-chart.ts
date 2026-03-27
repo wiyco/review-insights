@@ -228,7 +228,8 @@ function renderMetricChart(
 
     if (d.median != null) {
       // Median bar
-      const barW = Math.max(1, (d.medianChart / maxVal) * barAreaWidth);
+      const rawW = (d.medianChart / maxVal) * barAreaWidth;
+      const barW = rawW > 0 ? Math.max(1, rawW) : 0;
       parts.push(
         rect(chartLeft, y, barW, barHeight, color, {
           rx: 3,
