@@ -63,7 +63,7 @@ function makeAnalysis(): AnalysisResult {
     },
     aiPatterns: {
       botReviewers: [],
-      coAuthoredPRs: 0,
+      aiCoAuthoredPRs: 0,
       totalPRs: 10,
       botReviewPercentage: 0,
       humanReviewBurden: EMPTY_BURDEN,

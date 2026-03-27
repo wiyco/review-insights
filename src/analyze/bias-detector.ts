@@ -1,3 +1,4 @@
+import { UNKNOWN_USER } from "../collect/normalizer";
 import type { BiasResult, PullRequestRecord, ReviewMatrix } from "../types";
 
 /**
@@ -60,7 +61,14 @@ export function detectBias(
       if (!includeBots && review.reviewerIsBot) continue;
 
       const reviewer = review.reviewer;
-      if (reviewer === author) continue;
+      // Skip self-review exclusion when either login is the UNKNOWN_USER
+      // placeholder to avoid incorrectly collapsing unrelated deleted users.
+      if (
+        reviewer !== UNKNOWN_USER &&
+        author !== UNKNOWN_USER &&
+        reviewer === author
+      )
+        continue;
 
       let reviewerRow = matrix.get(reviewer);
       if (!reviewerRow) {

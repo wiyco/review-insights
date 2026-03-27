@@ -232,6 +232,30 @@ describe("computeUserStats", () => {
       expect(findUser(statsWithBots, "bob")?.reviewsReceived).toBe(2);
       expect(findUser(statsWithoutBots, "bob")?.reviewsReceived).toBe(1);
     });
+
+    it("keeps AI tool reviewers when includeBots=false", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 106,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "devin-ai-integration[bot]",
+              author: "alice",
+              reviewerIsBot: false,
+              state: "APPROVED",
+              prNumber: 106,
+            }),
+          ],
+        }),
+      ];
+
+      const stats = computeUserStats(prs, false);
+      const aiReviewer = findUser(stats, "devin-ai-integration[bot]");
+      expect(aiReviewer).toBeDefined();
+      expect(aiReviewer?.reviewsGiven).toBe(1);
+      expect(findUser(stats, "alice")?.reviewsReceived).toBe(1);
+    });
   });
 
   describe("PENDING reviews", () => {
@@ -565,6 +589,52 @@ describe("computeUserStats", () => {
           stats[i].reviewsGiven,
         );
       }
+    });
+  });
+
+  describe("ghost user handling", () => {
+    it("does not exclude reviews between two ghost users as self-reviews", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "ghost",
+          reviews: [
+            makeReview({
+              reviewer: "ghost",
+              author: "ghost",
+              prNumber: 1,
+            }),
+          ],
+        }),
+      ];
+
+      const stats = computeUserStats(prs, true);
+      const ghost = findUser(stats, "ghost");
+      expect(ghost).toBeDefined();
+      expect(ghost?.reviewsGiven).toBe(1);
+      expect(ghost?.reviewsReceived).toBe(1);
+    });
+
+    it("still excludes genuine self-reviews for normal users", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "alice",
+              author: "alice",
+              prNumber: 1,
+            }),
+          ],
+        }),
+      ];
+
+      const stats = computeUserStats(prs, true);
+      const alice = findUser(stats, "alice");
+      expect(alice).toBeDefined();
+      expect(alice?.reviewsGiven).toBe(0);
+      expect(alice?.reviewsReceived).toBe(0);
     });
   });
 });

@@ -522,4 +522,49 @@ describe("computeMergeCorrelations", () => {
       expect(alice?.medianReviewsBeforeMerge).toBeNull();
     });
   });
+
+  describe("ghost user handling", () => {
+    it("does not exclude reviews between ghost users as self-reviews", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "ghost",
+          reviews: [
+            makeReview({
+              reviewer: "ghost",
+              author: "ghost",
+              prNumber: 1,
+            }),
+          ],
+        }),
+      ];
+
+      const result = computeMergeCorrelations(prs, true);
+      const ghost = result.find((r) => r.login === "ghost");
+      expect(ghost).toBeDefined();
+      expect(ghost?.avgReviewsBeforeMerge).toBe(1);
+      expect(ghost?.zeroReviewMerges).toBe(0);
+    });
+
+    it("still excludes genuine self-reviews for normal users", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "alice",
+              author: "alice",
+              prNumber: 1,
+            }),
+          ],
+        }),
+      ];
+
+      const result = computeMergeCorrelations(prs, true);
+      const alice = result.find((r) => r.login === "alice");
+      expect(alice?.avgReviewsBeforeMerge).toBe(0);
+      expect(alice?.zeroReviewMerges).toBe(1);
+    });
+  });
 });

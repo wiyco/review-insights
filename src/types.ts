@@ -143,7 +143,7 @@ export interface HumanReviewBurden {
 /** Results of the AI/bot pattern analysis. */
 export interface AIPatternResult {
   botReviewers: BotReviewer[];
-  coAuthoredPRs: number;
+  aiCoAuthoredPRs: number;
   totalPRs: number;
   botReviewPercentage: number;
   humanReviewBurden: HumanReviewBurden;

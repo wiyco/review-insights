@@ -318,6 +318,7 @@ interface AIPatternResult {
 | AI tool account detection | `src/collect/normalizer.ts` — new `isAIToolAccount()` function |
 | AI co-author detection | `src/collect/normalizer.ts` — new `hasAICoAuthor()` function |
 | `aiCategory` assignment | `src/collect/normalizer.ts` — within `normalizePullRequests()` |
+| AI co-authored PR counting | `src/analyze/ai-patterns.ts` — within `analyzeAIPatterns()` via `hasAICoAuthor()` |
 | PR size tier assignment | `src/analyze/ai-patterns.ts` — helper function |
 | Percentile computation | `src/analyze/ai-patterns.ts` — pure helper function |
 | Human review burden computation | `src/analyze/ai-patterns.ts` — within `analyzeAIPatterns()` |
