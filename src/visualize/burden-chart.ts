@@ -333,7 +333,7 @@ export function renderBurdenSection(burden: HumanReviewBurden): string {
   );
   if (charts.length > 0) {
     parts.push(
-      '<p class="note" style="margin:12px 0 4px;">Bars show <strong>median</strong> (typical burden). Whisker lines extend to <strong>p90</strong> (worst-case burden). Higher values = more human effort.</p>',
+      '<p class="note" style="margin:12px 0 4px;">Bars show <strong>median</strong> (typical burden). Whisker lines extend to <strong>p90</strong> where available (worst-case burden). Change Request Rate shows median only. Higher values = more human effort.</p>',
     );
     parts.push(
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;margin:8px 0 16px;">',
@@ -432,7 +432,7 @@ function renderStratifiedTable(burden: HumanReviewBurden): string {
     "L",
     "Empty",
   ];
-  const sizeLabels: Record<string, string> = {
+  const sizeLabels: Record<PRSizeTier, string> = {
     S: "Small (1\u201350)",
     M: "Medium (51\u2013300)",
     L: "Large (301+)",
