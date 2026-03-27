@@ -38,6 +38,23 @@ function computeGiniCoefficient(
   );
 }
 
+function countStructurallyExcludedDiagonalCells(
+  reviewers: ReadonlySet<string>,
+  authors: ReadonlySet<string>,
+): number {
+  let excludedDiagonals = 0;
+
+  for (const reviewer of reviewers) {
+    // The shared UNKNOWN_USER placeholder may represent different deleted
+    // accounts, so ghost->ghost remains an eligible matrix cell.
+    if (reviewer !== UNKNOWN_USER && authors.has(reviewer)) {
+      excludedDiagonals++;
+    }
+  }
+
+  return excludedDiagonals;
+}
+
 /**
  * Detects reviewer-author bias by building a review matrix, computing z-scores,
  * and flagging pairs that exceed the given threshold.
@@ -125,18 +142,21 @@ export function detectBias(
   // Build the full matrix dimensions for Gini coefficient.
   // Reviewers: users with ≥1 qualifying review (from the matrix).
   // Authors: all PR authors in the filtered set (including those with zero reviews).
-  // Self-review diagonal entries (user is both reviewer and author) are excluded.
+  // Genuine self-review diagonal entries (user is both reviewer and author) are excluded.
+  // Only genuine identity overlaps shrink the matrix. The shared UNKNOWN_USER
+  // placeholder stays in the domain because ghost->ghost may represent
+  // different deleted accounts.
   const reviewers = new Set(matrix.keys());
   const authors = new Set<string>();
   for (const pr of pullRequests) {
     if (!includeBots && pr.authorIsBot) continue;
     authors.add(pr.author);
   }
-  let selfPairs = 0;
-  for (const r of reviewers) {
-    if (authors.has(r)) selfPairs++;
-  }
-  const totalCells = reviewers.size * authors.size - selfPairs;
+  const excludedDiagonalCells = countStructurallyExcludedDiagonalCells(
+    reviewers,
+    authors,
+  );
+  const totalCells = reviewers.size * authors.size - excludedDiagonalCells;
 
   const giniCoefficient = computeGiniCoefficient(allValues, totalCells);
 
