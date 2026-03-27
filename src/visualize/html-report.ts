@@ -92,6 +92,14 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
         `<tr><td>${escapeHtml(b.login)}</td><td>${b.reviewCount}</td></tr>`,
     )
     .join("\n");
+  const burdenPRTotal =
+    aiPatterns.humanReviewBurden.aiAuthored.prCount +
+    aiPatterns.humanReviewBurden.aiAssisted.prCount +
+    aiPatterns.humanReviewBurden.humanOnly.prCount;
+  const excludedTraditionalBotPRs = Math.max(
+    0,
+    aiPatterns.totalPRs - burdenPRTotal,
+  );
 
   // Bias warnings
   const biasWarnings = bias.flaggedPairs
@@ -242,6 +250,11 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
   <div class="card">
     <h2>Human Review Burden by AI Involvement</h2>
     <p class="note" style="margin-bottom:12px;">Compares the review workload humans bear for AI-authored, AI-assisted, and human-only PRs. Lower values indicate less human effort required.</p>
+    ${
+      excludedTraditionalBotPRs > 0
+        ? `<p class="note" style="margin-bottom:12px;">Traditional bot-authored PRs are excluded from this comparison cohort (${excludedTraditionalBotPRs} PR${excludedTraditionalBotPRs === 1 ? "" : "s"}), even when \`include-bots\` is enabled.</p>`
+        : ""
+    }
     ${renderBurdenSection(aiPatterns.humanReviewBurden)}
   </div>
 

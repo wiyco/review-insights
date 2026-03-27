@@ -280,6 +280,30 @@ describe("generateHtmlReport", () => {
     expect(html).toContain("No bot reviewers detected.");
   });
 
+  it("notes when traditional bot-authored PRs are excluded from burden comparison", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        aiPatterns: {
+          botReviewers: [],
+          aiCoAuthoredPRs: 0,
+          totalPRs: 3,
+          botReviewPercentage: 0,
+          humanReviewBurden: {
+            ...EMPTY_BURDEN,
+            humanOnly: {
+              ...EMPTY_BURDEN.humanOnly,
+              prCount: 2,
+            },
+          },
+        },
+      }),
+    );
+
+    expect(html).toContain(
+      "Traditional bot-authored PRs are excluded from this comparison cohort (1 PR)",
+    );
+  });
+
   it("shows truncation warning for PRs with many reviews", () => {
     const reviews: ReviewRecord[] = Array.from(
       {

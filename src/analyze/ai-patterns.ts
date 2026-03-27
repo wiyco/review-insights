@@ -77,6 +77,18 @@ function getQualifyingHumanReviews(pr: PullRequestRecord): ReviewRecord[] {
   );
 }
 
+/**
+ * Returns the PRs that are eligible for AI-vs-human burden comparison.
+ * Traditional bot-authored PRs are excluded because they do not represent
+ * human-authored or AI-assisted development work. AI tool accounts remain
+ * eligible because normalization already marks them as non-bots.
+ */
+function getHumanReviewBurdenCohort(
+  pullRequests: PullRequestRecord[],
+): PullRequestRecord[] {
+  return pullRequests.filter((pr) => !pr.authorIsBot);
+}
+
 /** Minimum PRs in a size-tier cell to report metrics. */
 const MIN_STRATIFIED_SAMPLE = 3;
 
@@ -211,13 +223,15 @@ const ALL_SIZE_TIERS: PRSizeTier[] = [
 function computeHumanReviewBurden(
   pullRequests: PullRequestRecord[],
 ): HumanReviewBurden {
+  const comparisonPRs = getHumanReviewBurdenCohort(pullRequests);
+
   // Group PRs by AI category
   const byCategory: Record<AICategory, PullRequestRecord[]> = {
     "ai-authored": [],
     "ai-assisted": [],
     "human-only": [],
   };
-  for (const pr of pullRequests) {
+  for (const pr of comparisonPRs) {
     byCategory[pr.aiCategory].push(pr);
   }
 

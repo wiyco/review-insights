@@ -278,6 +278,46 @@ describe("analyzeAIPatterns", () => {
     const result = analyzeAIPatterns(prs);
     expect(result.aiCoAuthoredPRs).toBe(0);
   });
+  it("excludes traditional bot-authored PRs from burden comparison groups", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        authorIsBot: false,
+        aiCategory: "human-only",
+        reviews: [
+          makeReview({
+            reviewer: "bob",
+            author: "alice",
+            prNumber: 1,
+          }),
+        ],
+      }),
+      makePR({
+        number: 2,
+        author: "dependabot[bot]",
+        authorIsBot: true,
+        aiCategory: "human-only",
+        reviews: Array.from(
+          {
+            length: 5,
+          },
+          (_, i) =>
+            makeReview({
+              reviewer: `reviewer-${i}`,
+              author: "dependabot[bot]",
+              prNumber: 2,
+            }),
+        ),
+      }),
+    ];
+
+    const result = analyzeAIPatterns(prs);
+
+    expect(result.totalPRs).toBe(2);
+    expect(result.humanReviewBurden.humanOnly.prCount).toBe(1);
+    expect(result.humanReviewBurden.humanOnly.humanReviewsPerPR.median).toBe(1);
+  });
 });
 
 describe("percentile", () => {
