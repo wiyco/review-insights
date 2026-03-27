@@ -41,9 +41,12 @@ export function computeMergeCorrelations(
 
     if (pr.state === "MERGED") {
       entry.prsMerged++;
+      const mergedMs =
+        pr.mergedAt != null ? new Date(pr.mergedAt).getTime() : null;
       const reviewCount = pr.reviews.filter(
         (r) =>
           r.state !== "PENDING" &&
+          (mergedMs === null || new Date(r.createdAt).getTime() <= mergedMs) &&
           (r.reviewer === UNKNOWN_USER ||
             author === UNKNOWN_USER ||
             r.reviewer !== author) &&
