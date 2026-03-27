@@ -1,3 +1,4 @@
+import { UNKNOWN_USER } from "../collect/normalizer";
 import type { MergeCorrelation, PullRequestRecord } from "../types";
 import { computeMedian } from "../utils/median";
 
@@ -43,7 +44,9 @@ export function computeMergeCorrelations(
       const reviewCount = pr.reviews.filter(
         (r) =>
           r.state !== "PENDING" &&
-          r.reviewer !== author &&
+          (r.reviewer === UNKNOWN_USER ||
+            author === UNKNOWN_USER ||
+            r.reviewer !== author) &&
           (includeBots || !r.reviewerIsBot),
       ).length;
       entry.totalReviewsOnMerged += reviewCount;
