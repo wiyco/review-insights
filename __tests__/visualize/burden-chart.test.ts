@@ -342,8 +342,8 @@ describe("renderBurdenSection", () => {
         humanOnly: EMPTY_BURDEN_GROUP,
       }),
     );
-    // Axis ticks for sub-hour values should use "m" suffix, not "0h"
-    expect(html).toContain("m");
+    // Axis ticks for sub-hour values should use "m" suffix
+    expect(html).toMatch(/>\d+m</);
     // Should not have ambiguous repeated "0h" labels
     const zeroHourMatches = html.match(/>0h</g);
     // At most one "0h" at the origin is acceptable
