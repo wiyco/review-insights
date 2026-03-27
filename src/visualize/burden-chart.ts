@@ -3,6 +3,7 @@ import type {
   HumanReviewBurdenGroup,
   PRSizeTier,
 } from "../types";
+import { formatDuration } from "../utils/format";
 import { group, line, rect, svgDoc, text } from "./svg-renderer";
 
 /**
@@ -83,12 +84,8 @@ const METRICS: MetricDef[] = [
 function formatValue(value: number | null, unit: MetricDef["unit"]): string {
   if (value == null) return "N/A";
   switch (unit) {
-    case "duration": {
-      const hours = value / 3_600_000;
-      if (hours < 1) return `${Math.round(value / 60_000)}m`;
-      if (hours < 24) return `${hours.toFixed(1)}h`;
-      return `${(hours / 24).toFixed(1)}d`;
-    }
+    case "duration":
+      return formatDuration(value);
     case "rate":
       return `${(value * 100).toFixed(0)}%`;
     case "count":
@@ -112,9 +109,11 @@ function toChartValue(value: number | null, unit: MetricDef["unit"]): number {
  */
 function formatAxisValue(value: number, unit: MetricDef["unit"]): string {
   switch (unit) {
-    case "duration":
-      if (value < 1) return `${Math.round(value * 60)}m`;
-      return `${value.toFixed(1)}h`;
+    case "duration": {
+      // value is in hours (converted by toChartValue)
+      const ms = value * 3_600_000;
+      return formatDuration(ms);
+    }
     case "rate":
       return `${(value * 100).toFixed(0)}%`;
     case "count":
