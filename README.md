@@ -77,7 +77,7 @@ Uploads a self-contained HTML report as a downloadable artifact.
 ## Visualizations
 
 - **Review Heatmap** — Reviewer × Author matrix showing who reviews whom. Flagged pairs highlighted.
-- **Bar Charts** — Per-user reviews given, reviews received, and approval counts.
+- **Bar Charts** — Per-user reviews given and reviews received.
 - **Time Series** — Weekly/monthly review activity and PR volume trends.
 - **Human Review Burden** — Grouped bar charts comparing median review workload (with p90 whiskers) across AI-authored, AI-assisted, and human-only PRs. Includes a detailed metrics table and size-stratified breakdown.
 
@@ -86,7 +86,7 @@ Uploads a self-contained HTML report as a downloadable artifact.
 - **Per-user stats** — Reviews given/received, approval rate, avg time to first review
 - **Merge correlation** — PRs authored vs merged, zero-review merges
 - **Bias detection** — Statistical imbalance via z-score and Gini coefficient
-- **AI/Bot patterns** — Bot review percentage, co-authored commits detection
+- **AI/Bot patterns** — Bot review percentage, co-authored PR detection (any `Co-authored-by` trailer). Note: the `coAuthoredPRs` metric counts PRs with **any** co-author trailer, while the AI category classification (`ai-assisted`) only matches [specific AI tool email patterns](docs/ai-human-review-burden.md#ai-co-author-detection). A PR may have a co-author trailer without being classified as AI-assisted.
 - **Human review burden** — Compares review workload (review counts, latency, change-request rate, review rounds) across AI-authored, AI-assisted, and human-only PRs, with size-stratified breakdowns
 
 For detailed metric definitions, see [docs/statistics.md](docs/statistics.md).

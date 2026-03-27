@@ -28,7 +28,7 @@ No filtering is applied. All PRs and reviews are included regardless of bot stat
 | merge-correlation | Yes | Yes | Bot reviews excluded from review counts on merged PRs |
 | ai-patterns | **No** | **No** | Always includes all activity — its purpose is to quantify bot presence |
 | html-report (KPIs) | Yes | N/A | Uses pre-filtered PR list for totals (PR count, unique authors) |
-| time-series | Yes | N/A | Receives pre-filtered PR list from html-report |
+| time-series | Yes | N/A | Receives pre-filtered PR list from html-report. Bot reviews and self-reviews are **not** excluded — the review count reflects all non-PENDING review activity on human-authored PRs. |
 
 ### Rationale
 
