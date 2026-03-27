@@ -1,4 +1,4 @@
-import { UNKNOWN_USER } from "../collect/normalizer";
+import { hasAICoAuthor, UNKNOWN_USER } from "../collect/normalizer";
 import type {
   AICategory,
   AIPatternResult,
@@ -277,16 +277,12 @@ export function analyzeAIPatterns(
     }
   }
 
-  // Count PRs with co-authored-by in any commit message
-  let coAuthoredPRs = 0;
-  const coAuthoredPattern = /co-authored-by:/i;
+  // Count PRs with an AI-specific co-author trailer in any commit message.
+  let aiCoAuthoredPRs = 0;
 
   for (const pr of pullRequests) {
-    const hasCoAuthored = pr.commitMessages.some((msg) =>
-      coAuthoredPattern.test(msg),
-    );
-    if (hasCoAuthored) {
-      coAuthoredPRs++;
+    if (hasAICoAuthor(pr.commitMessages)) {
+      aiCoAuthoredPRs++;
     }
   }
 
@@ -310,7 +306,7 @@ export function analyzeAIPatterns(
 
   return {
     botReviewers,
-    coAuthoredPRs,
+    aiCoAuthoredPRs,
     totalPRs: pullRequests.length,
     botReviewPercentage,
     humanReviewBurden,

@@ -77,7 +77,7 @@ Uploads a self-contained HTML report as a downloadable artifact.
 ## Visualizations
 
 - **Review Heatmap** — Reviewer × Author matrix showing who reviews whom. Flagged pairs highlighted.
-- **Bar Charts** — Per-user reviews given, reviews received, and approval counts.
+- **Bar Charts** — Per-user reviews given and reviews received.
 - **Time Series** — Weekly/monthly review activity and PR volume trends.
 - **Human Review Burden** — Grouped bar charts comparing median review workload (with p90 whiskers) across AI-authored, AI-assisted, and human-only PRs. Includes a detailed metrics table and size-stratified breakdown.
 
@@ -86,7 +86,7 @@ Uploads a self-contained HTML report as a downloadable artifact.
 - **Per-user stats** — Reviews given/received, approval rate, avg time to first review
 - **Merge correlation** — PRs authored vs merged, zero-review merges
 - **Bias detection** — Statistical imbalance via z-score and Gini coefficient
-- **AI/Bot patterns** — Bot review percentage, co-authored commits detection
+- **AI/Bot patterns** — Bot review percentage and AI co-authored PR detection using the same [AI tool email patterns](docs/ai-human-review-burden.md#ai-co-author-detection) that define `ai-assisted`
 - **Human review burden** — Compares review workload (review counts, latency, change-request rate, review rounds) across AI-authored, AI-assisted, and human-only PRs, with size-stratified breakdowns
 
 For detailed metric definitions, see [docs/statistics.md](docs/statistics.md).
@@ -119,9 +119,10 @@ permissions:
 
 ## Known Limitations
 
-- **Co-authored-by detection is approximate.** Only the last commit of each PR is fetched from the GraphQL API (`commits(last: 1)`). This means co-authorship trailers on earlier commits are not inspected, and the result varies by merge strategy: merge commits typically do not carry the trailer, squash merges may or may not preserve it depending on the repository's settings, and rebase merges only expose the final commit. The `coAuthoredPRs` metric should be treated as a lower-bound estimate.
+- **AI co-authored detection is approximate.** Only the last commit of each PR is fetched from the GraphQL API (`commits(last: 1)`). This means AI co-author trailers on earlier commits are not inspected, and the result varies by merge strategy: merge commits typically do not carry the trailer, squash merges may or may not preserve it depending on the repository's settings, and rebase merges only expose the final commit. The `aiCoAuthoredPRs` metric should be treated as a lower-bound estimate.
 - **Review data is capped at 100 per PR.** The GitHub GraphQL API limits nested connections. PRs with more than 100 reviews will have truncated data; a warning is shown when this occurs.
 - **Large repositories may cause long execution times.** When the GitHub API rate limit is exhausted during pagination, the action waits up to 5 minutes per reset cycle. For very active repositories with high `max-prs` values, this can result in extended run times. Set `timeout-minutes` in your workflow job to guard against this (e.g. `timeout-minutes: 15`), and consider using a shorter date range or lower `max-prs` value.
+
 ## Security
 
 - GitHub token is only passed to the Octokit client, never logged or written to files
