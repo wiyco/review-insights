@@ -165,11 +165,19 @@ function renderMetricChart(
   const paddingBottom = 25;
   const totalHeight = paddingTop + groupHeight + groupGap + paddingBottom;
 
-  // Determine max value for scaling (use p90 if available, else median)
-  const maxVal = Math.max(
+  // Determine max value for scaling (use p90 if available, else median).
+  // When all values are zero, use a unit-specific default so the axis
+  // shows a meaningful scale instead of repetitive "0" ticks.
+  const computedMax = Math.max(
     ...data.map((d) => Math.max(d.medianChart, d.p90Chart)),
-    0.001, // prevent zero-scale
   );
+  const defaultMax: Record<MetricDef["unit"], number> = {
+    count: 1,
+    rounds: 1,
+    rate: 0.1,
+    duration: 1, // 1 hour
+  };
+  const maxVal = computedMax > 0 ? computedMax : defaultMax[metric.unit];
 
   const parts: string[] = [];
 

@@ -326,6 +326,44 @@ describe("renderBurdenSection", () => {
     expect(html).toContain("median=");
   });
 
+  it("uses meaningful axis scale when all values are zero", () => {
+    const zeroGroup = makeBurdenGroup({
+      prCount: 10,
+      humanReviewsPerPR: {
+        median: 0,
+        p90: 0,
+        mean: 0,
+      },
+      firstReviewLatencyMs: {
+        median: 0,
+        p90: 0,
+        mean: 0,
+      },
+      changeRequestRate: {
+        median: 0,
+        mean: 0,
+      },
+      reviewRounds: {
+        median: 0,
+        p90: 0,
+        mean: 0,
+      },
+    });
+    const html = renderBurdenSection(
+      makeBurden({
+        aiAuthored: zeroGroup,
+        aiAssisted: zeroGroup,
+        humanOnly: zeroGroup,
+      }),
+    );
+    // Count/rounds axis should reach 1.0 (not repetitive 0.0 ticks)
+    expect(html).toContain(">1.0<");
+    // Rate axis should reach 10% (not repetitive 0% ticks)
+    expect(html).toContain(">10%<");
+    // Duration axis should reach 1h (default max), not all "0s" ticks
+    expect(html).toContain(">1.0h<");
+  });
+
   it("formats sub-hour duration axis ticks in minutes", () => {
     // 30 min median, 45 min p90 → axis max < 1h → ticks should be in minutes
     const html = renderBurdenSection(
