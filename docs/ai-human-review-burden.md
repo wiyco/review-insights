@@ -2,6 +2,8 @@
 
 This document specifies the analysis of how AI involvement affects human review workload. The module quantifies differences in review burden between AI-involved PRs and human-only PRs.
 
+The comparison cohort excludes **traditional bot-authored PRs** (`authorIsBot === true`). Those PRs remain visible in top-level bot observability metrics, but they are not part of the AI-vs-human burden comparison because they are neither human-authored development work nor AI-authored coding-agent work.
+
 ## PR classification
 
 Every pull request is classified into exactly one of three mutually exclusive groups. Classification is determined at normalization time and stored on the `PullRequestRecord`.
@@ -13,6 +15,8 @@ Every pull request is classified into exactly one of three mutually exclusive gr
 | Human-only | `human-only` | Neither of the above |
 
 A PR that is both AI-authored and has AI co-author trailers is classified as `ai-authored` (the first matching rule wins).
+
+For `humanReviewBurden`, the grouped comparison is computed only on PRs with `authorIsBot === false`. Traditional bot-authored PRs may still carry `aiCategory === "human-only"` on the normalized record, but they are excluded before burden metrics are grouped.
 
 ### AI tool account detection
 
@@ -65,10 +69,13 @@ The `include-bots` flag controls traditional bot filtering only. AI classificati
 
 | `include-bots` | Traditional bots (Dependabot, etc.) | AI tool accounts (OpenClaw) | AI-assisted PRs |
 |---|---|---|---|
-| `false` | Excluded from per-user-stats, bias, merge-correlation | **Included** (not bots) | Included |
-| `true` | Included | Included | Included |
+| `false` | Excluded from per-user-stats, bias, merge-correlation, and `humanReviewBurden` | **Included** (not bots) | Included |
+| `true` | Included in per-user-stats, bias, and merge-correlation; still excluded from `humanReviewBurden` | Included | Included |
 
-The `ai-patterns` module continues to ignore `include-bots` entirely and operates on the full dataset.
+Within `ai-patterns`, the split is intentional:
+
+- Bot observability metrics (`botReviewers`, `botReviewPercentage`, `aiCoAuthoredPRs`, `totalPRs`) operate on the full dataset.
+- `humanReviewBurden` always excludes traditional bot-authored PRs from the comparison cohort, regardless of `include-bots`.
 
 ## PR size data
 
@@ -112,7 +119,13 @@ This definition is used consistently across all metrics below.
 
 ### Per-group metrics
 
-For each group $g \in \{\text{ai-authored},\; \text{ai-assisted},\; \text{human-only}\}$, let $PR_g$ be the set of PRs in group $g$.
+Let the comparison cohort be:
+
+$$C = \{pr \mid \neg pr.\text{authorIsBot}\}$$
+
+For each group $g \in \{\text{ai-authored},\; \text{ai-assisted},\; \text{human-only}\}$, let $PR_g$ be the set of PRs in group $g$ within that cohort:
+
+$$PR_g = \{pr \in C \mid pr.\text{aiCategory} = g\}$$
 
 #### humanReviewsPerPR — Human review count distribution
 
@@ -232,7 +245,7 @@ Groups with fewer than 3 PRs in a given size tier report `null` for all metrics 
 
 ### Summary counts
 
-Each group's `prCount` field provides the count of PRs in that group:
+Each group's `prCount` field provides the count of comparison-eligible PRs in that group:
 
 | Field | Definition |
 |---|---|
@@ -303,6 +316,7 @@ interface AIPatternResult {
 | Condition | Behavior |
 |---|---|
 | No PRs in a group | All metrics for that group return `null`; `prCount` is `0` |
+| PR author is a traditional bot | Excluded from `humanReviewBurden` entirely, regardless of `include-bots` |
 | PR has reviews but all are bot/PENDING/self | Treated as zero human reviews; included in `humanReviewsPerPR` distribution (as 0) but excluded from latency, changeRequestRate, and reviewRounds |
 | `review.createdAt < pr.createdAt` | Review excluded from first-review latency calculation only. For `changeRequestRate` and `reviewRounds`, all qualifying human reviews are included regardless of timestamp. A PR whose qualifying human reviews **all** predate `pr.createdAt` is treated as unreviewed for latency, `changeRequestRate`, and `reviewRounds` (it contributes no datapoint to $P_g$ / $Q_g$) |
 | Division by zero | Always returns `null`, never `NaN` or `Infinity` |

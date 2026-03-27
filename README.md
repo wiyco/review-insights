@@ -50,6 +50,8 @@ The date range selects PRs by `createdAt`. For those PRs, review activity and me
 > [!NOTE]
 >
 > `include-bots` controls traditional bot accounts (Dependabot, Renovate, etc.) only. AI tool accounts (e.g., OpenClaw, Devin, Copilot) are always included in analysis because they produce substantive code changes that require peer review. See [docs/ai-human-review-burden.md](docs/ai-human-review-burden.md) for classification details.
+>
+> Traditional bot-authored PRs are still excluded from the AI-vs-human `Human Review Burden` comparison cohort, even when `include-bots` is `true`. They remain visible in bot observability metrics such as bot review percentage.
 
 ## Outputs
 
@@ -81,7 +83,7 @@ Uploads a self-contained HTML report as a downloadable artifact.
 - **Review Heatmap** — Reviewer × Author matrix showing who reviews whom. Flagged pairs highlighted.
 - **Bar Charts** — Per-user reviews given and reviews received.
 - **Time Series** — Weekly/monthly review activity and PR volume trends.
-- **Human Review Burden** — Grouped bar charts comparing median review workload (with p90 whiskers) across AI-authored, AI-assisted, and human-only PRs. Includes a detailed metrics table and size-stratified breakdown.
+- **Human Review Burden** — Grouped bar charts comparing median review workload (with p90 whiskers) across AI-authored, AI-assisted, and human-only PRs, excluding traditional bot-authored PRs from the comparison cohort. Includes a detailed metrics table and size-stratified breakdown.
 
 ## Analysis Features
 
@@ -89,7 +91,7 @@ Uploads a self-contained HTML report as a downloadable artifact.
 - **Merge correlation** — PRs authored vs merged, zero-review merges
 - **Bias detection** — Statistical imbalance via z-score and Gini coefficient
 - **AI/Bot patterns** — Bot review percentage and AI co-authored PR detection using the same [AI tool email patterns](docs/ai-human-review-burden.md#ai-co-author-detection) that define `ai-assisted`
-- **Human review burden** — Compares review workload (review counts, latency, change-request rate, review rounds) across AI-authored, AI-assisted, and human-only PRs, with size-stratified breakdowns
+- **Human review burden** — Compares review workload (review counts, latency, change-request rate, review rounds) across AI-authored, AI-assisted, and human-only PRs after excluding traditional bot-authored PRs from the comparison cohort, with size-stratified breakdowns
 
 For detailed metric definitions, see [docs/statistics.md](docs/statistics.md).
 For filtering behavior, see [docs/filtering.md](docs/filtering.md).

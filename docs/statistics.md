@@ -143,7 +143,10 @@ $$\text{zeroReviewMerges}(u) = |\{pr \in M_u \mid |\{r \in pr.\text{reviews} \mi
 
 Source: `ai-patterns.ts`
 
-This module ignores the `include-bots` flag and always operates on the full unfiltered dataset.
+This module splits into two populations:
+
+- Bot observability metrics (`botReviewers`, `botReviewPercentage`, `aiCoAuthoredPRs`, `totalPRs`) ignore `include-bots` and operate on the full unfiltered dataset.
+- `humanReviewBurden` uses a comparison cohort that excludes traditional bot-authored PRs (`authorIsBot === true`) regardless of `include-bots`.
 
 ### botReviewPercentage
 
@@ -163,7 +166,7 @@ Count of PRs where any commit message contains an AI co-author trailer as define
 
 ### Human review burden (per AI category)
 
-See [ai-human-review-burden.md](ai-human-review-burden.md) for the full specification of PR classification (`ai-authored` / `ai-assisted` / `human-only`) and per-group human review burden metrics (`humanReviewsPerPR`, `firstReviewLatencyMs`, `unreviewedRate`, `changeRequestRate`, `reviewRounds`) — each reported as distribution statistics (median, p90, mean) rather than a single average.
+See [ai-human-review-burden.md](ai-human-review-burden.md) for the full specification of PR classification (`ai-authored` / `ai-assisted` / `human-only`) and per-group human review burden metrics (`humanReviewsPerPR`, `firstReviewLatencyMs`, `unreviewedRate`, `changeRequestRate`, `reviewRounds`) — each reported as distribution statistics (median, p90, mean) rather than a single average. These metrics are computed only on the comparison cohort of non-traditional-bot PRs.
 
 ## HTML report KPIs
 
@@ -183,6 +186,8 @@ Source: `html-report.ts`
 Source: `burden-chart.ts`, rendered in `html-report.ts`
 
 This section visualizes the human review burden metrics from [ai-human-review-burden.md](ai-human-review-burden.md). It appears after the AI & Bot Patterns card.
+
+Traditional bot-authored PRs are excluded from this comparison section even when `include-bots` is `true`. The report notes the excluded count when the burden cohort is smaller than `aiPatterns.totalPRs`.
 
 ### Components
 
