@@ -3,6 +3,7 @@ import type { AnalysisResult } from "../types";
 import { formatDuration } from "../utils/format";
 import { escapeHtml } from "../utils/sanitize";
 import { renderBarChart } from "./bar-chart";
+import { renderBurdenSection } from "./burden-chart";
 import { renderHeatmap } from "./heatmap";
 import { renderTimeSeries } from "./time-series";
 
@@ -235,6 +236,13 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
         ? `<table style="margin-top:12px"><thead><tr><th>Bot Reviewer</th><th>Reviews</th></tr></thead><tbody>${botRows}</tbody></table>`
         : '<p class="note">No bot reviewers detected.</p>'
     }
+  </div>
+
+  <!-- Human Review Burden -->
+  <div class="card">
+    <h2>Human Review Burden by AI Involvement</h2>
+    <p class="note" style="margin-bottom:12px;">Compares the review workload humans bear for AI-authored, AI-assisted, and human-only PRs. Lower values indicate less human effort required.</p>
+    ${renderBurdenSection(aiPatterns.humanReviewBurden)}
   </div>
 
   <!-- Bias Warnings -->
