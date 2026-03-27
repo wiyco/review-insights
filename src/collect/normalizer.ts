@@ -90,6 +90,28 @@ export function isAIToolAccount(login: string): boolean {
 }
 
 /**
+ * Determines whether an account should be treated as a traditional bot in
+ * statistics and filtering. AI tool accounts take precedence and are not
+ * classified as bots even when they use a Bot identity on GitHub.
+ */
+function isTraditionalBotAccount(
+  author:
+    | string
+    | {
+        login: string;
+        __typename?: string;
+      }
+    | null,
+): boolean {
+  if (!author) {
+    return false;
+  }
+
+  const login = typeof author === "string" ? author : author.login;
+  return !isAIToolAccount(login) && isBot(author);
+}
+
+/**
  * Checks whether any commit message contains an AI co-author trailer.
  * Matches `Co-authored-by: <name> <email>` where email matches a known
  * AI tool pattern.
@@ -151,7 +173,7 @@ export function normalizeReview(
 
   return {
     reviewer: rawReview.author?.login ?? UNKNOWN_USER,
-    reviewerIsBot: isBot(rawReview.author),
+    reviewerIsBot: isTraditionalBotAccount(rawReview.author),
     author: prAuthor,
     state,
     createdAt: rawReview.createdAt,
@@ -167,7 +189,7 @@ export function normalizePullRequests(
 ): PullRequestRecord[] {
   return rawNodes.map((node) => {
     const author = node.author?.login ?? UNKNOWN_USER;
-    const authorIsBot = isAIToolAccount(author) ? false : isBot(node.author);
+    const authorIsBot = isTraditionalBotAccount(node.author);
     const state: PullRequestState = node.state;
 
     if (node.reviews.nodes.length >= MAX_REVIEWS_PER_PR) {

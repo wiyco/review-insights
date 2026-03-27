@@ -262,6 +262,21 @@ describe("normalizeReview", () => {
     expect(result.reviewerIsBot).toBe(true);
   });
 
+  it("does not treat AI tool reviewers as bots", () => {
+    const result = normalizeReview(
+      makeRawReview({
+        author: {
+          login: "devin-ai-integration[bot]",
+          __typename: "Bot",
+        },
+      }),
+      1,
+      "author-a",
+    );
+    expect(result.reviewer).toBe("devin-ai-integration[bot]");
+    expect(result.reviewerIsBot).toBe(false);
+  });
+
   it("falls back to COMMENTED for unknown review state and warns", () => {
     const result = normalizeReview(
       makeRawReview({

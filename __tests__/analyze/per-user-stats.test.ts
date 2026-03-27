@@ -232,6 +232,30 @@ describe("computeUserStats", () => {
       expect(findUser(statsWithBots, "bob")?.reviewsReceived).toBe(2);
       expect(findUser(statsWithoutBots, "bob")?.reviewsReceived).toBe(1);
     });
+
+    it("keeps AI tool reviewers when includeBots=false", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 106,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "devin-ai-integration[bot]",
+              author: "alice",
+              reviewerIsBot: false,
+              state: "APPROVED",
+              prNumber: 106,
+            }),
+          ],
+        }),
+      ];
+
+      const stats = computeUserStats(prs, false);
+      const aiReviewer = findUser(stats, "devin-ai-integration[bot]");
+      expect(aiReviewer).toBeDefined();
+      expect(aiReviewer?.reviewsGiven).toBe(1);
+      expect(findUser(stats, "alice")?.reviewsReceived).toBe(1);
+    });
   });
 
   describe("PENDING reviews", () => {
