@@ -59,7 +59,8 @@ The date range selects PRs by `createdAt`. For those PRs, review activity and me
 |---|---|
 | `report-path` | Path to the generated HTML report file |
 | `total-prs-analyzed` | Number of PRs analyzed |
-| `top-reviewer` | Login of the most active reviewer |
+| `top-reviewers` | JSON array of logins tied for the maximum `reviewsGiven` among users with `reviewsGiven > 0`; `[]` if no active reviewers exist |
+| `max-reviews-given` | JSON number for the maximum `reviewsGiven` among users with `reviewsGiven > 0`; `null` if no active reviewers exist |
 | `bias-detected` | Whether review imbalance was detected (`true`/`false`) |
 
 For details on each output, see [docs/outputs.md](docs/outputs.md).
