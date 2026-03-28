@@ -10,8 +10,8 @@ The `include-bots` input controls whether bot accounts are included in statistic
 
 Two independent filters are applied:
 
-1. **Author filter** — PRs where `authorIsBot` is `true` are skipped entirely. All reviews on that PR are also excluded, even if the reviewers are human.
-2. **Reviewer filter** — Individual reviews where `reviewerIsBot` is `true` are excluded from metrics, even on human-authored PRs.
+1. **Author filter** - PRs where `authorIsBot` is `true` are skipped entirely. All reviews on that PR are also excluded, even if the reviewers are human.
+2. **Reviewer filter** - Individual reviews where `reviewerIsBot` is `true` are excluded from metrics, even on human-authored PRs.
 
 Both filters must pass for a review to be counted. A human review on a bot-authored PR is **not** counted.
 
@@ -50,7 +50,7 @@ Reviews with `state === "PENDING"` are draft/unsubmitted reviews. They are exclu
 - bias-detector
 - merge-correlation
 - time-series
-- ai-patterns (human review burden metrics only — `getQualifyingHumanReviews` excludes PENDING)
+- ai-patterns (human review burden metrics only - `getQualifyingHumanReviews` excludes PENDING)
 
 > [!NOTE]
 >
@@ -67,4 +67,6 @@ Reviews where the reviewer is the PR author are excluded from:
 
 These do not represent peer review activity. In merge-correlation specifically, self-reviews must not count toward `avgReviewsBeforeMerge` or affect `zeroReviewMerges`, as these metrics measure whether a PR received independent peer review before merging.
 
-**Exception: `ghost` placeholder** — When GraphQL returns `null` for a deleted user account, the normalizer substitutes the shared placeholder `ghost`. The self-review exclusion is skipped when either the reviewer or the author login is `ghost`, to avoid incorrectly collapsing two unrelated deleted users onto the same identity. This guard applies to all modules listed above.
+**Exception: `ghost` placeholder** - When GraphQL returns `null` for a deleted user account, the normalizer substitutes the shared placeholder `ghost`. The self-review exclusion is skipped when either the reviewer or the author login is `ghost`, to avoid incorrectly collapsing two unrelated deleted users onto the same identity. This guard applies to all modules listed above.
+
+In `bias-detector`, this same exception also applies when constructing the Gini matrix domain: the `ghost -> ghost` diagonal remains an eligible cell and is not subtracted as a structurally impossible self-review pair.

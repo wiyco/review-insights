@@ -749,6 +749,41 @@ describe("detectBias", () => {
       expect(ghostRow?.get("ghost")).toBe(1);
     });
 
+    it("keeps the ghost diagonal in the Gini denominator", () => {
+      // Non-zero cells: ghost->ghost=1, bob->alice=1.
+      // Reviewers: {ghost, bob}, Authors: {ghost, alice}.
+      // The ghost diagonal remains eligible, so total cells = 2 * 2 = 4.
+      // Sorted full matrix values: [0, 0, 1, 1].
+      // G = 2*(1*0 + 2*0 + 3*1 + 4*1)/(4*2) - 5/4 = 14/8 - 5/4 = 1/2.
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "ghost",
+          reviews: [
+            makeReview({
+              reviewer: "ghost",
+              author: "ghost",
+              prNumber: 1,
+            }),
+          ],
+        }),
+        makePR({
+          number: 2,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              prNumber: 2,
+            }),
+          ],
+        }),
+      ];
+
+      const result = detectBias(prs, 2.0, true);
+      expect(result.giniCoefficient).toBeCloseTo(0.5, 10);
+    });
+
     it("still excludes genuine self-reviews for normal users", () => {
       const prs: PullRequestRecord[] = [
         makePR({
