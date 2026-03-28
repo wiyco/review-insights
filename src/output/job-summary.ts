@@ -1,4 +1,5 @@
 import * as core from "@actions/core";
+import { computeTopReviewerSummary } from "../analyze/top-reviewers";
 import type { AnalysisResult } from "../types";
 import { escapeHtml } from "../utils/sanitize";
 import { renderBarChart } from "../visualize/bar-chart";
@@ -14,10 +15,9 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
   const filteredPRs = includeBots
     ? pullRequests
     : pullRequests.filter((pr) => !pr.authorIsBot);
+  const activeReviewerStats = userStats.filter((user) => user.reviewsGiven > 0);
   const totalPRs = filteredPRs.length;
-  const uniqueReviewers = userStats.filter((u) => u.reviewsGiven > 0).length;
-
-  const topReviewer = userStats.length > 0 ? userStats[0] : null;
+  const topReviewerSummary = computeTopReviewerSummary(userStats);
 
   const biasDetected = bias.flaggedPairs.length > 0;
 
@@ -26,7 +26,7 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
     maxUsers: 12,
     cellSize: 32,
   });
-  const barChartSvg = renderBarChart(userStats, "reviewsGiven", {
+  const barChartSvg = renderBarChart(activeReviewerStats, "reviewsGiven", {
     maxUsers: 10,
   });
 
@@ -52,12 +52,18 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
       ],
       [
         "Unique reviewers",
-        String(uniqueReviewers),
+        String(topReviewerSummary.reviewerCount),
       ],
       [
-        "Top reviewer",
-        topReviewer
-          ? `${escapeHtml(topReviewer.login)} (${topReviewer.reviewsGiven} reviews)`
+        "Top reviewers",
+        topReviewerSummary.topReviewers.length > 0
+          ? `${escapeHtml(topReviewerSummary.topReviewers.join(", "))} (${topReviewerSummary.maxReviewsGiven} reviews each)`
+          : "N/A",
+      ],
+      [
+        "Max reviews given",
+        topReviewerSummary.maxReviewsGiven != null
+          ? String(topReviewerSummary.maxReviewsGiven)
           : "N/A",
       ],
       [

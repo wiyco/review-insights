@@ -7,6 +7,7 @@ import { analyzeAIPatterns } from "./analyze/ai-patterns";
 import { detectBias } from "./analyze/bias-detector";
 import { computeMergeCorrelations } from "./analyze/merge-correlation";
 import { computeUserStats } from "./analyze/per-user-stats";
+import { computeTopReviewerSummary } from "./analyze/top-reviewers";
 import { fetchAllPullRequests } from "./collect/fetcher";
 import { applyObservationWindow } from "./collect/observation-window";
 import { getConfig } from "./inputs";
@@ -50,6 +51,7 @@ async function run(): Promise<void> {
     pullRequests,
     config.includeBots,
   );
+  const topReviewerSummary = computeTopReviewerSummary(userStats);
   const bias = detectBias(
     pullRequests,
     config.biasThreshold,
@@ -142,12 +144,18 @@ async function run(): Promise<void> {
       : pullRequests.filter((pr) => !pr.authorIsBot).length;
     core.setOutput("total-prs-analyzed", analyzedPRs);
 
-    const topReviewer = userStats.length > 0 ? userStats[0].login : "";
-    core.setOutput("top-reviewer", topReviewer);
+    core.setOutput(
+      "top-reviewers",
+      JSON.stringify(topReviewerSummary.topReviewers),
+    );
+    core.setOutput(
+      "max-reviews-given",
+      JSON.stringify(topReviewerSummary.maxReviewsGiven),
+    );
     core.setOutput("bias-detected", String(bias.flaggedPairs.length > 0));
 
     logger.info(
-      `Review insights complete: ${analyzedPRs} PRs analyzed, ${userStats.length} users tracked`,
+      `Review insights complete: ${analyzedPRs} PRs analyzed, ${userStats.length} users tracked (${topReviewerSummary.reviewerCount} active reviewers)`,
     );
   } catch (err: unknown) {
     // Clean up temp directory on error since report-path output won't be usable

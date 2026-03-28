@@ -67,8 +67,11 @@ outputs:
   total-prs-analyzed:
     description: "Number of PRs analyzed"
 
-  top-reviewer:
-    description: "Login of the most active reviewer"
+  top-reviewers:
+    description: "JSON array of logins tied for the maximum reviewsGiven among users with reviewsGiven > 0, or [] if no active reviewers exist"
+
+  max-reviews-given:
+    description: "JSON number for the maximum reviewsGiven among users with reviewsGiven > 0, or null if no active reviewers exist"
 
   bias-detected:
     description: "Whether review imbalance was detected (true/false)"
