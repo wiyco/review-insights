@@ -183,6 +183,18 @@ describe("getConfig", () => {
       expect(config.until).toBe("2025-12-01T12:30:45.123Z");
     });
 
+    it("accepts fractional seconds and normalizes them to milliseconds", () => {
+      mockDefaults({
+        since: "2025-01-01T00:00:00.1234Z",
+        until: "2025-12-01T12:30:45.9876Z",
+      });
+
+      const config = getConfig();
+
+      expect(config.since).toBe("2025-01-01T00:00:00.123Z");
+      expect(config.until).toBe("2025-12-01T12:30:45.987Z");
+    });
+
     it("accepts date + time with positive UTC offset", () => {
       mockDefaults({
         since: "2025-01-01T09:00:00+09:00",
@@ -456,26 +468,56 @@ describe("getConfig", () => {
       expect(config.since).toBe("2008-01-01T00:00:00.000Z");
     });
 
-    it("does not reject non-existent dates that JS rolls over (2025-02-30)", () => {
-      // JS Date rolls "2025-02-30" to "2025-03-02" — the regex passes and
-      // Date constructor does not return NaN, so this is silently accepted.
-      // This test documents the current behaviour rather than asserting
-      // it is desirable.
+    it("rejects non-existent dates (2025-02-30)", () => {
+      // Regression test: impossible calendar dates must be rejected instead of
+      // being normalized by the runtime date parser.
       mockDefaults({
         since: "2025-02-30",
         until: "2025-06-01T00:00:00Z",
       });
 
-      const config = getConfig();
-
-      expect(config.since).toBe("2025-03-02T00:00:00.000Z");
+      expect(() => getConfig()).toThrow("is not a valid ISO 8601 date");
     });
 
-    it("rejects non-existent month (2025-13-01) via NaN check", () => {
-      // "2025-13-01" passes the regex but JS Date returns Invalid Date (NaN).
+    it("accepts leap-day dates that exist on the calendar", () => {
+      mockDefaults({
+        since: "2024-02-29T00:00:00Z",
+        until: "2025-06-01T00:00:00Z",
+      });
+
+      const config = getConfig();
+
+      expect(config.since).toBe("2024-02-29T00:00:00.000Z");
+    });
+
+    it("rejects leap-day dates that do not exist on the calendar", () => {
+      mockDefaults({
+        since: "2025-02-29",
+        until: "2025-06-01T00:00:00Z",
+      });
+
+      expect(() => getConfig()).toThrow("is not a valid ISO 8601 date");
+    });
+
+    it("rejects non-existent months (2025-13-01)", () => {
       mockDefaults({
         since: "2025-06-01T00:00:00Z",
         until: "2025-13-01",
+      });
+
+      expect(() => getConfig()).toThrow("is not a valid ISO 8601 date");
+    });
+
+    it.each([
+      "2025-06-01T24:00:00Z",
+      "2025-06-01T23:60:00Z",
+      "2025-06-01T23:59:60Z",
+      "2025-06-01T09:30:00+24:00",
+      "2025-06-01T09:30:00+09:60",
+    ])("rejects out-of-range ISO 8601 components: %s", (invalidUntil) => {
+      mockDefaults({
+        since: "2025-06-01T00:00:00Z",
+        until: invalidUntil,
       });
 
       expect(() => getConfig()).toThrow("is not a valid ISO 8601 date");

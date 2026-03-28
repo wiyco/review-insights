@@ -11,6 +11,7 @@ const VALID_OUTPUT_MODES: ReadonlySet<OutputMode> = new Set<OutputMode>([
 function isValidOutputMode(value: string): value is OutputMode {
   return VALID_OUTPUT_MODES.has(value as OutputMode);
 }
+
 const MIN_DATE = "2008-01-01T00:00:00Z";
 const MIN_BIAS_THRESHOLD = 0.5;
 const MAX_BIAS_THRESHOLD = 10.0;
@@ -19,13 +20,83 @@ const MAX_MAX_PRS = 5000;
 const DEFAULT_LOOKBACK_DAYS = 90;
 
 /**
- * Matches ISO 8601 date strings:
+ * Matches the supported ISO 8601 subset:
  * - Date only: YYYY-MM-DD
- * - Date + time with Z: YYYY-MM-DDTHH:mm:ssZ or YYYY-MM-DDTHH:mm:ss.sssZ
- * - Date + time with offset: YYYY-MM-DDTHH:mm:ss±HH:MM
+ * - Date + time with Z: YYYY-MM-DDTHH:mm:ssZ or YYYY-MM-DDTHH:mm:ss.sss...
+ * - Date + time with offset: YYYY-MM-DDTHH:mm:ss+HH:MM or -HH:MM
  */
 const ISO_8601_RE =
-  /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))?$/;
+  /^(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})(?:T(?<hour>\d{2}):(?<minute>\d{2}):(?<second>\d{2})(?:\.(?<fraction>\d+))?(?<timezone>Z|(?<offsetSign>[+-])(?<offsetHour>\d{2}):(?<offsetMinute>\d{2})))?$/;
+
+function isInRange(value: number, min: number, max: number): boolean {
+  return value >= min && value <= max;
+}
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function parseIso8601Date(value: string): Date | null {
+  const match = ISO_8601_RE.exec(value);
+  if (!match?.groups) {
+    return null;
+  }
+
+  const year = Number(match.groups.year);
+  const month = Number(match.groups.month);
+  const day = Number(match.groups.day);
+
+  if (!isInRange(month, 1, 12)) {
+    return null;
+  }
+  if (!isInRange(day, 1, daysInMonth(year, month))) {
+    return null;
+  }
+
+  if (match.groups.hour == null) {
+    return new Date(Date.UTC(year, month - 1, day));
+  }
+
+  const hour = Number(match.groups.hour);
+  const minute = Number(match.groups.minute);
+  const second = Number(match.groups.second);
+
+  if (!isInRange(hour, 0, 23)) {
+    return null;
+  }
+  if (!isInRange(minute, 0, 59)) {
+    return null;
+  }
+  if (!isInRange(second, 0, 59)) {
+    return null;
+  }
+
+  let offsetMinutes = 0;
+  if (match.groups.timezone !== "Z") {
+    const offsetHour = Number(match.groups.offsetHour);
+    const offsetMinute = Number(match.groups.offsetMinute);
+
+    if (!isInRange(offsetHour, 0, 23)) {
+      return null;
+    }
+    if (!isInRange(offsetMinute, 0, 59)) {
+      return null;
+    }
+
+    const offsetMagnitude = offsetHour * 60 + offsetMinute;
+    offsetMinutes =
+      match.groups.offsetSign === "+" ? offsetMagnitude : -offsetMagnitude;
+  }
+
+  const fraction = match.groups.fraction ?? "";
+  const milliseconds =
+    fraction.length === 0 ? 0 : Number(fraction.slice(0, 3).padEnd(3, "0"));
+  const utcMs =
+    Date.UTC(year, month - 1, day, hour, minute, second, milliseconds) -
+    offsetMinutes * 60_000;
+
+  return new Date(utcMs);
+}
 
 /**
  * Parses and validates an ISO 8601 date string, ensuring it falls within a sane range.
@@ -33,13 +104,8 @@ const ISO_8601_RE =
  * validation and default-value logic, avoiding TOCTOU-style drift between calls.
  */
 function parseAndValidateDate(value: string, label: string, now: Date): string {
-  if (!ISO_8601_RE.test(value)) {
-    throw new Error(
-      `Invalid ${label} date: "${value}" is not a valid ISO 8601 date.`,
-    );
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
+  const date = parseIso8601Date(value);
+  if (date === null || Number.isNaN(date.getTime())) {
     throw new Error(
       `Invalid ${label} date: "${value}" is not a valid ISO 8601 date.`,
     );
