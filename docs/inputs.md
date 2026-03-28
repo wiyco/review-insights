@@ -13,37 +13,44 @@ This prevents later review activity from changing the results of the same histor
 
 ### Accepted format
 
-Any valid **ISO 8601** date or datetime string. The following forms are accepted:
+This action accepts a strict ISO 8601 subset. Inputs must match one of the
+following forms and must represent a real calendar date/time:
 
 | Form | Example | Interpretation |
 |---|---|---|
 | Date only | `2025-06-01` | Midnight UTC (`2025-06-01T00:00:00.000Z`) |
 | Date + time (UTC) | `2025-06-01T09:30:00Z` | As specified |
-| Date + time + ms (UTC) | `2025-06-01T09:30:00.000Z` | As specified |
+| Date + time + fractional seconds (UTC) | `2025-06-01T09:30:00.000Z` | As specified, normalized to milliseconds |
 | Date + time + offset | `2025-06-01T09:30:00+09:00` | Converted to UTC |
 | Date + time + offset | `2025-06-01T09:30:00-05:00` | Converted to UTC |
 
 ### Rejected formats
 
-Any string that does not match ISO 8601 structure is rejected, even if JavaScript's `Date` constructor would parse it:
+Any string outside that subset is rejected, even if JavaScript's `Date`
+constructor would parse or normalize it:
 
-- `June 1, 2025` — English date format
-- `2025/06/01` — slash-separated
-- `2025-6-1` — unpadded month/day
-- `1 Jun 2025` — day-month-year prose
-- `1719792000000` — Unix timestamp
+- `June 1, 2025` - English date format
+- `2025/06/01` - slash-separated
+- `2025-6-1` - unpadded month/day
+- `1 Jun 2025` - day-month-year prose
+- `1719792000000` - Unix timestamp
+- `2025-02-30` - non-existent calendar date
+- `2025-06-01T23:60:00Z` - out-of-range time component
+- `2025-06-01T09:30:00+09:60` - out-of-range UTC offset
 
 ### Range constraints
 
 After format validation, the parsed date must satisfy:
 
-1. **Not before 2008-01-01** — GitHub did not exist before then.
-2. **Not in the future** — relative to the current time at execution.
-3. **`since` < `until`** — the date range must be non-empty.
+1. **Not before 2008-01-01** - GitHub did not exist before then.
+2. **Not in the future** - relative to the current time at execution.
+3. **`since` < `until`** - the date range must be non-empty.
 
 ### Output normalization
 
-All accepted dates are normalized to full ISO 8601 UTC format (`YYYY-MM-DDTHH:mm:ss.sssZ`) via `Date.prototype.toISOString()` before use in the pipeline.
+All accepted dates are normalized to full ISO 8601 UTC format
+(`YYYY-MM-DDTHH:mm:ss.sssZ`) via `Date.prototype.toISOString()` before use in
+the pipeline.
 
 ## `repository`
 
