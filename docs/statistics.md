@@ -201,6 +201,21 @@ Source: `html-report.ts`
 | Avg Reviewers/PR | Unique PR Reviews $\div$ Pull Requests |
 | Gini Coefficient | From bias detection (see above) |
 
+## HTML report: Reviewer Ranking card
+
+Source: `html-report.ts`
+
+This card reports a descriptive ranking over the observed active reviewer population. It does **not** perform hypothesis testing or claim inferential significance.
+
+| Field | Definition |
+|---|---|
+| Top reviewers | `topReviewers` - the full argmax set of `reviewsGiven` over users with `reviewsGiven > 0` |
+| Max reviews given | `maxReviewsGiven` - the maximum `reviewsGiven` among active reviewers |
+| Active reviewer population | `reviewerCount` - number of users with `reviewsGiven > 0` |
+| Tie size | $\|topReviewers\|$ and its share of the active reviewer population |
+
+The `Reviews Given` bar chart in the HTML report is also restricted to the active reviewer population so the visual ranking does not include zero-review authors.
+
 ## HTML report: Human Review Burden section
 
 Source: `burden-chart.ts`, rendered in `html-report.ts`

@@ -261,7 +261,7 @@ ${p}
 `)}function nj(e){let t=[];t.push(`<table style="margin-top:16px;">`),t.push(`<thead><tr>`),t.push(`<th>Metric</th>`);for(let n of YA)t.push(`<th style="text-align:center;" colspan="2">${JA[n]}<br><span style="font-weight:400;font-size:11px;">n=${e[n].prCount}</span></th>`);t.push(`</tr>`),t.push(`<tr>`),t.push(`<th></th>`);for(let e of YA)t.push(`<th style="text-align:center;font-size:12px;">Median</th>`),t.push(`<th style="text-align:center;font-size:12px;">P90</th>`);t.push(`</tr></thead>`),t.push(`<tbody>`);for(let n of XA){t.push(`<tr>`),t.push(`<td style="font-weight:600;">${n.label}</td>`);for(let r of YA){let i=n.extract(e[r]);t.push(`<td style="text-align:center;">${ZA(i.median,n.unit)}</td>`),t.push(`<td style="text-align:center;color:#64748b;">${ZA(i.p90,n.unit)}</td>`)}t.push(`</tr>`)}t.push(`<tr>`),t.push(`<td style="font-weight:600;">Unreviewed Rate <span style="font-size:11px;color:#94a3b8;">*</span></td>`);for(let n of YA){let r=e[n].unreviewedRate,i=r==null?`N/A`:`${(r*100).toFixed(1)}%`,a=r!=null&&r>.2?`text-align:center;color:#dc2626;font-weight:600;`:`text-align:center;`;t.push(`<td style="${a}" colspan="2">${i}</td>`)}return t.push(`</tr>`),t.push(`</tbody></table>`),t.push(`<p class="note">* Unreviewed Rate: fraction of PRs that received no qualifying human review (i.e., no non-bot, non-PENDING, non-self review with a timestamp at or after PR creation). Reported alongside latency to expose survivorship bias — high rates mean the latency metric only reflects the PRs that were actually reviewed on time.</p>`),t.join(`
 `)}function rj(e){let t=[`S`,`M`,`L`,`Empty`],n={S:`Small (1–50)`,M:`Medium (51–300)`,L:`Large (301+)`,Empty:`Empty (0)`},r=t.filter(t=>{let n=e.stratifiedBySize[t];return n.aiAuthored!=null&&n.aiAuthored.prCount>0||n.aiAssisted!=null&&n.aiAssisted.prCount>0||n.humanOnly!=null&&n.humanOnly.prCount>0});if(r.length===0)return`<p class="note" style="margin-top:16px;">No size-stratified data available (fewer than 3 PRs per size tier).</p>`;let i=[];i.push(`<h3 style="font-size:15px;font-weight:600;margin:20px 0 8px;color:#1e293b;">Size-Stratified Comparison</h3>`),i.push(`<p class="note" style="margin-bottom:8px;">Controls for PR size confounding. Compare values <em>within</em> the same size tier to isolate the effect of AI involvement. Cells with fewer than 3 PRs show "—".</p>`),i.push(`<table>`),i.push(`<thead><tr>`),i.push(`<th>Size Tier</th><th>Metric</th>`);for(let e of YA)i.push(`<th style="text-align:center;">${JA[e]}</th>`);i.push(`</tr></thead><tbody>`);for(let t of r){let r=e.stratifiedBySize[t],a=[{label:`Reviews / PR (med)`,unit:`count`,extract:e=>e.humanReviewsPerPR.median},{label:`1st Review Latency (med)`,unit:`duration`,extract:e=>e.firstReviewLatencyMs.median},{label:`Change Req. Rate (med)`,unit:`rate`,extract:e=>e.changeRequestRate.median},{label:`Review Rounds (med)`,unit:`rounds`,extract:e=>e.reviewRounds.median}];for(let e=0;e<a.length;e++){let o=a[e];i.push(`<tr>`),e===0&&i.push(`<td rowspan="${a.length}" style="font-weight:600;vertical-align:top;">${n[t]}</td>`),i.push(`<td style="font-size:13px;">${o.label}</td>`);for(let e of YA){let t=r[e];if(t==null)i.push(`<td style="text-align:center;color:#cbd5e1;">—</td>`);else{let e=o.extract(t),n=t.prCount;i.push(`<td style="text-align:center;">${ZA(e,o.unit)} <span style="font-size:10px;color:#94a3b8;">(n=${n})</span></td>`)}}i.push(`</tr>`)}}return i.push(`</tbody></table>`),i.join(`
 `)}function ij(e){let t=new Date(e.valueOf()),n=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-n);let r=new Date(Date.UTC(t.getUTCFullYear(),0,1)),i=Math.ceil(((t.getTime()-r.getTime())/864e5+1)/7);return`${t.getUTCFullYear()}-W${String(i).padStart(2,`0`)}`}function aj(e){return`${e.getUTCFullYear()}-${String(e.getUTCMonth()+1).padStart(2,`0`)}`}function oj(e,t,n){let r=[],i=n===`weekly`?ij:aj,a=new Date(e);n===`monthly`&&a.setUTCDate(1);let o=new Set;for(;a<=t;){let e=i(a);o.has(e)||(o.add(e),r.push(e)),n===`weekly`?a.setUTCDate(a.getUTCDate()+7):a.setUTCMonth(a.getUTCMonth()+1)}let s=i(t);return o.has(s)||r.push(s),r}function sj(e,t){if(e.length===0)return kA(600,80,jA(300,40,`No data available`,{fontSize:14,fill:`#888`,anchor:`middle`}));let n=t===`weekly`?ij:aj,r=new Date(e[0].createdAt),i=new Date(e[0].createdAt);for(let t of e){let e=new Date(t.createdAt);e<r&&(r=e),e>i&&(i=e);for(let e of t.reviews){if(e.state===`PENDING`)continue;let t=new Date(e.createdAt);t<r&&(r=t),t>i&&(i=t)}}let a=oj(r,i,t),o=new Map,s=new Map;for(let e of a)o.set(e,0),s.set(e,0);for(let t of e){let e=n(new Date(t.createdAt));s.has(e)&&s.set(e,(s.get(e)??0)+1);for(let e of t.reviews){if(e.state===`PENDING`)continue;let t=n(new Date(e.createdAt));o.has(t)&&o.set(t,(o.get(t)??0)+1)}}let c=a.map(e=>o.get(e)??0),l=a.map(e=>s.get(e)??0),u=Math.min(2e3,Math.max(500,a.length*50)),d=60+u+30,f=[...c,...l],p=Math.max(...f,1);function m(e,t){return[60+e/Math.max(a.length-1,1)*u,320-t/p*260]}let h=c.map((e,t)=>m(t,e)),g=l.map((e,t)=>m(t,e)),v=[];v.push(jA(d/2,24,`Review Activity Over Time`,{fontSize:16,fontWeight:`bold`,anchor:`middle`,fill:`#1a1a2e`}));for(let e=0;e<=5;e++){let t=Math.round(p*e/5),n=320-e/5*260;v.push(MA(60,n,60+u,n,`#e5e7eb`,1)),v.push(jA(50,n+4,String(t),{fontSize:10,fill:`#888`,anchor:`end`}))}let y=Math.max(1,Math.ceil(a.length/20));for(let e=0;e<a.length;e+=y){let t=60+e/Math.max(a.length-1,1)*u,n=a[e];v.push(jA(t,340,n,{fontSize:10,fill:`#888`,anchor:`end`,rotate:-45}))}if(h.length>1){let e=[[h[0][0],320],...h,[h[h.length-1][0],320]].map(([e,t])=>`${e},${t}`).join(` `);v.push(`<polygon points="${e}" fill="#2563eb" opacity="0.1"/>`)}if(g.length>1){let e=[[g[0][0],320],...g,[g[g.length-1][0],320]].map(([e,t])=>`${e},${t}`).join(` `);v.push(`<polygon points="${e}" fill="#16a34a" opacity="0.1"/>`)}h.length>1&&v.push(NA(h,`#2563eb`)),g.length>1&&v.push(NA(g,`#16a34a`));for(let[e,t]of h)v.push(`<circle cx="${e}" cy="${t}" r="3" fill="#2563eb"/>`);for(let[e,t]of g)v.push(`<circle cx="${e}" cy="${t}" r="3" fill="#16a34a"/>`);return v.push(MA(60,60,60,320,`#333`,1)),v.push(MA(60,320,60+u,320,`#333`,1)),v.push(AA(70,375,14,14,`#2563eb`,{rx:2})),v.push(jA(90,386,`Reviews`,{fontSize:12,fill:`#333`})),v.push(AA(170,375,14,14,`#16a34a`,{rx:2})),v.push(jA(190,386,`PRs Opened`,{fontSize:12,fill:`#333`})),kA(d,400,v.join(`
-`))}function cj(e){let{userStats:t,mergeCorrelations:n,bias:r,aiPatterns:i,pullRequests:a,dateRange:o,biasThreshold:s,includeBots:c}=e,l=c?a:a.filter(e=>!e.authorIsBot),u=BA(r),d=zA(t,`reviewsGiven`),f=zA(t,`reviewsReceived`),p=sj(l,`weekly`),m=t.reduce((e,t)=>e+t.reviewsGiven,0),h=l.length,g=t.filter(e=>e.reviewsGiven>0).length,v=new Set(l.map(e=>e.author)).size,y=h>0?(m/h).toFixed(1):`0`,b=l.filter(e=>e.reviews.length>=100),x=Ya(String(o.since)),S=Ya(String(o.until)),C=t.slice(0,30).map(e=>`<tr>
+`))}function cj(e){let{userStats:t,mergeCorrelations:n,bias:r,aiPatterns:i,pullRequests:a,dateRange:o,biasThreshold:s,includeBots:c}=e,l=c?a:a.filter(e=>!e.authorIsBot),u=t.filter(e=>e.reviewsGiven>0),d=Ia(t),f=BA(r),p=zA(u,`reviewsGiven`),m=zA(t,`reviewsReceived`),h=sj(l,`weekly`),g=t.reduce((e,t)=>e+t.reviewsGiven,0),v=l.length,y=d.reviewerCount,b=new Set(l.map(e=>e.author)).size,x=v>0?(g/v).toFixed(1):`0`,S=d.reviewerCount>0?(d.topReviewers.length/d.reviewerCount*100).toFixed(1):null,C=l.filter(e=>e.reviews.length>=100),w=Ya(String(o.since)),T=Ya(String(o.until)),E=t.slice(0,30).map(e=>`<tr>
         <td>${Ya(e.login)}</td>
         <td>${e.reviewsGiven}</td>
         <td>${e.reviewsReceived}</td>
@@ -271,7 +271,7 @@ ${p}
         <td>${e.avgTimeToFirstReviewMs==null?`N/A`:HA(e.avgTimeToFirstReviewMs)}</td>
         <td>${e.medianTimeToFirstReviewMs==null?`N/A`:HA(e.medianTimeToFirstReviewMs)}</td>
       </tr>`).join(`
-`),w=n.sort((e,t)=>t.prsAuthored-e.prsAuthored).slice(0,30).map(e=>`<tr>
+`),D=n.sort((e,t)=>t.prsAuthored-e.prsAuthored).slice(0,30).map(e=>`<tr>
         <td>${Ya(e.login)}</td>
         <td>${e.prsAuthored}</td>
         <td>${e.prsMerged}</td>
@@ -279,14 +279,14 @@ ${p}
         <td>${e.medianReviewsBeforeMerge==null?`N/A`:e.medianReviewsBeforeMerge.toFixed(1)}</td>
         <td class="${e.zeroReviewMerges>0?`warn`:``}">${e.zeroReviewMerges}</td>
       </tr>`).join(`
-`),T=i.botReviewers.sort((e,t)=>t.reviewCount-e.reviewCount).map(e=>`<tr><td>${Ya(e.login)}</td><td>${e.reviewCount}</td></tr>`).join(`
-`),E=i.humanReviewBurden.aiAuthored.prCount+i.humanReviewBurden.aiAssisted.prCount+i.humanReviewBurden.humanOnly.prCount,D=Math.max(0,i.totalPRs-E),O=r.flaggedPairs.sort((e,t)=>t.zScore-e.zScore).map(e=>`<tr>
+`),O=i.botReviewers.sort((e,t)=>t.reviewCount-e.reviewCount).map(e=>`<tr><td>${Ya(e.login)}</td><td>${e.reviewCount}</td></tr>`).join(`
+`),k=i.humanReviewBurden.aiAuthored.prCount+i.humanReviewBurden.aiAssisted.prCount+i.humanReviewBurden.humanOnly.prCount,A=Math.max(0,i.totalPRs-k),j=r.flaggedPairs.sort((e,t)=>t.zScore-e.zScore).map(e=>`<tr>
           <td>${Ya(e.reviewer)}</td>
           <td>${Ya(e.author)}</td>
           <td>${e.count}</td>
           <td>${e.zScore.toFixed(2)}</td>
         </tr>`).join(`
-`),k=`
+`),M=`
     <p class="note">Bias is detected using a <strong>Z-Score</strong>, which measures how many standard deviations a reviewer-author pair's review count is above the mean.
     A high Z-Score indicates a significant outlier in review frequency between two individuals.</p>
     <p class="note">Pairs are flagged when their review count exceeds the mean by more than <strong>${s.toFixed(1)}</strong> standard deviations (i.e. Z-Score &gt; ${s.toFixed(1)}).</p>
@@ -335,55 +335,65 @@ ${p}
 <body>
 <header>
   <h1>Review Insights Report</h1>
-  <p>${x} &mdash; ${S}</p>
+  <p>${w} &mdash; ${T}</p>
 </header>
 <div class="container">
 
   <!-- KPIs -->
   <div class="kpi-row">
-    <div class="kpi"><div class="value">${h}</div><div class="label">Pull Requests</div></div>
-    <div class="kpi"><div class="value">${m}</div><div class="label">Unique PR Reviews</div></div>
-    <div class="kpi"><div class="value">${g}</div><div class="label">Active Reviewers</div></div>
-    <div class="kpi"><div class="value">${v}</div><div class="label">PR Authors</div></div>
-    <div class="kpi"><div class="value">${y}</div><div class="label">Avg Reviewers/PR</div></div>
+    <div class="kpi"><div class="value">${v}</div><div class="label">Pull Requests</div></div>
+    <div class="kpi"><div class="value">${g}</div><div class="label">Unique PR Reviews</div></div>
+    <div class="kpi"><div class="value">${y}</div><div class="label">Active Reviewers</div></div>
+    <div class="kpi"><div class="value">${b}</div><div class="label">PR Authors</div></div>
+    <div class="kpi"><div class="value">${x}</div><div class="label">Avg Reviewers/PR</div></div>
     <div class="kpi"><div class="value">${r.giniCoefficient.toFixed(2)}</div><div class="label">Gini Coefficient</div></div>
   </div>
 
-  ${b.length>0?`<div class="card" style="border-color: var(--warn);">
-    <p class="warn">Warning: ${b.length} PR(s) have 100+ reviews and may have truncated data (PRs: ${b.slice(0,10).map(e=>`#${e.number}`).join(`, `)}${b.length>10?`, ...`:``}). Statistics for these PRs may be incomplete.</p>
+  ${C.length>0?`<div class="card" style="border-color: var(--warn);">
+    <p class="warn">Warning: ${C.length} PR(s) have 100+ reviews and may have truncated data (PRs: ${C.slice(0,10).map(e=>`#${e.number}`).join(`, `)}${C.length>10?`, ...`:``}). Statistics for these PRs may be incomplete.</p>
   </div>`:``}
+
+  <!-- Summary Statistics -->
+  <div class="card">
+    <h2>Reviewer Ranking</h2>
+    ${d.topReviewers.length>0?`<p><strong>Top reviewers:</strong> ${Ya(d.topReviewers.join(`, `))}</p>
+    <p><strong>Max reviews given:</strong> ${d.maxReviewsGiven}</p>
+    <p><strong>Active reviewer population:</strong> ${d.reviewerCount}</p>
+    <p><strong>Tie size:</strong> ${d.topReviewers.length} (${S}% of active reviewers)</p>
+    <p class="note">This ranking is a descriptive statistic over the observed active reviewer population. Ties are preserved; no inferential significance is implied.</p>`:`<p class="note">No active reviewers are present in the observed dataset, so the top-reviewer ranking is undefined.</p>`}
+  </div>
 
   <!-- Summary Statistics -->
   <div class="card">
     <h2>Summary Statistics</h2>
     <table>
       <thead><tr><th>User</th><th title="Unique PRs reviewed">Given</th><th title="Total review submissions received (includes multiple reviews on the same PR)">Received</th><th>Approvals</th><th>Change Requests</th><th>Comments</th><th>Avg Time to 1st Review</th><th>Median Time to 1st Review</th></tr></thead>
-      <tbody>${C}</tbody>
+      <tbody>${E}</tbody>
     </table>
   </div>
 
   <!-- Heatmap -->
   <div class="card">
     <h2>Review Heatmap</h2>
-    ${u}
+    ${f}
   </div>
 
   <!-- Bar Charts -->
   <div class="two-col">
     <div class="card">
       <h2>Reviews Given</h2>
-      ${d}
+      ${p}
     </div>
     <div class="card">
       <h2>Reviews Received</h2>
-      ${f}
+      ${m}
     </div>
   </div>
 
   <!-- Time Series -->
   <div class="card">
     <h2>Review Activity Over Time</h2>
-    ${p}
+    ${h}
   </div>
 
   <!-- Merge Correlations -->
@@ -391,7 +401,7 @@ ${p}
     <h2>Merge Correlations</h2>
     <table>
       <thead><tr><th>User</th><th>PRs Authored</th><th>PRs Merged</th><th>Avg Reviews Before Merge</th><th>Median Reviews Before Merge</th><th>Zero-Review Merges</th></tr></thead>
-      <tbody>${w}</tbody>
+      <tbody>${D}</tbody>
     </table>
   </div>
 
@@ -399,14 +409,14 @@ ${p}
   <div class="card">
     <h2>AI &amp; Bot Patterns</h2>
     <p>AI co-authored PRs: <strong>${i.aiCoAuthoredPRs}</strong> of ${i.totalPRs} (${i.botReviewPercentage.toFixed(1)}% of reviews by bots)</p>
-    ${T.length>0?`<table style="margin-top:12px"><thead><tr><th>Bot Reviewer</th><th>Reviews</th></tr></thead><tbody>${T}</tbody></table>`:`<p class="note">No bot reviewers detected.</p>`}
+    ${O.length>0?`<table style="margin-top:12px"><thead><tr><th>Bot Reviewer</th><th>Reviews</th></tr></thead><tbody>${O}</tbody></table>`:`<p class="note">No bot reviewers detected.</p>`}
   </div>
 
   <!-- Human Review Burden -->
   <div class="card">
     <h2>Human Review Burden by AI Involvement</h2>
     <p class="note" style="margin-bottom:12px;">Compares the review workload humans bear for AI-authored, AI-assisted, and human-only PRs. Lower values indicate less human effort required.</p>
-    ${D>0?`<p class="note" style="margin-bottom:12px;">Traditional bot-authored PRs are excluded from this comparison cohort (${D} PR${D===1?``:`s`}), even when \`include-bots\` is enabled.</p>`:``}
+    ${A>0?`<p class="note" style="margin-bottom:12px;">Traditional bot-authored PRs are excluded from this comparison cohort (${A} PR${A===1?``:`s`}), even when \`include-bots\` is enabled.</p>`:``}
     ${tj(i.humanReviewBurden)}
   </div>
 
@@ -414,9 +424,9 @@ ${p}
   <div class="card">
     <h2>Bias Warnings</h2>
     ${r.flaggedPairs.length>0?`<p class="note">Pairs with unusually high review frequency (z-score flagged):</p>
-           <table style="margin-top:12px"><thead><tr><th>Reviewer</th><th>Author</th><th>Count</th><th>Z-Score</th></tr></thead><tbody>${O}</tbody></table>`:`<p class="note">No significant review bias detected.</p>`}
+           <table style="margin-top:12px"><thead><tr><th>Reviewer</th><th>Author</th><th>Count</th><th>Z-Score</th></tr></thead><tbody>${j}</tbody></table>`:`<p class="note">No significant review bias detected.</p>`}
     <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 8px;">
-      ${k}
+      ${M}
     </div>
   </div>
 

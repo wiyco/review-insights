@@ -135,6 +135,55 @@ describe("generateHtmlReport", () => {
     expect(html).toContain("0.25");
   });
 
+  it("renders tie-aware reviewer ranking context", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        userStats: [
+          makeUserStats({
+            login: "bob",
+            reviewsGiven: 5,
+          }),
+          makeUserStats({
+            login: "alice",
+            reviewsGiven: 5,
+          }),
+          makeUserStats({
+            login: "author-only",
+            reviewsGiven: 0,
+          }),
+        ],
+      }),
+    );
+
+    expect(html).toContain("<h2>Reviewer Ranking</h2>");
+    expect(html).toContain("<strong>Top reviewers:</strong> alice, bob");
+    expect(html).toContain("<strong>Max reviews given:</strong> 5");
+    expect(html).toContain("<strong>Active reviewer population:</strong> 2");
+    expect(html).toContain(
+      "<strong>Tie size:</strong> 2 (100.0% of active reviewers)",
+    );
+    expect(html).toContain(
+      "This ranking is a descriptive statistic over the observed active reviewer population. Ties are preserved; no inferential significance is implied.",
+    );
+  });
+
+  it("shows an undefined ranking note when no active reviewers exist", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        userStats: [
+          makeUserStats({
+            login: "author-only",
+            reviewsGiven: 0,
+          }),
+        ],
+      }),
+    );
+
+    expect(html).toContain(
+      "No active reviewers are present in the observed dataset, so the top-reviewer ranking is undefined.",
+    );
+  });
+
   it("renders date range in header", () => {
     const html = generateHtmlReport(makeAnalysis());
     expect(html).toContain("2025-06-01T00:00:00Z");
