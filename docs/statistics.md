@@ -22,6 +22,24 @@ Number of **unique PRs** a user reviewed (not total review submissions). If a re
 
 $$\text{reviewsGiven}(u) = |\{pr \mid \exists\, r \in pr.\text{reviews},\; r.\text{reviewer} = u\}|$$
 
+### topReviewers / maxReviewsGiven
+
+The active reviewer population is the subset of users with at least one qualifying reviewed PR:
+
+$$R = \{u \mid \text{reviewsGiven}(u) > 0\}$$
+
+The top-reviewer statistic is defined as the full argmax set rather than a single login:
+
+$$T = \{u \in R \mid \text{reviewsGiven}(u) = \max_{v \in R} \text{reviewsGiven}(v)\}$$
+
+and
+
+$$\text{maxReviewsGiven} = \max_{v \in R} \text{reviewsGiven}(v)$$
+
+If $R = \emptyset$, then `topReviewers = []` and `maxReviewsGiven = null`.
+
+For deterministic serialization, `topReviewers` is sorted in ascending code-unit order of the login strings.
+
 ### reviewsReceived
 
 Total review submissions received across all PRs authored by a user. Multiple reviews on the same PR each count separately.
@@ -182,6 +200,21 @@ Source: `html-report.ts`
 | PR Authors | Count of distinct `pr.author` values in filtered PRs |
 | Avg Reviewers/PR | Unique PR Reviews $\div$ Pull Requests |
 | Gini Coefficient | From bias detection (see above) |
+
+## HTML report: Reviewer Ranking card
+
+Source: `html-report.ts`
+
+This card reports a descriptive ranking over the observed active reviewer population. It does **not** perform hypothesis testing or claim inferential significance.
+
+| Field | Definition |
+|---|---|
+| Top reviewers | `topReviewers` - the full argmax set of `reviewsGiven` over users with `reviewsGiven > 0` |
+| Max reviews given | `maxReviewsGiven` - the maximum `reviewsGiven` among active reviewers |
+| Active reviewer population | `reviewerCount` - number of users with `reviewsGiven > 0` |
+| Tie size | $\|topReviewers\|$ and its share of the active reviewer population |
+
+The `Reviews Given` bar chart in the HTML report is also restricted to the active reviewer population so the visual ranking does not include zero-review authors.
 
 ## HTML report: Human Review Burden section
 

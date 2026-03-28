@@ -585,14 +585,61 @@ describe("postPRComment", () => {
     expect(body).not.toContain("Warning:");
   });
 
-  it("comment body shows N/A for top reviewer when userStats is empty", async () => {
+  it("comment body shows N/A for top reviewers when no active reviewers exist", async () => {
     const { mock, octokit } = makeOctokit([]);
     const analysis = makeAnalysis();
-    analysis.userStats = [];
+    analysis.userStats = [
+      {
+        login: "author-only",
+        reviewsGiven: 0,
+        reviewsReceived: 2,
+        approvals: 0,
+        changeRequests: 0,
+        comments: 0,
+        dismissed: 0,
+        avgTimeToFirstReviewMs: 3600000,
+        medianTimeToFirstReviewMs: 3600000,
+      },
+    ];
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
     const body = mock.createComment.mock.calls[0][0].body as string;
-    expect(body).toContain("N/A");
+    expect(body).toContain("| Top reviewers | N/A |");
+    expect(body).toContain("| Max reviews given | N/A |");
+  });
+
+  it("comment body shows all top reviewers when the maximum is tied", async () => {
+    const { mock, octokit } = makeOctokit([]);
+    const analysis = makeAnalysis();
+    analysis.userStats = [
+      {
+        ...analysis.userStats[0],
+        login: "bob",
+        reviewsGiven: 10,
+      },
+      {
+        ...analysis.userStats[1],
+        login: "alice",
+        reviewsGiven: 10,
+      },
+      {
+        login: "carol",
+        reviewsGiven: 6,
+        reviewsReceived: 1,
+        approvals: 4,
+        changeRequests: 0,
+        comments: 0,
+        dismissed: 0,
+        avgTimeToFirstReviewMs: 3600000,
+        medianTimeToFirstReviewMs: 3600000,
+      },
+    ];
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
+
+    const body = mock.createComment.mock.calls[0][0].body as string;
+    expect(body).toContain("| Top reviewers | alice, bob (10 reviews each) |");
+    expect(body).toContain("| Max reviews given | 10 |");
   });
 });

@@ -65,6 +65,13 @@ export interface UserReviewStats {
   medianTimeToFirstReviewMs: number | null;
 }
 
+/** Tie-aware summary of the active reviewer population. */
+export interface TopReviewerSummary {
+  reviewerCount: number;
+  maxReviewsGiven: number | null;
+  topReviewers: string[];
+}
+
 /** Per-author merge statistics. */
 export interface MergeCorrelation {
   login: string;

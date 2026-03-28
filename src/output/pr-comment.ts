@@ -1,3 +1,4 @@
+import { computeTopReviewerSummary } from "../analyze/top-reviewers";
 import { MAX_REVIEWS_PER_PR } from "../collect/graphql-queries";
 import type { AnalysisResult } from "../types";
 import { formatDuration } from "../utils/format";
@@ -17,8 +18,7 @@ function buildCommentBody(analysis: AnalysisResult): string {
     ? pullRequests
     : pullRequests.filter((pr) => !pr.authorIsBot);
   const totalPRs = filteredPRs.length;
-  const uniqueReviewers = userStats.filter((u) => u.reviewsGiven > 0).length;
-  const topReviewer = userStats.length > 0 ? userStats[0] : null;
+  const topReviewerSummary = computeTopReviewerSummary(userStats);
   const biasDetected = bias.flaggedPairs.length > 0;
 
   const truncatedPRs = filteredPRs.filter(
@@ -61,8 +61,9 @@ ${truncationWarning}**Date range:** ${escapeHtml(dateRange.since)} to ${escapeHt
 | Metric | Value |
 |--------|-------|
 | Total PRs analyzed | ${totalPRs} |
-| Unique reviewers | ${uniqueReviewers} |
-| Top reviewer | ${topReviewer ? `${escapeHtml(topReviewer.login)} (${topReviewer.reviewsGiven} reviews)` : "N/A"} |
+| Unique reviewers | ${topReviewerSummary.reviewerCount} |
+| Top reviewers | ${topReviewerSummary.topReviewers.length > 0 ? `${escapeHtml(topReviewerSummary.topReviewers.join(", "))} (${topReviewerSummary.maxReviewsGiven} reviews each)` : "N/A"} |
+| Max reviews given | ${topReviewerSummary.maxReviewsGiven ?? "N/A"} |
 | Bias detected | ${biasDetected ? `Yes (${bias.flaggedPairs.length} pairs)` : "No"} |
 | Gini coefficient | ${bias.giniCoefficient.toFixed(2)} |
 

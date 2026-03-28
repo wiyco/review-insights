@@ -1,3 +1,4 @@
+import { computeTopReviewerSummary } from "../analyze/top-reviewers";
 import { MAX_REVIEWS_PER_PR } from "../collect/graphql-queries";
 import type { AnalysisResult } from "../types";
 import { formatDuration } from "../utils/format";
@@ -29,20 +30,30 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
   const filteredPRs = includeBots
     ? pullRequests
     : pullRequests.filter((pr) => !pr.authorIsBot);
+  const activeReviewerStats = userStats.filter((user) => user.reviewsGiven > 0);
+  const topReviewerSummary = computeTopReviewerSummary(userStats);
 
   // Build SVGs
   const heatmapSvg = renderHeatmap(bias);
-  const reviewsGivenSvg = renderBarChart(userStats, "reviewsGiven");
+  const reviewsGivenSvg = renderBarChart(activeReviewerStats, "reviewsGiven");
   const reviewsReceivedSvg = renderBarChart(userStats, "reviewsReceived");
   const timeSeriesSvg = renderTimeSeries(filteredPRs, "weekly");
 
   // Summary stats
   const totalReviews = userStats.reduce((s, u) => s + u.reviewsGiven, 0);
   const totalPRs = filteredPRs.length;
-  const uniqueReviewers = userStats.filter((u) => u.reviewsGiven > 0).length;
+  const uniqueReviewers = topReviewerSummary.reviewerCount;
   const uniqueAuthors = new Set(filteredPRs.map((pr) => pr.author)).size;
   const avgReviewsPerPR =
     totalPRs > 0 ? (totalReviews / totalPRs).toFixed(1) : "0";
+  const tieShare =
+    topReviewerSummary.reviewerCount > 0
+      ? (
+          (topReviewerSummary.topReviewers.length /
+            topReviewerSummary.reviewerCount) *
+          100
+        ).toFixed(1)
+      : null;
 
   const truncatedPRs = filteredPRs.filter(
     (pr) => pr.reviews.length >= MAX_REVIEWS_PER_PR,
@@ -192,6 +203,20 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
   </div>`
       : ""
   }
+
+  <!-- Summary Statistics -->
+  <div class="card">
+    <h2>Reviewer Ranking</h2>
+    ${
+      topReviewerSummary.topReviewers.length > 0
+        ? `<p><strong>Top reviewers:</strong> ${escapeHtml(topReviewerSummary.topReviewers.join(", "))}</p>
+    <p><strong>Max reviews given:</strong> ${topReviewerSummary.maxReviewsGiven}</p>
+    <p><strong>Active reviewer population:</strong> ${topReviewerSummary.reviewerCount}</p>
+    <p><strong>Tie size:</strong> ${topReviewerSummary.topReviewers.length} (${tieShare}% of active reviewers)</p>
+    <p class="note">This ranking is a descriptive statistic over the observed active reviewer population. Ties are preserved; no inferential significance is implied.</p>`
+        : '<p class="note">No active reviewers are present in the observed dataset, so the top-reviewer ranking is undefined.</p>'
+    }
+  </div>
 
   <!-- Summary Statistics -->
   <div class="card">

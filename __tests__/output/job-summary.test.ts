@@ -28,6 +28,7 @@ vi.mock("../../src/visualize/bar-chart", () => ({
 
 import * as core from "@actions/core";
 import { writeJobSummary } from "../../src/output/job-summary";
+import { renderBarChart } from "../../src/visualize/bar-chart";
 
 function makeAnalysis(): AnalysisResult {
   return {
@@ -224,20 +225,128 @@ describe("writeJobSummary", () => {
     );
   });
 
-  it("shows N/A for top reviewer when userStats is empty", async () => {
+  it("shows N/A for top reviewers when no active reviewers exist", async () => {
     const analysis = makeAnalysis();
-    analysis.userStats = [];
+    analysis.userStats = [
+      {
+        login: "author-only",
+        reviewsGiven: 0,
+        reviewsReceived: 4,
+        approvals: 0,
+        changeRequests: 0,
+        comments: 0,
+        dismissed: 0,
+        avgTimeToFirstReviewMs: 3600000,
+        medianTimeToFirstReviewMs: 3600000,
+      },
+    ];
 
     await writeJobSummary(analysis);
 
     expect(core.summary.addTable).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.arrayContaining([
-          "Top reviewer",
+          "Top reviewers",
+          "N/A",
+        ]),
+        expect.arrayContaining([
+          "Max reviews given",
           "N/A",
         ]),
       ]),
     );
+
+    const barChartCalls = vi.mocked(renderBarChart).mock.calls;
+    expect(barChartCalls[barChartCalls.length - 1]).toEqual([
+      [],
+      "reviewsGiven",
+      {
+        maxUsers: 10,
+      },
+    ]);
+  });
+
+  it("shows the full tie set for top reviewers", async () => {
+    const analysis = makeAnalysis();
+    analysis.userStats = [
+      {
+        ...analysis.userStats[0],
+        login: "bob",
+        reviewsGiven: 10,
+      },
+      {
+        ...analysis.userStats[1],
+        login: "alice",
+        reviewsGiven: 10,
+      },
+      {
+        login: "carol",
+        reviewsGiven: 4,
+        reviewsReceived: 1,
+        approvals: 2,
+        changeRequests: 0,
+        comments: 0,
+        dismissed: 0,
+        avgTimeToFirstReviewMs: 1800000,
+        medianTimeToFirstReviewMs: 1800000,
+      },
+    ];
+
+    await writeJobSummary(analysis);
+
+    expect(core.summary.addTable).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.arrayContaining([
+          "Top reviewers",
+          "alice, bob (10 reviews each)",
+        ]),
+        expect.arrayContaining([
+          "Max reviews given",
+          "10",
+        ]),
+      ]),
+    );
+  });
+
+  it("renders the reviews-given chart from the active reviewer population", async () => {
+    const analysis = makeAnalysis();
+    analysis.userStats = [
+      {
+        ...analysis.userStats[0],
+        login: "alice",
+        reviewsGiven: 10,
+      },
+      {
+        login: "author-only",
+        reviewsGiven: 0,
+        reviewsReceived: 4,
+        approvals: 0,
+        changeRequests: 0,
+        comments: 0,
+        dismissed: 0,
+        avgTimeToFirstReviewMs: 3600000,
+        medianTimeToFirstReviewMs: 3600000,
+      },
+      {
+        ...analysis.userStats[1],
+        login: "bob",
+        reviewsGiven: 7,
+      },
+    ];
+
+    await writeJobSummary(analysis);
+
+    const barChartCalls = vi.mocked(renderBarChart).mock.calls;
+    expect(barChartCalls[barChartCalls.length - 1]).toEqual([
+      [
+        analysis.userStats[0],
+        analysis.userStats[2],
+      ],
+      "reviewsGiven",
+      {
+        maxUsers: 10,
+      },
+    ]);
   });
 
   it("shows bias detected when flaggedPairs exist", async () => {
