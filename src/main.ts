@@ -29,13 +29,15 @@ async function run(): Promise<void> {
   );
 
   // 3. Fetch PR data
-  const fetchedPullRequests = await fetchAllPullRequests(octokit, config);
-  logger.info(`Fetched ${fetchedPullRequests.length} pull requests`);
+  const collectionResult = await fetchAllPullRequests(octokit, config);
+  logger.info(
+    `Fetched ${collectionResult.pullRequests.length} pull requests${collectionResult.partialData ? " (partial dataset)" : ""}`,
+  );
 
   // 4. Freeze the dataset at config.until so reruns over the same date range
   // observe the same review/merge state instead of drifting over time.
   const pullRequests = applyObservationWindow(
-    fetchedPullRequests,
+    collectionResult.pullRequests,
     config.until,
   );
 
@@ -70,6 +72,8 @@ async function run(): Promise<void> {
     },
     biasThreshold: config.biasThreshold,
     includeBots: config.includeBots,
+    partialData: collectionResult.partialData,
+    partialDataReason: collectionResult.partialDataReason,
   };
 
   // 7. Generate HTML report and write to temp file
@@ -108,6 +112,7 @@ async function run(): Promise<void> {
       JSON.stringify(topReviewerSummary.maxReviewsGiven),
     );
     core.setOutput("bias-detected", String(bias.flaggedPairs.length > 0));
+    core.setOutput("partial-data", String(analysis.partialData));
 
     logger.info(
       `Review insights complete: ${analyzedPRs} PRs analyzed, ${userStats.length} users tracked (${topReviewerSummary.reviewerCount} active reviewers)`,

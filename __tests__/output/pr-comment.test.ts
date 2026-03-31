@@ -95,6 +95,8 @@ function makeAnalysis(): AnalysisResult {
     },
     biasThreshold: 2.0,
     includeBots: false,
+    partialData: false,
+    partialDataReason: null,
   };
 }
 
@@ -397,6 +399,19 @@ describe("postPRComment", () => {
     expect(body).toContain("Bias Warnings");
     expect(body).toContain("alice");
     expect(body).toContain("3.50");
+  });
+
+  it("comment body surfaces partial-data state", async () => {
+    const { mock, octokit } = makeOctokit([]);
+    const analysis = makeAnalysis();
+    analysis.partialData = true;
+    analysis.partialDataReason = "pagination-time-limit";
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
+
+    const body = mock.createComment.mock.calls[0][0].body as string;
+    expect(body).toContain("partial PR data");
+    expect(body).toContain("| Data completeness | Partial |");
   });
 
   it("comment body shows N/A for avgTimeToFirstReviewMs null", async () => {

@@ -2,6 +2,10 @@ import { computeTopReviewerSummary } from "../analyze/top-reviewers";
 import { MAX_REVIEWS_PER_PR } from "../collect/graphql-queries";
 import type { AnalysisResult } from "../types";
 import { formatDuration } from "../utils/format";
+import {
+  getDataCompletenessLabel,
+  getPartialDataWarning,
+} from "../utils/partial-data";
 import { escapeHtml } from "../utils/sanitize";
 import { renderBarChart } from "./bar-chart";
 import { renderBurdenSection } from "./burden-chart";
@@ -22,6 +26,8 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
     dateRange,
     biasThreshold,
     includeBots,
+    partialData,
+    partialDataReason,
   } = analysis;
 
   // Filter out bot-authored PRs for KPIs and time-series (author filter only).
@@ -58,6 +64,8 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
   const truncatedPRs = filteredPRs.filter(
     (pr) => pr.reviews.length >= MAX_REVIEWS_PER_PR,
   );
+  const dataCompleteness = getDataCompletenessLabel(partialData);
+  const partialDataWarning = getPartialDataWarning(partialDataReason);
 
   const sinceStr = escapeHtml(String(dateRange.since));
   const untilStr = escapeHtml(String(dateRange.until));
@@ -160,6 +168,7 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
   .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
   .kpi { background: var(--card-bg); border-radius: 8px; padding: 20px; border: 1px solid var(--border); text-align: center; }
   .kpi .value { font-size: 28px; font-weight: 700; color: var(--accent); }
+  .kpi.partial .value { color: var(--warn); }
   .kpi .label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
   .card { background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); padding: 24px; margin-bottom: 24px; overflow-x: auto; }
   .card h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: var(--header-bg); border-bottom: 2px solid var(--accent); padding-bottom: 8px; }
@@ -189,7 +198,16 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
     <div class="kpi"><div class="value">${uniqueAuthors}</div><div class="label">PR Authors</div></div>
     <div class="kpi"><div class="value">${avgReviewsPerPR}</div><div class="label">Avg Reviewers/PR</div></div>
     <div class="kpi"><div class="value">${bias.giniCoefficient.toFixed(2)}</div><div class="label">Gini Coefficient</div></div>
+    <div class="kpi${partialData ? " partial" : ""}"><div class="value">${dataCompleteness}</div><div class="label">Data Completeness</div></div>
   </div>
+
+  ${
+    partialDataWarning
+      ? `<div class="card" style="border-color: var(--warn);">
+    <p class="warn">Warning: ${escapeHtml(partialDataWarning)}</p>
+  </div>`
+      : ""
+  }
 
   ${
     truncatedPRs.length > 0

@@ -76,6 +76,9 @@ outputs:
   bias-detected:
     description: "Whether review imbalance was detected (true/false)"
 
+  partial-data:
+    description: "Whether pagination stopped at the 10-minute collection limit and the analysis used a partial PR dataset (true/false)"
+
 runs:
   using: "node24"
   main: "dist/index.mjs"
