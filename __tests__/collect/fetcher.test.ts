@@ -126,16 +126,8 @@ describe("fetchAllPullRequests", () => {
       const page2Nodes = fixtureData.repository.pullRequests.nodes.slice(3, 5);
 
       const octokit = makeOctokit([
-        makePageResponse(
-          page1Nodes as PullRequestsQueryResponse["repository"]["pullRequests"]["nodes"],
-          true,
-          "cursor-page1",
-        ),
-        makePageResponse(
-          page2Nodes as PullRequestsQueryResponse["repository"]["pullRequests"]["nodes"],
-          false,
-          null,
-        ),
+        makePageResponse(page1Nodes, true, "cursor-page1"),
+        makePageResponse(page2Nodes, false, null),
       ]);
 
       const config = makeConfig();
@@ -235,30 +227,22 @@ describe("fetchAllPullRequests", () => {
 
   describe("pagination time limit", () => {
     it("stops pagination when wall-clock time exceeds the limit", async () => {
-      // First call to Date.now() captures startTime; second checks elapsed.
+      // 1st call captures startTime, 2nd checks the initial loop budget,
+      // 3rd checks elapsed after the first page is fetched.
       const baseTime = 1_000_000_000;
       let callCount = 0;
       vi.spyOn(Date, "now").mockImplementation(() => {
         callCount++;
-        // 1st call: startTime capture. Return base.
-        // 2nd+ calls: elapsed check. Jump past 10 minutes.
-        if (callCount <= 1) return baseTime;
+        if (callCount <= 2) return baseTime;
         return baseTime + 11 * 60 * 1000;
       });
 
       const page1Nodes = fixtureData.repository.pullRequests.nodes.slice(0, 3);
 
       const octokit = makeOctokit([
+        makePageResponse(page1Nodes, true, "cursor-page1"),
         makePageResponse(
-          page1Nodes as PullRequestsQueryResponse["repository"]["pullRequests"]["nodes"],
-          true,
-          "cursor-page1",
-        ),
-        makePageResponse(
-          fixtureData.repository.pullRequests.nodes.slice(
-            3,
-            5,
-          ) as PullRequestsQueryResponse["repository"]["pullRequests"]["nodes"],
+          fixtureData.repository.pullRequests.nodes.slice(3, 5),
           false,
           null,
         ),
@@ -272,6 +256,43 @@ describe("fetchAllPullRequests", () => {
       expect(result.pullRequests.length).toBe(3);
       expect(result.partialData).toBe(true);
       expect(result.partialDataReason).toBe("pagination-time-limit");
+
+      vi.spyOn(Date, "now").mockRestore();
+    });
+
+    it("stops before sleeping past the remaining wall-clock budget", async () => {
+      const { calculateDelay, sleep } = await import(
+        "../../src/utils/rate-limit"
+      );
+
+      const baseTime = 1_000_000_000;
+      let callCount = 0;
+      vi.spyOn(Date, "now").mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return baseTime;
+        return baseTime + 9 * 60 * 1000 + 30_000;
+      });
+
+      vi.mocked(calculateDelay).mockReturnValueOnce(45_000);
+
+      const page1Nodes = fixtureData.repository.pullRequests.nodes.slice(0, 3);
+      const octokit = makeOctokit([
+        makePageResponse(page1Nodes, true, "cursor-page1"),
+        makePageResponse(
+          fixtureData.repository.pullRequests.nodes.slice(3, 5),
+          false,
+          null,
+        ),
+      ]);
+
+      const result = await fetchAllPullRequests(octokit as never, makeConfig());
+
+      expect(octokit.graphql).toHaveBeenCalledTimes(1);
+      expect(result.pullRequests.length).toBe(3);
+      expect(result.partialData).toBe(true);
+      expect(result.partialDataReason).toBe("pagination-time-limit");
+      expect(calculateDelay).toHaveBeenCalledOnce();
+      expect(sleep).not.toHaveBeenCalled();
 
       vi.spyOn(Date, "now").mockRestore();
     });

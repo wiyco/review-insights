@@ -25,6 +25,16 @@ const PAGE_SIZE = 50;
 /** Maximum wall-clock time (ms) the entire pagination loop is allowed to run. */
 const MAX_PAGINATION_TIME_MS = PAGINATION_TIME_LIMIT_MINUTES * 60 * 1000;
 
+function logPaginationTimeLimitWarning(
+  elapsedMs: number,
+  collectedCount: number,
+): void {
+  logger.warning(
+    `Pagination time limit reached (${Math.ceil(elapsedMs / 60_000)} minutes). ` +
+      `Returning ${collectedCount} PRs collected so far.`,
+  );
+}
+
 /**
  * Fetches all pull requests within the configured date range using
  * cursor-based pagination. Stops when:
@@ -53,6 +63,13 @@ export async function fetchAllPullRequests(
   const untilDate = new Date(config.until);
 
   while (hasNextPage && allNodes.length < config.maxPRs) {
+    const elapsedAtLoopStart = Date.now() - startTime;
+    if (elapsedAtLoopStart >= MAX_PAGINATION_TIME_MS) {
+      partialData = true;
+      logPaginationTimeLimitWarning(elapsedAtLoopStart, allNodes.length);
+      break;
+    }
+
     pageCount++;
     const variables: PullRequestsQueryVariables = {
       owner: config.owner,
@@ -117,14 +134,17 @@ export async function fetchAllPullRequests(
       const elapsed = Date.now() - startTime;
       if (elapsed >= MAX_PAGINATION_TIME_MS) {
         partialData = true;
-        logger.warning(
-          `Pagination time limit reached (${Math.ceil(elapsed / 60_000)} minutes). ` +
-            `Returning ${allNodes.length} PRs collected so far.`,
-        );
+        logPaginationTimeLimitWarning(elapsed, allNodes.length);
         break;
       }
 
       const delay = calculateDelay(rateLimit);
+      const remainingBudget = MAX_PAGINATION_TIME_MS - elapsed;
+      if (delay >= remainingBudget) {
+        partialData = true;
+        logPaginationTimeLimitWarning(elapsed + delay, allNodes.length);
+        break;
+      }
       await sleep(delay);
     }
   }
