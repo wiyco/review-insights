@@ -3,6 +3,10 @@ import { MAX_REVIEWS_PER_PR } from "../collect/graphql-queries";
 import type { AnalysisResult } from "../types";
 import { formatDuration } from "../utils/format";
 import { logger } from "../utils/logger";
+import {
+  getDataCompletenessLabel,
+  getPartialDataWarning,
+} from "../utils/partial-data";
 import { isRateLimitError, retry } from "../utils/rate-limit";
 import { escapeHtml } from "../utils/sanitize";
 
@@ -12,7 +16,15 @@ const COMMENT_MARKER = "<!-- review-insights-report -->";
  * Builds the markdown body for the PR comment.
  */
 function buildCommentBody(analysis: AnalysisResult): string {
-  const { userStats, bias, pullRequests, dateRange, includeBots } = analysis;
+  const {
+    userStats,
+    bias,
+    pullRequests,
+    dateRange,
+    includeBots,
+    partialData,
+    partialDataReason,
+  } = analysis;
 
   const filteredPRs = includeBots
     ? pullRequests
@@ -20,6 +32,8 @@ function buildCommentBody(analysis: AnalysisResult): string {
   const totalPRs = filteredPRs.length;
   const topReviewerSummary = computeTopReviewerSummary(userStats);
   const biasDetected = bias.flaggedPairs.length > 0;
+  const dataCompleteness = getDataCompletenessLabel(partialData);
+  const partialDataWarning = getPartialDataWarning(partialDataReason);
 
   const truncatedPRs = filteredPRs.filter(
     (pr) => pr.reviews.length >= MAX_REVIEWS_PER_PR,
@@ -34,6 +48,9 @@ function buildCommentBody(analysis: AnalysisResult): string {
             ", ",
           )}${truncatedPRs.length > 10 ? ", ..." : ""}). Statistics for these PRs may be incomplete.\n\n`
       : "";
+  const partialDataWarningBlock = partialDataWarning
+    ? `> **Warning:** ${partialDataWarning}\n\n`
+    : "";
 
   const statsRows = userStats
     .slice(0, 15)
@@ -56,7 +73,7 @@ function buildCommentBody(analysis: AnalysisResult): string {
   return `${COMMENT_MARKER}
 ## Review Insights Report
 
-${truncationWarning}**Date range:** ${escapeHtml(dateRange.since)} to ${escapeHtml(dateRange.until)}
+${partialDataWarningBlock}${truncationWarning}**Date range:** ${escapeHtml(dateRange.since)} to ${escapeHtml(dateRange.until)}
 
 | Metric | Value |
 |--------|-------|
@@ -66,6 +83,7 @@ ${truncationWarning}**Date range:** ${escapeHtml(dateRange.since)} to ${escapeHt
 | Max reviews given | ${topReviewerSummary.maxReviewsGiven ?? "N/A"} |
 | Bias detected | ${biasDetected ? `Yes (${bias.flaggedPairs.length} pairs)` : "No"} |
 | Gini coefficient | ${bias.giniCoefficient.toFixed(2)} |
+| Data completeness | ${dataCompleteness} |
 
 ### Reviewer Stats
 

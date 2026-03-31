@@ -107,6 +107,8 @@ function makeAnalysis(overrides?: Partial<AnalysisResult>): AnalysisResult {
     },
     biasThreshold: 2.0,
     includeBots: false,
+    partialData: false,
+    partialDataReason: null,
     ...overrides,
   };
 }
@@ -381,6 +383,18 @@ describe("generateHtmlReport", () => {
   it("does not show truncation warning for PRs below threshold", () => {
     const html = generateHtmlReport(makeAnalysis());
     expect(html).not.toContain("truncated data");
+  });
+
+  it("surfaces partial-data state in the HTML report", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        partialData: true,
+        partialDataReason: "pagination-time-limit",
+      }),
+    );
+    expect(html).toContain("Data Completeness");
+    expect(html).toContain(">Partial<");
+    expect(html).toContain("partial PR data");
   });
 
   describe("XSS prevention", () => {

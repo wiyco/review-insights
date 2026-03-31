@@ -156,6 +156,9 @@ export interface AIPatternResult {
   humanReviewBurden: HumanReviewBurden;
 }
 
+/** Why the collected PR dataset is partial, if applicable. */
+export type PartialDataReason = "pagination-time-limit";
+
 /** Supported output destinations for the report. */
 export type OutputMode = "summary" | "comment" | "artifact";
 
@@ -178,6 +181,13 @@ export interface DateRange {
   until: string;
 }
 
+/** Result of the collection phase before downstream analysis. */
+export interface CollectionResult {
+  pullRequests: PullRequestRecord[];
+  partialData: boolean;
+  partialDataReason: PartialDataReason | null;
+}
+
 /** Complete output of all analysis modules. */
 export interface AnalysisResult {
   userStats: UserReviewStats[];
@@ -188,4 +198,6 @@ export interface AnalysisResult {
   dateRange: DateRange;
   biasThreshold: number;
   includeBots: boolean;
+  partialData: boolean;
+  partialDataReason: PartialDataReason | null;
 }

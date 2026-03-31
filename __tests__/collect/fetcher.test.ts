@@ -91,7 +91,9 @@ describe("fetchAllPullRequests", () => {
 
       const result = await fetchAllPullRequests(octokit as never, config);
 
-      expect(result.length).toBe(5);
+      expect(result.pullRequests.length).toBe(5);
+      expect(result.partialData).toBe(false);
+      expect(result.partialDataReason).toBeNull();
       expect(octokit.graphql).toHaveBeenCalledTimes(1);
     });
 
@@ -140,7 +142,8 @@ describe("fetchAllPullRequests", () => {
       const result = await fetchAllPullRequests(octokit as never, config);
 
       expect(octokit.graphql).toHaveBeenCalledTimes(2);
-      expect(result.length).toBe(5);
+      expect(result.pullRequests.length).toBe(5);
+      expect(result.partialData).toBe(false);
 
       // Second call should use the cursor from the first page
       expect(octokit.graphql).toHaveBeenNthCalledWith(
@@ -184,7 +187,7 @@ describe("fetchAllPullRequests", () => {
       const result = await fetchAllPullRequests(octokit as never, config);
 
       // Should stop after collecting 3 PRs even though hasNextPage was true
-      expect(result.length).toBe(3);
+      expect(result.pullRequests.length).toBe(3);
       expect(octokit.graphql).toHaveBeenCalledTimes(1);
     });
 
@@ -266,7 +269,9 @@ describe("fetchAllPullRequests", () => {
 
       // Should only have fetched the first page before hitting the time limit
       expect(octokit.graphql).toHaveBeenCalledTimes(1);
-      expect(result.length).toBe(3);
+      expect(result.pullRequests.length).toBe(3);
+      expect(result.partialData).toBe(true);
+      expect(result.partialDataReason).toBe("pagination-time-limit");
 
       vi.spyOn(Date, "now").mockRestore();
     });
@@ -292,7 +297,7 @@ describe("fetchAllPullRequests", () => {
       const result = await fetchAllPullRequests(octokit as never, config);
 
       // The future PR should be skipped
-      expect(result.length).toBe(2);
+      expect(result.pullRequests.length).toBe(2);
     });
 
     it("stops when PR createdAt is before config.since", async () => {
@@ -314,7 +319,7 @@ describe("fetchAllPullRequests", () => {
       const result = await fetchAllPullRequests(octokit as never, config);
 
       // Should stop before the old PR and not request another page
-      expect(result.length).toBe(2);
+      expect(result.pullRequests.length).toBe(2);
       expect(octokit.graphql).toHaveBeenCalledTimes(1);
     });
   });

@@ -1,6 +1,10 @@
 import * as core from "@actions/core";
 import { computeTopReviewerSummary } from "../analyze/top-reviewers";
 import type { AnalysisResult } from "../types";
+import {
+  getDataCompletenessLabel,
+  getPartialDataWarning,
+} from "../utils/partial-data";
 import { escapeHtml } from "../utils/sanitize";
 import { renderBarChart } from "../visualize/bar-chart";
 import { renderHeatmap } from "../visualize/heatmap";
@@ -10,7 +14,15 @@ import { renderHeatmap } from "../visualize/heatmap";
  * an inline heatmap SVG, and a top-reviewers bar chart.
  */
 export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
-  const { userStats, bias, pullRequests, dateRange, includeBots } = analysis;
+  const {
+    userStats,
+    bias,
+    pullRequests,
+    dateRange,
+    includeBots,
+    partialData,
+    partialDataReason,
+  } = analysis;
 
   const filteredPRs = includeBots
     ? pullRequests
@@ -18,7 +30,8 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
   const activeReviewerStats = userStats.filter((user) => user.reviewsGiven > 0);
   const totalPRs = filteredPRs.length;
   const topReviewerSummary = computeTopReviewerSummary(userStats);
-
+  const dataCompleteness = getDataCompletenessLabel(partialData);
+  const partialDataWarning = getPartialDataWarning(partialDataReason);
   const biasDetected = bias.flaggedPairs.length > 0;
 
   // Build heatmap and bar chart SVGs
@@ -30,11 +43,19 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
     maxUsers: 10,
   });
 
-  await core.summary
+  const summary = core.summary
     .addHeading("Review Insights Report", 2)
     .addRaw(
       `<p><strong>Date range:</strong> ${escapeHtml(dateRange.since)} &mdash; ${escapeHtml(dateRange.until)}</p>`,
-    )
+    );
+
+  if (partialDataWarning) {
+    summary.addRaw(
+      `<p><strong>Warning:</strong> ${escapeHtml(partialDataWarning)}</p>`,
+    );
+  }
+
+  await summary
     .addTable([
       [
         {
@@ -73,6 +94,10 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
       [
         "Gini coefficient",
         bias.giniCoefficient.toFixed(2),
+      ],
+      [
+        "Data completeness",
+        dataCompleteness,
       ],
     ])
     .addHeading("Review Heatmap", 3)

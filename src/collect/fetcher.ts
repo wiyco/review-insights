@@ -1,6 +1,7 @@
 import type { GitHub } from "@actions/github/lib/utils";
-import type { ActionConfig, PullRequestRecord } from "../types";
+import type { ActionConfig, CollectionResult } from "../types";
 import { logger } from "../utils/logger";
+import { PAGINATION_TIME_LIMIT_MINUTES } from "../utils/partial-data";
 import {
   calculateDelay,
   checkRateLimit,
@@ -22,7 +23,7 @@ type Octokit = InstanceType<typeof GitHub>;
 const PAGE_SIZE = 50;
 
 /** Maximum wall-clock time (ms) the entire pagination loop is allowed to run. */
-const MAX_PAGINATION_TIME_MS = 10 * 60 * 1000;
+const MAX_PAGINATION_TIME_MS = PAGINATION_TIME_LIMIT_MINUTES * 60 * 1000;
 
 /**
  * Fetches all pull requests within the configured date range using
@@ -35,11 +36,12 @@ const MAX_PAGINATION_TIME_MS = 10 * 60 * 1000;
 export async function fetchAllPullRequests(
   octokit: Octokit,
   config: ActionConfig,
-): Promise<PullRequestRecord[]> {
+): Promise<CollectionResult> {
   const allNodes: RawPullRequestNode[] = [];
   let cursor: string | null = null;
   let hasNextPage = true;
   let pageCount = 0;
+  let partialData = false;
   const startTime = Date.now();
 
   logger.info(
@@ -114,6 +116,7 @@ export async function fetchAllPullRequests(
     if (hasNextPage && allNodes.length < config.maxPRs) {
       const elapsed = Date.now() - startTime;
       if (elapsed >= MAX_PAGINATION_TIME_MS) {
+        partialData = true;
         logger.warning(
           `Pagination time limit reached (${Math.ceil(elapsed / 60_000)} minutes). ` +
             `Returning ${allNodes.length} PRs collected so far.`,
@@ -130,5 +133,9 @@ export async function fetchAllPullRequests(
     `Fetched ${allNodes.length} pull requests across ${pageCount} page(s).`,
   );
 
-  return normalizePullRequests(allNodes);
+  return {
+    pullRequests: normalizePullRequests(allNodes),
+    partialData,
+    partialDataReason: partialData ? "pagination-time-limit" : null,
+  };
 }
