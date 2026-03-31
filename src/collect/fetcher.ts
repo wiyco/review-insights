@@ -25,12 +25,25 @@ const PAGE_SIZE = 50;
 /** Maximum wall-clock time (ms) the entire pagination loop is allowed to run. */
 const MAX_PAGINATION_TIME_MS = PAGINATION_TIME_LIMIT_MINUTES * 60 * 1000;
 
-function logPaginationTimeLimitWarning(
+function logPaginationTimeLimitReachedWarning(
   elapsedMs: number,
   collectedCount: number,
 ): void {
   logger.warning(
     `Pagination time limit reached (${Math.ceil(elapsedMs / 60_000)} minutes). ` +
+      `Returning ${collectedCount} PRs collected so far.`,
+  );
+}
+
+function logPaginationDelayBudgetExceededWarning(
+  elapsedMs: number,
+  delayMs: number,
+  collectedCount: number,
+): void {
+  const remainingBudgetMs = MAX_PAGINATION_TIME_MS - elapsedMs;
+  logger.warning(
+    `Skipping a ${Math.ceil(delayMs / 1000)}s rate-limit delay because only ` +
+      `${Math.ceil(remainingBudgetMs / 1000)}s remain in the ${PAGINATION_TIME_LIMIT_MINUTES}-minute collection budget. ` +
       `Returning ${collectedCount} PRs collected so far.`,
   );
 }
@@ -41,7 +54,8 @@ function logPaginationTimeLimitWarning(
  * - maxPRs is reached
  * - PR createdAt is before config.since
  * - No more pages
- * - Wall-clock time exceeds MAX_PAGINATION_TIME_MS (returns partial results)
+ * - Wall-clock time reaches MAX_PAGINATION_TIME_MS (returns partial results)
+ * - The next required rate-limit delay would exceed the remaining wall-clock budget
  */
 export async function fetchAllPullRequests(
   octokit: Octokit,
@@ -66,7 +80,7 @@ export async function fetchAllPullRequests(
     const elapsedAtLoopStart = Date.now() - startTime;
     if (elapsedAtLoopStart >= MAX_PAGINATION_TIME_MS) {
       partialData = true;
-      logPaginationTimeLimitWarning(elapsedAtLoopStart, allNodes.length);
+      logPaginationTimeLimitReachedWarning(elapsedAtLoopStart, allNodes.length);
       break;
     }
 
@@ -134,7 +148,7 @@ export async function fetchAllPullRequests(
       const elapsed = Date.now() - startTime;
       if (elapsed >= MAX_PAGINATION_TIME_MS) {
         partialData = true;
-        logPaginationTimeLimitWarning(elapsed, allNodes.length);
+        logPaginationTimeLimitReachedWarning(elapsed, allNodes.length);
         break;
       }
 
@@ -142,7 +156,11 @@ export async function fetchAllPullRequests(
       const remainingBudget = MAX_PAGINATION_TIME_MS - elapsed;
       if (delay >= remainingBudget) {
         partialData = true;
-        logPaginationTimeLimitWarning(elapsed + delay, allNodes.length);
+        logPaginationDelayBudgetExceededWarning(
+          elapsed,
+          delay,
+          allNodes.length,
+        );
         break;
       }
       await sleep(delay);

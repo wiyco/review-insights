@@ -231,70 +231,87 @@ describe("fetchAllPullRequests", () => {
       // 3rd checks elapsed after the first page is fetched.
       const baseTime = 1_000_000_000;
       let callCount = 0;
-      vi.spyOn(Date, "now").mockImplementation(() => {
+      const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => {
         callCount++;
         if (callCount <= 2) return baseTime;
         return baseTime + 11 * 60 * 1000;
       });
 
-      const page1Nodes = fixtureData.repository.pullRequests.nodes.slice(0, 3);
+      try {
+        const page1Nodes = fixtureData.repository.pullRequests.nodes.slice(
+          0,
+          3,
+        );
 
-      const octokit = makeOctokit([
-        makePageResponse(page1Nodes, true, "cursor-page1"),
-        makePageResponse(
-          fixtureData.repository.pullRequests.nodes.slice(3, 5),
-          false,
-          null,
-        ),
-      ]);
+        const octokit = makeOctokit([
+          makePageResponse(page1Nodes, true, "cursor-page1"),
+          makePageResponse(
+            fixtureData.repository.pullRequests.nodes.slice(3, 5),
+            false,
+            null,
+          ),
+        ]);
 
-      const config = makeConfig();
-      const result = await fetchAllPullRequests(octokit as never, config);
+        const config = makeConfig();
+        const result = await fetchAllPullRequests(octokit as never, config);
 
-      // Should only have fetched the first page before hitting the time limit
-      expect(octokit.graphql).toHaveBeenCalledTimes(1);
-      expect(result.pullRequests.length).toBe(3);
-      expect(result.partialData).toBe(true);
-      expect(result.partialDataReason).toBe("pagination-time-limit");
-
-      vi.spyOn(Date, "now").mockRestore();
+        // Should only have fetched the first page before hitting the time limit
+        expect(octokit.graphql).toHaveBeenCalledTimes(1);
+        expect(result.pullRequests.length).toBe(3);
+        expect(result.partialData).toBe(true);
+        expect(result.partialDataReason).toBe("pagination-time-limit");
+      } finally {
+        nowSpy.mockRestore();
+      }
     });
 
     it("stops before sleeping past the remaining wall-clock budget", async () => {
       const { calculateDelay, sleep } = await import(
         "../../src/utils/rate-limit"
       );
+      const { logger } = await import("../../src/utils/logger");
 
       const baseTime = 1_000_000_000;
       let callCount = 0;
-      vi.spyOn(Date, "now").mockImplementation(() => {
+      const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => {
         callCount++;
         if (callCount === 1) return baseTime;
         return baseTime + 9 * 60 * 1000 + 30_000;
       });
 
-      vi.mocked(calculateDelay).mockReturnValueOnce(45_000);
+      try {
+        vi.mocked(calculateDelay).mockReturnValueOnce(45_000);
 
-      const page1Nodes = fixtureData.repository.pullRequests.nodes.slice(0, 3);
-      const octokit = makeOctokit([
-        makePageResponse(page1Nodes, true, "cursor-page1"),
-        makePageResponse(
-          fixtureData.repository.pullRequests.nodes.slice(3, 5),
-          false,
-          null,
-        ),
-      ]);
+        const page1Nodes = fixtureData.repository.pullRequests.nodes.slice(
+          0,
+          3,
+        );
+        const octokit = makeOctokit([
+          makePageResponse(page1Nodes, true, "cursor-page1"),
+          makePageResponse(
+            fixtureData.repository.pullRequests.nodes.slice(3, 5),
+            false,
+            null,
+          ),
+        ]);
 
-      const result = await fetchAllPullRequests(octokit as never, makeConfig());
+        const result = await fetchAllPullRequests(
+          octokit as never,
+          makeConfig(),
+        );
 
-      expect(octokit.graphql).toHaveBeenCalledTimes(1);
-      expect(result.pullRequests.length).toBe(3);
-      expect(result.partialData).toBe(true);
-      expect(result.partialDataReason).toBe("pagination-time-limit");
-      expect(calculateDelay).toHaveBeenCalledOnce();
-      expect(sleep).not.toHaveBeenCalled();
-
-      vi.spyOn(Date, "now").mockRestore();
+        expect(octokit.graphql).toHaveBeenCalledTimes(1);
+        expect(result.pullRequests.length).toBe(3);
+        expect(result.partialData).toBe(true);
+        expect(result.partialDataReason).toBe("pagination-time-limit");
+        expect(calculateDelay).toHaveBeenCalledOnce();
+        expect(sleep).not.toHaveBeenCalled();
+        expect(logger.warning).toHaveBeenCalledWith(
+          "Skipping a 45s rate-limit delay because only 30s remain in the 10-minute collection budget. Returning 3 PRs collected so far.",
+        );
+      } finally {
+        nowSpy.mockRestore();
+      }
     });
   });
 
