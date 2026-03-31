@@ -16,7 +16,6 @@ vi.mock("../../src/utils/logger", () => ({
   logger: {
     info: vi.fn(),
     debug: vi.fn(),
-    warning: vi.fn(),
     error: vi.fn(),
   },
 }));
@@ -33,6 +32,16 @@ describe("uploadReportArtifact", () => {
     const result = await uploadReportArtifact("/tmp/report.html");
 
     expect(result).toBe("12345");
+  });
+
+  it('returns "0" when the artifact ID is zero', async () => {
+    mockUploadArtifact.mockResolvedValue({
+      id: 0,
+    });
+
+    const result = await uploadReportArtifact("/tmp/report.html");
+
+    expect(result).toBe("0");
   });
 
   it('calls uploadArtifact with correct artifact name "review-insights-report"', async () => {
@@ -67,48 +76,53 @@ describe("uploadReportArtifact", () => {
     );
   });
 
-  it("returns null when artifact id is undefined", async () => {
+  it("throws when artifact id is undefined", async () => {
     mockUploadArtifact.mockResolvedValue({
       id: undefined,
     });
 
-    const result = await uploadReportArtifact("/tmp/report.html");
-
-    expect(result).toBeNull();
-  });
-
-  it("logs warning with non-Error thrown value", async () => {
-    mockUploadArtifact.mockRejectedValue("string error");
-
-    const result = await uploadReportArtifact("/tmp/report.html");
-
-    expect(result).toBeNull();
-    expect(logger.warning).toHaveBeenCalledWith(
-      expect.stringContaining("string error"),
+    await expect(uploadReportArtifact("/tmp/report.html")).rejects.toThrow(
+      "Artifact upload completed without returning an artifact ID",
     );
   });
 
-  it("returns null on upload failure", async () => {
-    mockUploadArtifact.mockRejectedValue(new Error("Upload failed"));
+  it("throws with a descriptive message for non-Error failures", async () => {
+    mockUploadArtifact.mockRejectedValue("string error");
 
-    const result = await uploadReportArtifact("/tmp/report.html");
-
-    expect(result).toBeNull();
+    await expect(uploadReportArtifact("/tmp/report.html")).rejects.toThrow(
+      "Failed to upload artifact: string error",
+    );
   });
 
-  it("logs warning on failure", async () => {
+  it("throws on upload failure", async () => {
     mockUploadArtifact.mockRejectedValue(new Error("Upload failed"));
 
-    await uploadReportArtifact("/tmp/report.html");
-
-    expect(logger.warning).toHaveBeenCalled();
+    await expect(uploadReportArtifact("/tmp/report.html")).rejects.toThrow(
+      "Failed to upload artifact: Upload failed",
+    );
   });
 
-  it("does not throw on failure", async () => {
+  it("preserves the original error as the cause on failure", async () => {
     mockUploadArtifact.mockRejectedValue(new Error("Upload failed"));
 
     await expect(
       uploadReportArtifact("/tmp/report.html"),
-    ).resolves.not.toThrow();
+    ).rejects.toMatchObject({
+      cause: expect.objectContaining({
+        message: "Upload failed",
+      }),
+    });
+  });
+
+  it("logs the uploaded artifact ID on success", async () => {
+    mockUploadArtifact.mockResolvedValue({
+      id: 987,
+    });
+
+    await uploadReportArtifact("/tmp/report.html");
+
+    expect(logger.info).toHaveBeenCalledWith(
+      'Uploaded artifact "review-insights-report" (id: 987)',
+    );
   });
 });

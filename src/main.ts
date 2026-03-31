@@ -11,9 +11,7 @@ import { computeTopReviewerSummary } from "./analyze/top-reviewers";
 import { fetchAllPullRequests } from "./collect/fetcher";
 import { applyObservationWindow } from "./collect/observation-window";
 import { getConfig } from "./inputs";
-import { uploadReportArtifact } from "./output/artifact";
-import { writeJobSummary } from "./output/job-summary";
-import { postPRComment } from "./output/pr-comment";
+import { processOutputModes } from "./output/process-output-modes";
 import type { AnalysisResult } from "./types";
 import { logger } from "./utils/logger";
 import { generateHtmlReport } from "./visualize/html-report";
@@ -84,58 +82,15 @@ async function run(): Promise<void> {
 
     // 8. Process output modes — each mode is independent; one failure
     //    must not prevent the remaining modes from executing.
-    const outputErrors: Array<{
-      mode: string;
-      error: unknown;
-    }> = [];
-    for (const mode of config.outputModes) {
-      try {
-        switch (mode) {
-          case "summary":
-            logger.info("Writing job summary");
-            await writeJobSummary(analysis);
-            break;
-
-          case "comment": {
-            const pr = github.context.payload.pull_request;
-            const prNumber: number | undefined = pr?.number;
-            if (prNumber !== undefined) {
-              logger.info(`Posting comment on PR #${prNumber}`);
-              await postPRComment(
-                octokit,
-                config.owner,
-                config.repo,
-                prNumber,
-                analysis,
-              );
-            } else {
-              logger.warning(
-                'Output mode "comment" skipped: not running in a pull_request context',
-              );
-            }
-            break;
-          }
-
-          case "artifact":
-            logger.info("Uploading report artifact");
-            await uploadReportArtifact(reportPath);
-            break;
-        }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        logger.warning(`Output mode "${mode}" failed: ${message}`);
-        outputErrors.push({
-          mode,
-          error: err,
-        });
-      }
-    }
-
-    if (outputErrors.length === config.outputModes.length) {
-      throw new Error(
-        `All output modes failed: ${outputErrors.map((e) => e.mode).join(", ")}`,
-      );
-    }
+    await processOutputModes({
+      outputModes: config.outputModes,
+      analysis,
+      reportPath,
+      octokit,
+      owner: config.owner,
+      repo: config.repo,
+      pullRequestNumber: github.context.payload.pull_request?.number,
+    });
 
     // 9. Set outputs
     core.setOutput("report-path", reportPath);
