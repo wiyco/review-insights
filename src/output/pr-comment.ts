@@ -1,5 +1,4 @@
 import { computeTopReviewerSummary } from "../analyze/top-reviewers";
-import { MAX_REVIEWS_PER_PR } from "../collect/graphql-queries";
 import type { AnalysisResult } from "../types";
 import { formatDuration } from "../utils/format";
 import { logger } from "../utils/logger";
@@ -35,13 +34,11 @@ function buildCommentBody(analysis: AnalysisResult): string {
   const dataCompleteness = getDataCompletenessLabel(partialData);
   const partialDataWarning = getPartialDataWarning(partialDataReason);
 
-  const truncatedPRs = filteredPRs.filter(
-    (pr) => pr.reviews.length >= MAX_REVIEWS_PER_PR,
-  );
+  const truncatedPRs = filteredPRs.filter((pr) => pr.reviewLimitReached);
 
   const truncationWarning =
     truncatedPRs.length > 0
-      ? `> **Warning:** ${truncatedPRs.length} PR(s) have ${MAX_REVIEWS_PER_PR}+ reviews and may have truncated data (${truncatedPRs
+      ? `> **Warning:** ${truncatedPRs.length} PR(s) hit the review fetch limit and may have truncated data (${truncatedPRs
           .slice(0, 10)
           .map((pr) => `#${pr.number}`)
           .join(

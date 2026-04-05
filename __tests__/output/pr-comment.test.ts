@@ -247,19 +247,6 @@ describe("postPRComment", () => {
 
   it("comment body shows ellipsis for more than 10 truncated PRs", async () => {
     const { mock, octokit } = makeOctokit([]);
-    const reviews = Array.from(
-      {
-        length: 100,
-      },
-      (_, i) => ({
-        reviewer: `r${i}`,
-        reviewerIsBot: false,
-        author: "alice",
-        state: "APPROVED" as const,
-        createdAt: "2025-06-02T12:00:00Z",
-        prNumber: 1,
-      }),
-    );
     const analysis = makeAnalysis();
     analysis.pullRequests = Array.from(
       {
@@ -275,7 +262,8 @@ describe("postPRComment", () => {
         mergedAt: "2025-06-02T00:00:00Z",
         closedAt: "2025-06-02T00:00:00Z",
         mergedBy: null,
-        reviews,
+        reviewLimitReached: true,
+        reviews: [],
         reviewRequests: [],
         commitMessages: [],
         additions: 10,
@@ -304,21 +292,8 @@ describe("postPRComment", () => {
     ).rejects.toBe(error);
   });
 
-  it("comment body contains truncation warning for PRs with many reviews", async () => {
+  it("comment body contains truncation warning for PRs that hit the review fetch limit", async () => {
     const { mock, octokit } = makeOctokit([]);
-    const reviews = Array.from(
-      {
-        length: 100,
-      },
-      (_, i) => ({
-        reviewer: `r${i}`,
-        reviewerIsBot: false,
-        author: "alice",
-        state: "APPROVED" as const,
-        createdAt: "2025-06-02T12:00:00Z",
-        prNumber: 42,
-      }),
-    );
     const analysis = makeAnalysis();
     analysis.pullRequests = [
       {
@@ -331,7 +306,8 @@ describe("postPRComment", () => {
         mergedAt: "2025-06-02T00:00:00Z",
         closedAt: "2025-06-02T00:00:00Z",
         mergedBy: null,
-        reviews,
+        reviewLimitReached: true,
+        reviews: [],
         reviewRequests: [],
         commitMessages: [],
         additions: 10,
@@ -345,6 +321,48 @@ describe("postPRComment", () => {
     const body = mock.createComment.mock.calls[0][0].body as string;
     expect(body).toContain("Warning:");
     expect(body).toContain("#42");
+    expect(body).toContain("truncated data");
+  });
+
+  it("comment body keeps truncation warning after observation-window filtering reduces review count", async () => {
+    const { mock, octokit } = makeOctokit([]);
+    const analysis = makeAnalysis();
+    analysis.pullRequests = [
+      {
+        number: 42,
+        title: "PR",
+        state: "MERGED",
+        author: "alice",
+        authorIsBot: false,
+        createdAt: "2025-06-01T00:00:00Z",
+        mergedAt: "2025-06-02T00:00:00Z",
+        closedAt: "2025-06-02T00:00:00Z",
+        mergedBy: null,
+        reviewLimitReached: true,
+        reviews: [
+          {
+            reviewer: "r1",
+            reviewerIsBot: false,
+            author: "alice",
+            state: "APPROVED",
+            createdAt: "2025-06-02T12:00:00Z",
+            prNumber: 42,
+          },
+        ],
+        reviewRequests: [],
+        commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
+      },
+    ];
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
+
+    const body = mock.createComment.mock.calls[0][0].body as string;
+    expect(body).toContain("Warning:");
+    expect(body).toContain("#42");
+    expect(body).toContain("truncated data");
   });
 
   it("sorts bias warnings by zScore descending in comment body", async () => {
@@ -478,6 +496,7 @@ describe("postPRComment", () => {
         mergedAt: "2025-06-02T00:00:00Z",
         closedAt: "2025-06-02T00:00:00Z",
         mergedBy: null,
+        reviewLimitReached: false,
         reviews: [],
         reviewRequests: [],
         commitMessages: [],
@@ -495,6 +514,7 @@ describe("postPRComment", () => {
         mergedAt: "2025-06-02T00:00:00Z",
         closedAt: "2025-06-02T00:00:00Z",
         mergedBy: null,
+        reviewLimitReached: false,
         reviews: [],
         reviewRequests: [],
         commitMessages: [],
@@ -525,6 +545,7 @@ describe("postPRComment", () => {
         mergedAt: "2025-06-02T00:00:00Z",
         closedAt: "2025-06-02T00:00:00Z",
         mergedBy: null,
+        reviewLimitReached: false,
         reviews: [],
         reviewRequests: [],
         commitMessages: [],
@@ -542,6 +563,7 @@ describe("postPRComment", () => {
         mergedAt: "2025-06-02T00:00:00Z",
         closedAt: "2025-06-02T00:00:00Z",
         mergedBy: null,
+        reviewLimitReached: false,
         reviews: [],
         reviewRequests: [],
         commitMessages: [],
@@ -559,19 +581,6 @@ describe("postPRComment", () => {
 
   it("excludes bot-authored PRs from truncation warning when includeBots is false", async () => {
     const { mock, octokit } = makeOctokit([]);
-    const reviews = Array.from(
-      {
-        length: 100,
-      },
-      (_, i) => ({
-        reviewer: `r${i}`,
-        reviewerIsBot: false,
-        author: "bot",
-        state: "APPROVED" as const,
-        createdAt: "2025-06-02T12:00:00Z",
-        prNumber: 99,
-      }),
-    );
     const analysis = makeAnalysis();
     analysis.includeBots = false;
     analysis.pullRequests = [
@@ -585,7 +594,8 @@ describe("postPRComment", () => {
         mergedAt: "2025-06-02T00:00:00Z",
         closedAt: "2025-06-02T00:00:00Z",
         mergedBy: null,
-        reviews,
+        reviewLimitReached: true,
+        reviews: [],
         reviewRequests: [],
         commitMessages: [],
         additions: 10,

@@ -31,6 +31,7 @@ function makePR(
     mergedAt: null,
     closedAt: null,
     mergedBy: null,
+    reviewLimitReached: false,
     reviews: [],
     reviewRequests: [],
     commitMessages: [],
@@ -68,6 +69,35 @@ describe("applyObservationWindow", () => {
 
     expect(result[0].reviews).toHaveLength(1);
     expect(result[0].reviews[0].reviewer).toBe("bob");
+  });
+
+  it("preserves reviewLimitReached while trimming reviews to the observation window", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        reviewLimitReached: true,
+        reviews: [
+          makeReview({
+            reviewer: "bob",
+            author: "alice",
+            createdAt: "2025-06-02T00:00:00Z",
+            prNumber: 1,
+          }),
+          makeReview({
+            reviewer: "carol",
+            author: "alice",
+            createdAt: "2025-06-04T00:00:00Z",
+            prNumber: 1,
+          }),
+        ],
+      }),
+    ];
+
+    const result = applyObservationWindow(prs, "2025-06-03T00:00:00Z");
+
+    expect(result[0].reviewLimitReached).toBe(true);
+    expect(result[0].reviews).toHaveLength(1);
   });
 
   it("treats a PR merged after until as still open at the cutoff", () => {
