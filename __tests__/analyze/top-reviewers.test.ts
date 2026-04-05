@@ -183,6 +183,38 @@ describe("computeTopReviewerSummary", () => {
     ]);
   });
 
+  it("preserves duplicate tied logins when duplicate user entries are provided", () => {
+    const summary = computeTopReviewerSummary([
+      makeUser({
+        login: "bob",
+        reviewsGiven: 3,
+      }),
+      makeUser({
+        login: "alice",
+        reviewsGiven: 3,
+      }),
+      makeUser({
+        login: "alice",
+        reviewsGiven: 3,
+      }),
+      makeUser({
+        login: "alice",
+        reviewsGiven: 3,
+      }),
+    ]);
+
+    expect(summary).toEqual({
+      reviewerCount: 4,
+      maxReviewsGiven: 3,
+      topReviewers: [
+        "alice",
+        "alice",
+        "alice",
+        "bob",
+      ],
+    });
+  });
+
   it("handles reviewer populations above the Math.max spread limit", () => {
     const largePopulation = Array.from(
       {
