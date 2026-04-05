@@ -31,7 +31,10 @@ function buildCommentBody(analysis: AnalysisResult): string {
   const totalPRs = filteredPRs.length;
   const topReviewerSummary = computeTopReviewerSummary(userStats);
   const biasDetected = bias.flaggedPairs.length > 0;
-  const dataCompleteness = getDataCompletenessLabel(partialData);
+  const dataCompleteness = getDataCompletenessLabel(
+    partialData,
+    partialDataReason,
+  );
   const partialDataWarning = getPartialDataWarning(partialDataReason);
 
   const truncatedPRs = filteredPRs.filter((pr) => pr.reviewLimitReached);

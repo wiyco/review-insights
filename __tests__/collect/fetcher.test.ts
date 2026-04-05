@@ -164,10 +164,36 @@ describe("fetchAllPullRequests", () => {
   });
 
   describe("maxPRs limit", () => {
-    it("stops fetching when maxPRs is reached", async () => {
+    it("marks the dataset as capped when additional in-range PRs exist after maxPRs", async () => {
       const octokit = makeOctokit([
         makePageResponse(
           fixtureData.repository.pullRequests.nodes,
+          false,
+          null,
+        ),
+      ]);
+
+      const config = makeConfig({
+        maxPRs: 3,
+      });
+      const result = await fetchAllPullRequests(octokit as never, config);
+
+      expect(result.pullRequests.length).toBe(3);
+      expect(result.partialData).toBe(true);
+      expect(result.partialDataReason).toBe("max-prs-limit-reached");
+      expect(octokit.graphql).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not mark the dataset as capped when the extra sentinel PR is outside the date range", async () => {
+      const octokit = makeOctokit([
+        makePageResponse(
+          [
+            ...fixtureData.repository.pullRequests.nodes.slice(0, 3),
+            {
+              ...fixtureData.repository.pullRequests.nodes[3],
+              createdAt: "2025-04-01T00:00:00Z",
+            },
+          ],
           true,
           "cursor-1",
         ),
@@ -178,15 +204,16 @@ describe("fetchAllPullRequests", () => {
       });
       const result = await fetchAllPullRequests(octokit as never, config);
 
-      // Should stop after collecting 3 PRs even though hasNextPage was true
       expect(result.pullRequests.length).toBe(3);
+      expect(result.partialData).toBe(false);
+      expect(result.partialDataReason).toBeNull();
       expect(octokit.graphql).toHaveBeenCalledTimes(1);
     });
 
-    it("adjusts pageSize to not exceed maxPRs", async () => {
+    it("requests one extra PR on the final page to detect maxPRs truncation", async () => {
       const octokit = makeOctokit([
         makePageResponse(
-          fixtureData.repository.pullRequests.nodes.slice(0, 2),
+          fixtureData.repository.pullRequests.nodes.slice(0, 3),
           false,
           null,
         ),
@@ -200,7 +227,7 @@ describe("fetchAllPullRequests", () => {
       expect(octokit.graphql).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          pageSize: 2,
+          pageSize: 3,
         }),
       );
     });

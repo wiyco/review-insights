@@ -411,6 +411,18 @@ describe("generateHtmlReport", () => {
     expect(html).toContain("partial PR data");
   });
 
+  it("surfaces the capped max-prs state in the HTML report", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        partialData: true,
+        partialDataReason: "max-prs-limit-reached",
+      }),
+    );
+    expect(html).toContain("Data Completeness");
+    expect(html).toContain(">Capped<");
+    expect(html).toContain("configured max-prs limit");
+  });
+
   describe("XSS prevention", () => {
     it("escapes user login in stats table", () => {
       const html = generateHtmlReport(

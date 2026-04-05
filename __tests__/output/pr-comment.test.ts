@@ -432,6 +432,19 @@ describe("postPRComment", () => {
     expect(body).toContain("| Data completeness | Partial |");
   });
 
+  it("comment body surfaces the capped max-prs state", async () => {
+    const { mock, octokit } = makeOctokit([]);
+    const analysis = makeAnalysis();
+    analysis.partialData = true;
+    analysis.partialDataReason = "max-prs-limit-reached";
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
+
+    const body = mock.createComment.mock.calls[0][0].body as string;
+    expect(body).toContain("configured max-prs limit");
+    expect(body).toContain("| Data completeness | Capped |");
+  });
+
   it("comment body shows N/A for avgTimeToFirstReviewMs null", async () => {
     const { mock, octokit } = makeOctokit([]);
     const analysis = makeAnalysis();

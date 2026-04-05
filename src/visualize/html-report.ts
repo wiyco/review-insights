@@ -61,7 +61,10 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
       : null;
 
   const truncatedPRs = filteredPRs.filter((pr) => pr.reviewLimitReached);
-  const dataCompleteness = getDataCompletenessLabel(partialData);
+  const dataCompleteness = getDataCompletenessLabel(
+    partialData,
+    partialDataReason,
+  );
   const partialDataWarning = getPartialDataWarning(partialDataReason);
 
   const sinceStr = escapeHtml(String(dateRange.since));
