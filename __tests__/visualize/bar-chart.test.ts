@@ -188,5 +188,22 @@ describe("renderBarChart", () => {
       const svg = renderBarChart(stats, "reviewsGiven");
       expect(svg).toContain("<rect");
     });
+
+    it("renders a zero-width bar when a displayed user has a zero metric", () => {
+      const stats = [
+        makeUserStats({
+          login: "alice",
+          reviewsGiven: 5,
+        }),
+        makeUserStats({
+          login: "bob",
+          reviewsGiven: 0,
+        }),
+      ];
+
+      const svg = renderBarChart(stats, "reviewsGiven");
+      expect(svg).toContain("<title>bob: 0</title>");
+      expect(svg).toContain(">0<");
+    });
   });
 });

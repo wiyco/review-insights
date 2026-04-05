@@ -140,6 +140,26 @@ describe("applyObservationWindow", () => {
     expect(result[0].mergedBy).toBe("bob");
   });
 
+  it("uses mergedAt as the observed close time when close metadata lags the merge", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        state: "MERGED",
+        mergedAt: "2025-06-03T00:00:00Z",
+        closedAt: "2025-06-05T00:00:00Z",
+        mergedBy: "bob",
+      }),
+    ];
+
+    const result = applyObservationWindow(prs, "2025-06-04T00:00:00Z");
+
+    expect(result[0].state).toBe("MERGED");
+    expect(result[0].mergedAt).toBe("2025-06-03T00:00:00Z");
+    expect(result[0].closedAt).toBe("2025-06-03T00:00:00Z");
+    expect(result[0].mergedBy).toBe("bob");
+  });
+
   it("treats a PR closed after until as still open at the cutoff", () => {
     const prs: PullRequestRecord[] = [
       makePR({

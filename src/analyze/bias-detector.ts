@@ -15,14 +15,10 @@ function computeGiniCoefficient(
   nonZeroValues: number[],
   totalCells: number,
 ): number {
-  if (totalCells === 0) return 0;
-
   const sorted = [
     ...nonZeroValues,
   ].sort((a, b) => a - b);
   const total = sorted.reduce((a, b) => a + b, 0);
-
-  if (total === 0) return 0;
 
   const zeroCount = totalCells - sorted.length;
   let weightedSum = 0;

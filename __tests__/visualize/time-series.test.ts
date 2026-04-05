@@ -287,6 +287,74 @@ describe("renderTimeSeries", () => {
     expect(svg).toContain("2025-03");
   });
 
+  it("extends the start period when a non-pending review predates the PR creation time", () => {
+    const prs = [
+      makePR({
+        number: 1,
+        createdAt: "2025-03-10T12:00:00Z",
+        reviews: [
+          makeReview({
+            reviewer: "bob",
+            state: "APPROVED",
+            createdAt: "2025-02-15T12:00:00Z",
+          }),
+        ],
+      }),
+    ];
+
+    const svg = renderTimeSeries(prs, "monthly");
+    expect(svg).toContain("2025-02");
+    expect(svg).toContain("2025-03");
+  });
+
+  it("expands the start period when PRs are provided out of chronological order", () => {
+    const prs = [
+      makePR({
+        number: 1,
+        createdAt: "2025-03-10T12:00:00Z",
+      }),
+      makePR({
+        number: 2,
+        createdAt: "2025-01-15T12:00:00Z",
+      }),
+    ];
+
+    const svg = renderTimeSeries(prs, "monthly");
+    expect(svg).toContain("2025-01");
+    expect(svg).toContain("2025-03");
+  });
+
+  it("fails fast when an internal bucket is unexpectedly missing", () => {
+    const OriginalMap = globalThis.Map;
+
+    class FlakyMap<K, V> extends Map<K, V> {
+      override get(key: K): V | undefined {
+        if (String(key) === "2025-03" && super.has(key)) {
+          return undefined;
+        }
+        return super.get(key);
+      }
+    }
+
+    globalThis.Map = FlakyMap as typeof Map;
+
+    try {
+      expect(() =>
+        renderTimeSeries(
+          [
+            makePR({
+              number: 1,
+              createdAt: "2025-03-10T12:00:00Z",
+            }),
+          ],
+          "monthly",
+        ),
+      ).toThrow("Missing PR time-series bucket for key: 2025-03");
+    } finally {
+      globalThis.Map = OriginalMap;
+    }
+  });
+
   describe("year boundary", () => {
     it("handles weekly bucketing across year boundary", () => {
       const prs = [

@@ -43,13 +43,8 @@ function generatePeriodKeys(
     cursor.setUTCDate(1);
   }
 
-  const seen = new Set<string>();
   while (cursor <= end) {
-    const k = keyFn(cursor);
-    if (!seen.has(k)) {
-      seen.add(k);
-      keys.push(k);
-    }
+    keys.push(keyFn(cursor));
     if (interval === "weekly") {
       cursor.setUTCDate(cursor.getUTCDate() + 7);
     } else {
@@ -57,13 +52,22 @@ function generatePeriodKeys(
     }
   }
 
-  // Ensure end period is included
-  const endKey = keyFn(end);
-  if (!seen.has(endKey)) {
-    keys.push(endKey);
-  }
+  keys.push(keyFn(end));
+  return Array.from(new Set(keys));
+}
 
-  return keys;
+function requireBucketValue(
+  buckets: ReadonlyMap<string, number>,
+  key: string,
+  seriesLabel: string,
+): number {
+  const value = buckets.get(key);
+  if (value == null) {
+    throw new Error(
+      `Missing ${seriesLabel} time-series bucket for key: ${key}`,
+    );
+  }
+  return value;
 }
 
 /**
@@ -113,20 +117,22 @@ export function renderTimeSeries(
 
   for (const pr of pullRequests) {
     const prKey = keyFn(new Date(pr.createdAt));
-    if (prBuckets.has(prKey)) {
-      prBuckets.set(prKey, (prBuckets.get(prKey) ?? 0) + 1);
-    }
+    const prCount = requireBucketValue(prBuckets, prKey, "PR");
+    prBuckets.set(prKey, prCount + 1);
     for (const review of pr.reviews) {
       if (review.state === "PENDING") continue;
       const rKey = keyFn(new Date(review.createdAt));
-      if (reviewBuckets.has(rKey)) {
-        reviewBuckets.set(rKey, (reviewBuckets.get(rKey) ?? 0) + 1);
-      }
+      const reviewCount = requireBucketValue(reviewBuckets, rKey, "review");
+      reviewBuckets.set(rKey, reviewCount + 1);
     }
   }
 
-  const reviewValues = periodKeys.map((k) => reviewBuckets.get(k) ?? 0);
-  const prValues = periodKeys.map((k) => prBuckets.get(k) ?? 0);
+  const reviewValues = periodKeys.map((k) =>
+    requireBucketValue(reviewBuckets, k, "review"),
+  );
+  const prValues = periodKeys.map((k) =>
+    requireBucketValue(prBuckets, k, "PR"),
+  );
 
   // Chart dimensions
   const paddingLeft = 60;

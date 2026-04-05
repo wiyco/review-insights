@@ -171,6 +171,25 @@ describe("renderHeatmap", () => {
       expect(svg.startsWith("<svg")).toBe(true);
       expect(svg.endsWith("</svg>")).toBe(true);
     });
+
+    it("falls back to zero-based legend bounds for malformed matrices", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map(),
+        ],
+      ]);
+      const bias: BiasResult = {
+        matrix,
+        flaggedPairs: [],
+        giniCoefficient: 0,
+      };
+
+      const svg = renderHeatmap(bias);
+      expect(svg).toContain("bob");
+      expect(svg).not.toContain("Infinity");
+      expect(svg).not.toContain("NaN");
+    });
   });
 
   describe("maxUsers option", () => {
@@ -228,6 +247,117 @@ describe("renderHeatmap", () => {
         maxUsers: 20,
       });
       expect(svg).not.toContain("Others");
+    });
+
+    it("skips rows that disappear between iteration and lookup", () => {
+      const matrix: ReviewMatrix = new (class extends Map<
+        string,
+        Map<string, number>
+      > {
+        override get(key: string): Map<string, number> | undefined {
+          if (key === "alice" || key === "carol") {
+            return undefined;
+          }
+          return super.get(key);
+        }
+      })([
+        [
+          "alice",
+          new Map([
+            [
+              "zoe",
+              5,
+            ],
+          ]),
+        ],
+        [
+          "carol",
+          new Map([
+            [
+              "yan",
+              2,
+            ],
+          ]),
+        ],
+        [
+          "bob",
+          new Map([
+            [
+              "yan",
+              1,
+            ],
+          ]),
+        ],
+      ]);
+      const bias: BiasResult = {
+        matrix,
+        flaggedPairs: [],
+        giniCoefficient: 0,
+      };
+
+      const svg = renderHeatmap(bias, {
+        maxUsers: 1,
+      });
+
+      expect(svg.startsWith("<svg")).toBe(true);
+      expect(svg).toContain("Others");
+      expect(svg).not.toContain("NaN");
+    });
+
+    it("aggregates only positive overflow cells into Others buckets", () => {
+      const bias = makeBiasResult([
+        [
+          "alice",
+          "zoe",
+          5,
+        ],
+        [
+          "bob",
+          "yan",
+          1,
+        ],
+        [
+          "carol",
+          "zoe",
+          2,
+        ],
+      ]);
+
+      const svg = renderHeatmap(bias, {
+        maxUsers: 1,
+      });
+
+      expect(svg).toContain("Others");
+      expect(svg).toContain("alice -&gt; Others: 0 reviews");
+      expect(svg).toContain("Others -&gt; zoe: 2 reviews");
+      expect(svg).toContain("Others -&gt; Others: 1 reviews");
+    });
+
+    it("supports overflow reviewers without creating an Others author column", () => {
+      const bias = makeBiasResult([
+        [
+          "alice",
+          "zoe",
+          5,
+        ],
+        [
+          "bob",
+          "zoe",
+          2,
+        ],
+        [
+          "carol",
+          "zoe",
+          1,
+        ],
+      ]);
+
+      const svg = renderHeatmap(bias, {
+        maxUsers: 1,
+      });
+
+      expect(svg).toContain("Others -&gt; zoe: 3 reviews");
+      expect(svg).not.toContain("alice -&gt; Others");
     });
   });
 

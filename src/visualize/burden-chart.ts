@@ -317,7 +317,7 @@ export function renderBurdenSection(burden: HumanReviewBurden): string {
   );
   for (const cat of CATEGORIES) {
     const g = burden[cat];
-    const pct = totalPRs > 0 ? ((g.prCount / totalPRs) * 100).toFixed(1) : "0";
+    const pct = ((g.prCount / totalPRs) * 100).toFixed(1);
     const color = CATEGORY_COLORS[cat];
     parts.push(
       `<div style="flex:1;min-width:140px;padding:12px 16px;border-radius:6px;border:2px solid ${color};text-align:center;">` +
