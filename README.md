@@ -62,7 +62,7 @@ The date range selects PRs by `createdAt`. For those PRs, review activity and me
 | `top-reviewers` | JSON array of logins tied for the maximum `reviewsGiven` among users with `reviewsGiven > 0`; `[]` if no active reviewers exist |
 | `max-reviews-given` | JSON number for the maximum `reviewsGiven` among users with `reviewsGiven > 0`; `null` if no active reviewers exist |
 | `bias-detected` | Whether review imbalance was detected (`true`/`false`) |
-| `partial-data` | Whether pagination stopped due to the fixed 10-minute collection budget and the analysis used a partial PR dataset (`true`/`false`) |
+| `partial-data` | Whether analysis used a capped or partial PR dataset because pagination hit `max-prs` or the fixed collection budget (`true`/`false`) |
 
 For details on each output, see [docs/outputs.md](docs/outputs.md).
 
@@ -127,7 +127,7 @@ permissions:
 
 - **AI co-authored detection is approximate.** Only the last commit of each PR is fetched from the GraphQL API (`commits(last: 1)`). This means AI co-author trailers on earlier commits are not inspected, and the result varies by merge strategy: merge commits typically do not carry the trailer, squash merges may or may not preserve it depending on the repository's settings, and rebase merges only expose the final commit. The `aiCoAuthoredPRs` metric should be treated as a lower-bound estimate.
 - **Review fetches are capped at 100 per PR.** The GitHub GraphQL query requests at most 100 nested reviews per PR. When a PR hits that fetch limit, its review data may be truncated and a warning is surfaced in the HTML report and PR comment.
-- **PR collection may complete with partial data.** Pagination runs within a fixed 10-minute wall-clock collection budget. It stops when that budget is reached, or earlier if the next required rate-limit delay would exceed the remaining budget, and analyzes the PRs collected so far. In this case the action still succeeds, sets `partial-data` to `true`, and marks the job summary, PR comment, and HTML report as partial. Counts and derived metrics such as PR totals, bias detection, and Gini coefficient may therefore be understated.
+- **PR collection may complete with capped or partial data.** Pagination runs within a fixed 10-minute wall-clock collection budget and may also be bounded by `max-prs`. If the action finds additional PRs within the requested date range after reaching `max-prs`, it marks the dataset as `Capped`; if the wall-clock budget is exhausted, it marks the dataset as `Partial`. In both cases the action still succeeds, sets `partial-data` to `true`, and surfaces a warning in the job summary, PR comment, and HTML report. Counts and derived metrics then reflect only the collected subset rather than the full date-range population.
 - **Large repositories may cause long execution times.** When the GitHub API rate limit is exhausted during pagination, the action waits up to 5 minutes per reset cycle. For very active repositories with high `max-prs` values, this can result in extended run times. Set `timeout-minutes` in your workflow job to guard against this (e.g. `timeout-minutes: 15`), and consider using a shorter date range or lower `max-prs` value.
 
 ## Security

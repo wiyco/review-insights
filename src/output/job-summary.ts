@@ -9,6 +9,20 @@ import { escapeHtml } from "../utils/sanitize";
 import { renderBarChart } from "../visualize/bar-chart";
 import { renderHeatmap } from "../visualize/heatmap";
 
+function getSummaryStatusBanner(
+  partialDataReason: AnalysisResult["partialDataReason"],
+): string | null {
+  switch (partialDataReason) {
+    case "max-prs-limit-reached":
+      return "Capped by max-prs. Additional PRs existed within the requested date range, so this report covers only the newest collected subset.";
+    case "pagination-time-limit":
+    case "pagination-delay-budget-exceeded":
+      return "Partial dataset. Pagination stopped before the full requested date range could be collected.";
+    default:
+      return null;
+  }
+}
+
 /**
  * Writes a GitHub Actions job summary with key analysis metrics,
  * an inline heatmap SVG, and a top-reviewers bar chart.
@@ -30,8 +44,12 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
   const activeReviewerStats = userStats.filter((user) => user.reviewsGiven > 0);
   const totalPRs = filteredPRs.length;
   const topReviewerSummary = computeTopReviewerSummary(userStats);
-  const dataCompleteness = getDataCompletenessLabel(partialData);
+  const dataCompleteness = getDataCompletenessLabel(
+    partialData,
+    partialDataReason,
+  );
   const partialDataWarning = getPartialDataWarning(partialDataReason);
+  const summaryStatusBanner = getSummaryStatusBanner(partialDataReason);
   const biasDetected = bias.flaggedPairs.length > 0;
 
   // Build heatmap and bar chart SVGs
@@ -48,6 +66,12 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
     .addRaw(
       `<p><strong>Date range:</strong> ${escapeHtml(dateRange.since)} &mdash; ${escapeHtml(dateRange.until)}</p>`,
     );
+
+  if (summaryStatusBanner) {
+    summary.addRaw(
+      `<p><strong>Status:</strong> ${escapeHtml(summaryStatusBanner)}</p>`,
+    );
+  }
 
   if (partialDataWarning) {
     summary.addRaw(

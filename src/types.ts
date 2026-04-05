@@ -160,6 +160,7 @@ export interface AIPatternResult {
 
 /** Why the collected PR dataset is partial, if applicable. */
 export type PartialDataReason =
+  | "max-prs-limit-reached"
   | "pagination-time-limit"
   | "pagination-delay-budget-exceeded";
 

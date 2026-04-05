@@ -416,6 +416,10 @@ describe("writeJobSummary", () => {
       c.includes("partial PR data"),
     );
     expect(hasPartialWarning).toBe(true);
+    const hasPartialStatus = addedContent.some((c) =>
+      c.includes("Status:</strong> Partial dataset."),
+    );
+    expect(hasPartialStatus).toBe(true);
   });
 
   it("surfaces the delay-budget partial-data warning in the summary", async () => {
@@ -434,6 +438,37 @@ describe("writeJobSummary", () => {
       c.includes("required rate-limit delay would exceed the remaining"),
     );
     expect(hasDelayBudgetWarning).toBe(true);
+  });
+
+  it("surfaces the capped max-prs state in the summary", async () => {
+    const analysis = makeAnalysis();
+    analysis.partialData = true;
+    analysis.partialDataReason = "max-prs-limit-reached";
+
+    await writeJobSummary(analysis);
+
+    expect(core.summary.addTable).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.arrayContaining([
+          "Data completeness",
+          "Capped",
+        ]),
+      ]),
+    );
+
+    const addedContent = (
+      core.summary as unknown as {
+        _addedContent: string[];
+      }
+    )._addedContent;
+    const hasCappedWarning = addedContent.some((c) =>
+      c.includes("configured max-prs limit"),
+    );
+    expect(hasCappedWarning).toBe(true);
+    const hasCappedStatus = addedContent.some((c) =>
+      c.includes("Status:</strong> Capped by max-prs."),
+    );
+    expect(hasCappedStatus).toBe(true);
   });
 
   it("contains escaped date range in raw content", async () => {

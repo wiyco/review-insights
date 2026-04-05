@@ -25,6 +25,7 @@ import { normalizePullRequests } from "./normalizer";
 type Octokit = InstanceType<typeof GitHub>;
 
 const PAGE_SIZE = 50;
+const FINAL_PAGE_SENTINEL_SIZE = 1;
 
 /** Maximum wall-clock time (ms) the entire pagination loop is allowed to run. */
 const MAX_PAGINATION_TIME_MS = PAGINATION_TIME_LIMIT_MINUTES * 60 * 1000;
@@ -60,10 +61,20 @@ function logPaginationDelayBudgetExceededWarning(
   );
 }
 
+function logMaxPRsLimitReachedWarning(
+  maxPRs: number,
+  collectedCount: number,
+): void {
+  logger.warning(
+    `Reached max-prs limit (${maxPRs}) before exhausting the requested date range. ` +
+      `Returning the newest ${collectedCount} PRs collected so far.`,
+  );
+}
+
 /**
  * Fetches all pull requests within the configured date range using
  * cursor-based pagination. Stops when:
- * - maxPRs is reached
+ * - maxPRs would truncate additional PRs within the requested date range
  * - PR createdAt is before config.since
  * - No more pages
  * - Wall-clock time reaches MAX_PAGINATION_TIME_MS (returns partial results)
@@ -99,11 +110,16 @@ export async function fetchAllPullRequests(
     }
 
     pageCount++;
+    const remainingSlots = config.maxPRs - allNodes.length;
+    const pageSize =
+      remainingSlots <= PAGE_SIZE
+        ? remainingSlots + FINAL_PAGE_SENTINEL_SIZE
+        : PAGE_SIZE;
     const variables: PullRequestsQueryVariables = {
       owner: config.owner,
       repo: config.repo,
       after: cursor,
-      pageSize: Math.min(PAGE_SIZE, config.maxPRs - allNodes.length),
+      pageSize,
       maxReviews: MAX_REVIEWS_PER_PR,
       maxReviewRequests: MAX_REVIEW_REQUESTS_PER_PR,
     };
@@ -124,6 +140,7 @@ export async function fetchAllPullRequests(
     );
 
     let reachedDateBoundary = false;
+    let reachedMaxPRsLimit = false;
 
     for (const node of nodes) {
       const createdAt = new Date(node.createdAt);
@@ -139,17 +156,28 @@ export async function fetchAllPullRequests(
         break;
       }
 
-      allNodes.push(node);
-
       if (allNodes.length >= config.maxPRs) {
+        reachedMaxPRsLimit = true;
         break;
       }
+
+      allNodes.push(node);
     }
 
     if (reachedDateBoundary) {
       logger.info(
         `Reached date boundary (${config.since}). Stopping pagination.`,
       );
+      break;
+    }
+
+    if (
+      reachedMaxPRsLimit ||
+      (allNodes.length >= config.maxPRs && pageInfo.hasNextPage)
+    ) {
+      partialData = true;
+      partialDataReason = "max-prs-limit-reached";
+      logMaxPRsLimitReachedWarning(config.maxPRs, allNodes.length);
       break;
     }
 
