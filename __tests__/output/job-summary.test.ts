@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalysisResult } from "../../src/types";
 import { EMPTY_BURDEN } from "../fixtures/empty-burden";
 
@@ -76,10 +76,21 @@ function makeAnalysis(): AnalysisResult {
     },
     biasThreshold: 2.0,
     includeBots: false,
+    partialData: false,
+    partialDataReason: null,
   };
 }
 
 describe("writeJobSummary", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (
+      core.summary as unknown as {
+        _addedContent: string[];
+      }
+    )._addedContent.length = 0;
+  });
+
   it("calls summary.write()", async () => {
     const analysis = makeAnalysis();
 
@@ -374,6 +385,51 @@ describe("writeJobSummary", () => {
         ]),
       ]),
     );
+  });
+
+  it("surfaces partial-data state in the summary", async () => {
+    const analysis = makeAnalysis();
+    analysis.partialData = true;
+    analysis.partialDataReason = "pagination-time-limit";
+
+    await writeJobSummary(analysis);
+
+    expect(core.summary.addTable).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.arrayContaining([
+          "Data completeness",
+          "Partial",
+        ]),
+      ]),
+    );
+
+    const addedContent = (
+      core.summary as unknown as {
+        _addedContent: string[];
+      }
+    )._addedContent;
+    const hasPartialWarning = addedContent.some((c) =>
+      c.includes("partial PR data"),
+    );
+    expect(hasPartialWarning).toBe(true);
+  });
+
+  it("surfaces the delay-budget partial-data warning in the summary", async () => {
+    const analysis = makeAnalysis();
+    analysis.partialData = true;
+    analysis.partialDataReason = "pagination-delay-budget-exceeded";
+
+    await writeJobSummary(analysis);
+
+    const addedContent = (
+      core.summary as unknown as {
+        _addedContent: string[];
+      }
+    )._addedContent;
+    const hasDelayBudgetWarning = addedContent.some((c) =>
+      c.includes("required rate-limit delay would exceed the remaining"),
+    );
+    expect(hasDelayBudgetWarning).toBe(true);
   });
 
   it("contains escaped date range in raw content", async () => {

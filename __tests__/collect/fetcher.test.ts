@@ -91,7 +91,9 @@ describe("fetchAllPullRequests", () => {
 
       const result = await fetchAllPullRequests(octokit as never, config);
 
-      expect(result.length).toBe(5);
+      expect(result.pullRequests.length).toBe(5);
+      expect(result.partialData).toBe(false);
+      expect(result.partialDataReason).toBeNull();
       expect(octokit.graphql).toHaveBeenCalledTimes(1);
     });
 
@@ -124,23 +126,16 @@ describe("fetchAllPullRequests", () => {
       const page2Nodes = fixtureData.repository.pullRequests.nodes.slice(3, 5);
 
       const octokit = makeOctokit([
-        makePageResponse(
-          page1Nodes as PullRequestsQueryResponse["repository"]["pullRequests"]["nodes"],
-          true,
-          "cursor-page1",
-        ),
-        makePageResponse(
-          page2Nodes as PullRequestsQueryResponse["repository"]["pullRequests"]["nodes"],
-          false,
-          null,
-        ),
+        makePageResponse(page1Nodes, true, "cursor-page1"),
+        makePageResponse(page2Nodes, false, null),
       ]);
 
       const config = makeConfig();
       const result = await fetchAllPullRequests(octokit as never, config);
 
       expect(octokit.graphql).toHaveBeenCalledTimes(2);
-      expect(result.length).toBe(5);
+      expect(result.pullRequests.length).toBe(5);
+      expect(result.partialData).toBe(false);
 
       // Second call should use the cursor from the first page
       expect(octokit.graphql).toHaveBeenNthCalledWith(
@@ -184,7 +179,7 @@ describe("fetchAllPullRequests", () => {
       const result = await fetchAllPullRequests(octokit as never, config);
 
       // Should stop after collecting 3 PRs even though hasNextPage was true
-      expect(result.length).toBe(3);
+      expect(result.pullRequests.length).toBe(3);
       expect(octokit.graphql).toHaveBeenCalledTimes(1);
     });
 
@@ -231,44 +226,142 @@ describe("fetchAllPullRequests", () => {
   });
 
   describe("pagination time limit", () => {
-    it("stops pagination when wall-clock time exceeds the limit", async () => {
-      // First call to Date.now() captures startTime; second checks elapsed.
+    it("stops before issuing the next request when the loop starts over budget", async () => {
+      const { logger } = await import("../../src/utils/logger");
+
       const baseTime = 1_000_000_000;
       let callCount = 0;
-      vi.spyOn(Date, "now").mockImplementation(() => {
+      const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => {
         callCount++;
-        // 1st call: startTime capture. Return base.
-        // 2nd+ calls: elapsed check. Jump past 10 minutes.
-        if (callCount <= 1) return baseTime;
+        if (callCount <= 3) return baseTime;
         return baseTime + 11 * 60 * 1000;
       });
 
-      const page1Nodes = fixtureData.repository.pullRequests.nodes.slice(0, 3);
+      try {
+        const page1Nodes = fixtureData.repository.pullRequests.nodes.slice(
+          0,
+          3,
+        );
 
-      const octokit = makeOctokit([
-        makePageResponse(
-          page1Nodes as PullRequestsQueryResponse["repository"]["pullRequests"]["nodes"],
-          true,
-          "cursor-page1",
-        ),
-        makePageResponse(
-          fixtureData.repository.pullRequests.nodes.slice(
-            3,
-            5,
-          ) as PullRequestsQueryResponse["repository"]["pullRequests"]["nodes"],
-          false,
-          null,
-        ),
-      ]);
+        const octokit = makeOctokit([
+          makePageResponse(page1Nodes, true, "cursor-page1"),
+          makePageResponse(
+            fixtureData.repository.pullRequests.nodes.slice(3, 5),
+            false,
+            null,
+          ),
+        ]);
 
-      const config = makeConfig();
-      const result = await fetchAllPullRequests(octokit as never, config);
+        const result = await fetchAllPullRequests(
+          octokit as never,
+          makeConfig(),
+        );
 
-      // Should only have fetched the first page before hitting the time limit
-      expect(octokit.graphql).toHaveBeenCalledTimes(1);
-      expect(result.length).toBe(3);
+        expect(octokit.graphql).toHaveBeenCalledTimes(1);
+        expect(result.pullRequests.length).toBe(3);
+        expect(result.partialData).toBe(true);
+        expect(result.partialDataReason).toBe("pagination-time-limit");
+        expect(logger.warning).toHaveBeenCalledWith(
+          "Pagination time limit reached after 11m 0s. Returning 3 PRs collected so far.",
+        );
+      } finally {
+        nowSpy.mockRestore();
+      }
+    });
 
-      vi.spyOn(Date, "now").mockRestore();
+    it("stops pagination when wall-clock time exceeds the limit", async () => {
+      const { logger } = await import("../../src/utils/logger");
+
+      // 1st call captures startTime, 2nd checks the initial loop budget,
+      // 3rd checks elapsed after the first page is fetched.
+      const baseTime = 1_000_000_000;
+      let callCount = 0;
+      const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => {
+        callCount++;
+        if (callCount <= 2) return baseTime;
+        return baseTime + 11 * 60 * 1000;
+      });
+
+      try {
+        const page1Nodes = fixtureData.repository.pullRequests.nodes.slice(
+          0,
+          3,
+        );
+
+        const octokit = makeOctokit([
+          makePageResponse(page1Nodes, true, "cursor-page1"),
+          makePageResponse(
+            fixtureData.repository.pullRequests.nodes.slice(3, 5),
+            false,
+            null,
+          ),
+        ]);
+
+        const config = makeConfig();
+        const result = await fetchAllPullRequests(octokit as never, config);
+
+        // Should only have fetched the first page before hitting the time limit
+        expect(octokit.graphql).toHaveBeenCalledTimes(1);
+        expect(result.pullRequests.length).toBe(3);
+        expect(result.partialData).toBe(true);
+        expect(result.partialDataReason).toBe("pagination-time-limit");
+        expect(logger.warning).toHaveBeenCalledWith(
+          "Pagination time limit reached after 11m 0s. Returning 3 PRs collected so far.",
+        );
+      } finally {
+        nowSpy.mockRestore();
+      }
+    });
+
+    it("stops before sleeping past the remaining wall-clock budget", async () => {
+      const { calculateDelay, sleep } = await import(
+        "../../src/utils/rate-limit"
+      );
+      const { logger } = await import("../../src/utils/logger");
+
+      const baseTime = 1_000_000_000;
+      let callCount = 0;
+      const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return baseTime;
+        return baseTime + 9 * 60 * 1000 + 30_000;
+      });
+
+      try {
+        vi.mocked(calculateDelay).mockReturnValueOnce(45_000);
+
+        const page1Nodes = fixtureData.repository.pullRequests.nodes.slice(
+          0,
+          3,
+        );
+        const octokit = makeOctokit([
+          makePageResponse(page1Nodes, true, "cursor-page1"),
+          makePageResponse(
+            fixtureData.repository.pullRequests.nodes.slice(3, 5),
+            false,
+            null,
+          ),
+        ]);
+
+        const result = await fetchAllPullRequests(
+          octokit as never,
+          makeConfig(),
+        );
+
+        expect(octokit.graphql).toHaveBeenCalledTimes(1);
+        expect(result.pullRequests.length).toBe(3);
+        expect(result.partialData).toBe(true);
+        expect(result.partialDataReason).toBe(
+          "pagination-delay-budget-exceeded",
+        );
+        expect(calculateDelay).toHaveBeenCalledOnce();
+        expect(sleep).not.toHaveBeenCalled();
+        expect(logger.warning).toHaveBeenCalledWith(
+          "Skipping a 45s rate-limit delay because only 30s remain in the 10-minute collection budget. Returning 3 PRs collected so far.",
+        );
+      } finally {
+        nowSpy.mockRestore();
+      }
     });
   });
 
@@ -292,7 +385,7 @@ describe("fetchAllPullRequests", () => {
       const result = await fetchAllPullRequests(octokit as never, config);
 
       // The future PR should be skipped
-      expect(result.length).toBe(2);
+      expect(result.pullRequests.length).toBe(2);
     });
 
     it("stops when PR createdAt is before config.since", async () => {
@@ -314,7 +407,7 @@ describe("fetchAllPullRequests", () => {
       const result = await fetchAllPullRequests(octokit as never, config);
 
       // Should stop before the old PR and not request another page
-      expect(result.length).toBe(2);
+      expect(result.pullRequests.length).toBe(2);
       expect(octokit.graphql).toHaveBeenCalledTimes(1);
     });
   });

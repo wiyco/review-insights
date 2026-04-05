@@ -1,6 +1,11 @@
 import type { GitHub } from "@actions/github/lib/utils";
-import type { ActionConfig, PullRequestRecord } from "../types";
+import type {
+  ActionConfig,
+  CollectionResult,
+  PartialDataReason,
+} from "../types";
 import { logger } from "../utils/logger";
+import { PAGINATION_TIME_LIMIT_MINUTES } from "../utils/partial-data";
 import {
   calculateDelay,
   checkRateLimit,
@@ -22,7 +27,38 @@ type Octokit = InstanceType<typeof GitHub>;
 const PAGE_SIZE = 50;
 
 /** Maximum wall-clock time (ms) the entire pagination loop is allowed to run. */
-const MAX_PAGINATION_TIME_MS = 10 * 60 * 1000;
+const MAX_PAGINATION_TIME_MS = PAGINATION_TIME_LIMIT_MINUTES * 60 * 1000;
+
+function formatElapsedDuration(elapsedMs: number): string {
+  const totalSeconds = Math.ceil(elapsedMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}m ${seconds}s`;
+}
+
+function logPaginationTimeLimitReachedWarning(
+  elapsedMs: number,
+  collectedCount: number,
+): void {
+  logger.warning(
+    `Pagination time limit reached after ${formatElapsedDuration(elapsedMs)}. ` +
+      `Returning ${collectedCount} PRs collected so far.`,
+  );
+}
+
+function logPaginationDelayBudgetExceededWarning(
+  elapsedMs: number,
+  delayMs: number,
+  collectedCount: number,
+): void {
+  const remainingBudgetMs = MAX_PAGINATION_TIME_MS - elapsedMs;
+  logger.warning(
+    `Skipping a ${Math.ceil(delayMs / 1000)}s rate-limit delay because only ` +
+      `${Math.ceil(remainingBudgetMs / 1000)}s remain in the ${PAGINATION_TIME_LIMIT_MINUTES}-minute collection budget. ` +
+      `Returning ${collectedCount} PRs collected so far.`,
+  );
+}
 
 /**
  * Fetches all pull requests within the configured date range using
@@ -30,16 +66,19 @@ const MAX_PAGINATION_TIME_MS = 10 * 60 * 1000;
  * - maxPRs is reached
  * - PR createdAt is before config.since
  * - No more pages
- * - Wall-clock time exceeds MAX_PAGINATION_TIME_MS (returns partial results)
+ * - Wall-clock time reaches MAX_PAGINATION_TIME_MS (returns partial results)
+ * - The next required rate-limit delay would exceed the remaining wall-clock budget
  */
 export async function fetchAllPullRequests(
   octokit: Octokit,
   config: ActionConfig,
-): Promise<PullRequestRecord[]> {
+): Promise<CollectionResult> {
   const allNodes: RawPullRequestNode[] = [];
   let cursor: string | null = null;
   let hasNextPage = true;
   let pageCount = 0;
+  let partialData = false;
+  let partialDataReason: PartialDataReason | null = null;
   const startTime = Date.now();
 
   logger.info(
@@ -51,6 +90,14 @@ export async function fetchAllPullRequests(
   const untilDate = new Date(config.until);
 
   while (hasNextPage && allNodes.length < config.maxPRs) {
+    const elapsedAtLoopStart = Date.now() - startTime;
+    if (elapsedAtLoopStart >= MAX_PAGINATION_TIME_MS) {
+      partialData = true;
+      partialDataReason = "pagination-time-limit";
+      logPaginationTimeLimitReachedWarning(elapsedAtLoopStart, allNodes.length);
+      break;
+    }
+
     pageCount++;
     const variables: PullRequestsQueryVariables = {
       owner: config.owner,
@@ -114,14 +161,24 @@ export async function fetchAllPullRequests(
     if (hasNextPage && allNodes.length < config.maxPRs) {
       const elapsed = Date.now() - startTime;
       if (elapsed >= MAX_PAGINATION_TIME_MS) {
-        logger.warning(
-          `Pagination time limit reached (${Math.ceil(elapsed / 60_000)} minutes). ` +
-            `Returning ${allNodes.length} PRs collected so far.`,
-        );
+        partialData = true;
+        partialDataReason = "pagination-time-limit";
+        logPaginationTimeLimitReachedWarning(elapsed, allNodes.length);
         break;
       }
 
       const delay = calculateDelay(rateLimit);
+      const remainingBudget = MAX_PAGINATION_TIME_MS - elapsed;
+      if (delay >= remainingBudget) {
+        partialData = true;
+        partialDataReason = "pagination-delay-budget-exceeded";
+        logPaginationDelayBudgetExceededWarning(
+          elapsed,
+          delay,
+          allNodes.length,
+        );
+        break;
+      }
       await sleep(delay);
     }
   }
@@ -130,5 +187,9 @@ export async function fetchAllPullRequests(
     `Fetched ${allNodes.length} pull requests across ${pageCount} page(s).`,
   );
 
-  return normalizePullRequests(allNodes);
+  return {
+    pullRequests: normalizePullRequests(allNodes),
+    partialData,
+    partialDataReason,
+  };
 }
