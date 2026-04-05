@@ -31,6 +31,7 @@ function makePR(
     mergedAt: "2025-03-11T12:00:00Z",
     closedAt: null,
     mergedBy: "bob",
+    reviewLimitReached: false,
     reviews: [],
     reviewRequests: [],
     commitMessages: [

@@ -40,6 +40,7 @@ function makePR(overrides?: Partial<PullRequestRecord>): PullRequestRecord {
     mergedAt: "2025-06-02T00:00:00Z",
     closedAt: "2025-06-02T00:00:00Z",
     mergedBy: "merger",
+    reviewLimitReached: false,
     reviews: [
       makeReview(),
     ],
@@ -355,22 +356,13 @@ describe("generateHtmlReport", () => {
     );
   });
 
-  it("shows truncation warning for PRs with many reviews", () => {
-    const reviews: ReviewRecord[] = Array.from(
-      {
-        length: 100,
-      },
-      (_, i) =>
-        makeReview({
-          reviewer: `r${i}`,
-        }),
-    );
+  it("shows truncation warning for PRs that hit the review fetch limit", () => {
     const html = generateHtmlReport(
       makeAnalysis({
         pullRequests: [
           makePR({
             number: 42,
-            reviews,
+            reviewLimitReached: true,
           }),
         ],
       }),
@@ -380,7 +372,29 @@ describe("generateHtmlReport", () => {
     expect(html).toContain("truncated data");
   });
 
-  it("does not show truncation warning for PRs below threshold", () => {
+  it("shows truncation warning even when observation-window filtering reduced review count", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        pullRequests: [
+          makePR({
+            number: 42,
+            reviewLimitReached: true,
+            reviews: [
+              makeReview({
+                reviewer: "r1",
+              }),
+            ],
+          }),
+        ],
+      }),
+    );
+
+    expect(html).toContain("Warning:");
+    expect(html).toContain("#42");
+    expect(html).toContain("truncated data");
+  });
+
+  it("does not show truncation warning when no PR hit the review fetch limit", () => {
     const html = generateHtmlReport(makeAnalysis());
     expect(html).not.toContain("truncated data");
   });
@@ -602,15 +616,6 @@ describe("generateHtmlReport", () => {
   });
 
   it("shows truncation warning with ellipsis for more than 10 truncated PRs", () => {
-    const reviews: ReviewRecord[] = Array.from(
-      {
-        length: 100,
-      },
-      (_, i) =>
-        makeReview({
-          reviewer: `r${i}`,
-        }),
-    );
     const pullRequests = Array.from(
       {
         length: 12,
@@ -618,7 +623,7 @@ describe("generateHtmlReport", () => {
       (_, i) =>
         makePR({
           number: i + 1,
-          reviews,
+          reviewLimitReached: true,
         }),
     );
 

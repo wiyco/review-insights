@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  RawPullRequestNode,
-  RawReview,
+import {
+  MAX_REVIEWS_PER_PR,
+  type RawPullRequestNode,
+  type RawReview,
 } from "../../src/collect/graphql-queries";
 import {
   hasAICoAuthor,
@@ -376,11 +377,11 @@ describe("normalizePullRequests", () => {
   it("warns when reviews reach MAX_REVIEWS_PER_PR", () => {
     const reviews = Array.from(
       {
-        length: 100,
+        length: MAX_REVIEWS_PER_PR,
       },
       () => makeRawReview(),
     );
-    normalizePullRequests([
+    const result = normalizePullRequests([
       makeRawNode({
         number: 42,
         reviews: {
@@ -388,6 +389,7 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
+    expect(result[0].reviewLimitReached).toBe(true);
     expect(logger.warning).toHaveBeenCalledWith(
       expect.stringContaining("PR #42"),
     );
@@ -397,9 +399,10 @@ describe("normalizePullRequests", () => {
   });
 
   it("does not warn when reviews are below threshold", () => {
-    normalizePullRequests([
+    const result = normalizePullRequests([
       makeRawNode(),
     ]);
+    expect(result[0].reviewLimitReached).toBe(false);
     expect(logger.warning).not.toHaveBeenCalled();
   });
 

@@ -191,8 +191,9 @@ export function normalizePullRequests(
     const author = node.author?.login ?? UNKNOWN_USER;
     const authorIsBot = isTraditionalBotAccount(node.author);
     const state: PullRequestState = node.state;
+    const reviewLimitReached = node.reviews.nodes.length >= MAX_REVIEWS_PER_PR;
 
-    if (node.reviews.nodes.length >= MAX_REVIEWS_PER_PR) {
+    if (reviewLimitReached) {
       logger.warning(
         `PR #${node.number} has ${MAX_REVIEWS_PER_PR}+ reviews; some may be truncated by the GraphQL query limit.`,
       );
@@ -222,6 +223,7 @@ export function normalizePullRequests(
       mergedAt: node.mergedAt,
       closedAt: node.closedAt,
       mergedBy: node.mergedBy?.login ?? null,
+      reviewLimitReached,
       reviews,
       reviewRequests,
       commitMessages,

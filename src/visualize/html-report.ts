@@ -1,5 +1,4 @@
 import { computeTopReviewerSummary } from "../analyze/top-reviewers";
-import { MAX_REVIEWS_PER_PR } from "../collect/graphql-queries";
 import type { AnalysisResult } from "../types";
 import { formatDuration } from "../utils/format";
 import {
@@ -61,9 +60,7 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
         ).toFixed(1)
       : null;
 
-  const truncatedPRs = filteredPRs.filter(
-    (pr) => pr.reviews.length >= MAX_REVIEWS_PER_PR,
-  );
+  const truncatedPRs = filteredPRs.filter((pr) => pr.reviewLimitReached);
   const dataCompleteness = getDataCompletenessLabel(partialData);
   const partialDataWarning = getPartialDataWarning(partialDataReason);
 
@@ -212,7 +209,7 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
   ${
     truncatedPRs.length > 0
       ? `<div class="card" style="border-color: var(--warn);">
-    <p class="warn">Warning: ${truncatedPRs.length} PR(s) have ${MAX_REVIEWS_PER_PR}+ reviews and may have truncated data (PRs: ${truncatedPRs
+    <p class="warn">Warning: ${truncatedPRs.length} PR(s) hit the review fetch limit and may have truncated data (PRs: ${truncatedPRs
       .slice(0, 10)
       .map((pr) => `#${pr.number}`)
       .join(
