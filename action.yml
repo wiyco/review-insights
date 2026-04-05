@@ -55,6 +55,8 @@ inputs:
   max-prs:
     description: >
       Maximum number of PRs to analyze (default: 500).
+      If additional PRs remain within the requested date range after this cap
+      is reached, outputs are marked as capped rather than complete.
       IMPORTANT: Values above 1000 on very active repositories may consume significant
       API quota and increase execution time.
     required: false
@@ -77,7 +79,7 @@ outputs:
     description: "Whether review imbalance was detected (true/false)"
 
   partial-data:
-    description: "Whether pagination stopped due to the fixed 10-minute collection budget and the analysis used a partial PR dataset (true/false)"
+    description: "Whether analysis used a capped or partial PR dataset because pagination hit max-prs or the fixed 10-minute collection budget (true/false)"
 
 runs:
   using: "node24"
