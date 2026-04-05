@@ -23,7 +23,7 @@ You **MUST NEVER** compromise on the following principles. Any code generation o
    - **No Unsafe Execution** — No `eval()`, `new Function()`, or unsafe prototype manipulation.
 2. Performance & Resource Limits
    - **Algorithmic Efficiency** — Analysis functions (loops, aggregations) must be highly optimized (O(N) or O(N log N)). The action must comfortably handle repositories with thousands of PRs without memory crashes (OOM).
-   - **Query Optimization** — GraphQL queries MUST strictly fetch only required fields. Cursor pagination must be robust against rate limits and timeout errors.
+   - **Query Optimization** — GraphQL queries should stay minimal and stale fields should be removed when they are no longer needed. Cursor pagination must be robust against rate limits and timeout errors.
 3. Mathematical & Statistical Correctness
    - **Formula Rigor** — Implementations of statistical methods (Z-score, Gini coefficient, correlation) must use strictly correct mathematical formulas. Do not use shortcuts or approximations.
    - **Edge Case Math** — You MUST explicitly handle zero-division (`0/0`, `x/0`), empty arrays, nullish values, and prevent `NaN` or `Infinity` from propagating into the SVG/JSON output.
@@ -81,7 +81,7 @@ Entry point is `src/main.ts` → `run()` which orchestrates the full pipeline. A
 - **Rolldown** bundles to single ESM file for the action runtime
 - **Biome 2** for linting/formatting (2-space indent, 80-char width)
 - **Vitest** with V8 coverage
-- **Lefthook** git hooks: pre-commit runs biome + tsc, post-merge runs pnpm install
+- **Lefthook** git hooks: pre-commit runs biome + tsc, post-merge runs `pnpm install --frozen-lockfile`
 
 ## Documentation & Specifications
 

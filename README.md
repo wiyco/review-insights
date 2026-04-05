@@ -57,7 +57,7 @@ The date range selects PRs by `createdAt`. For those PRs, review activity and me
 
 | Output | Description |
 |---|---|
-| `report-path` | Path to the generated HTML report file |
+| `report-path` | Absolute path to the generated HTML report file |
 | `total-prs-analyzed` | Number of PRs analyzed |
 | `top-reviewers` | JSON array of logins tied for the maximum `reviewsGiven` among users with `reviewsGiven > 0`; `[]` if no active reviewers exist |
 | `max-reviews-given` | JSON number for the maximum `reviewsGiven` among users with `reviewsGiven > 0`; `null` if no active reviewers exist |
@@ -74,7 +74,7 @@ Writes a visual report to the GitHub Actions **Job Summary** with inline SVG cha
 
 ### `comment`
 
-Posts or updates a comment on the triggering PR with review stats. Only works with `pull_request` events. Requires `pull-requests: write` permission.
+Posts or updates a comment on the triggering PR with review stats when the workflow event payload includes `pull_request.number`. Requires `pull-requests: write` permission.
 
 ### `artifact`
 
@@ -126,7 +126,7 @@ permissions:
 ## Known Limitations
 
 - **AI co-authored detection is approximate.** Only the last commit of each PR is fetched from the GraphQL API (`commits(last: 1)`). This means AI co-author trailers on earlier commits are not inspected, and the result varies by merge strategy: merge commits typically do not carry the trailer, squash merges may or may not preserve it depending on the repository's settings, and rebase merges only expose the final commit. The `aiCoAuthoredPRs` metric should be treated as a lower-bound estimate.
-- **Review data is capped at 100 per PR.** The GitHub GraphQL API limits nested connections. PRs with more than 100 reviews will have truncated data; a warning is shown when this occurs.
+- **Review fetches are capped at 100 per PR.** The GitHub GraphQL query requests at most 100 nested reviews per PR. When a PR hits that fetch limit, its review data may be truncated and a warning is surfaced in the HTML report and PR comment.
 - **PR collection may complete with partial data.** Pagination runs within a fixed 10-minute wall-clock collection budget. It stops when that budget is reached, or earlier if the next required rate-limit delay would exceed the remaining budget, and analyzes the PRs collected so far. In this case the action still succeeds, sets `partial-data` to `true`, and marks the job summary, PR comment, and HTML report as partial. Counts and derived metrics such as PR totals, bias detection, and Gini coefficient may therefore be understated.
 - **Large repositories may cause long execution times.** When the GitHub API rate limit is exhausted during pagination, the action waits up to 5 minutes per reset cycle. For very active repositories with high `max-prs` values, this can result in extended run times. Set `timeout-minutes` in your workflow job to guard against this (e.g. `timeout-minutes: 15`), and consider using a shorter date range or lower `max-prs` value.
 
