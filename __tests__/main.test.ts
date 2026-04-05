@@ -1,9 +1,23 @@
+import * as path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_BURDEN } from "./fixtures/empty-burden";
 
 const setOutput = vi.fn();
 const setFailed = vi.fn();
 const coreError = vi.fn();
+const githubContext: {
+  payload: {
+    pull_request?: {
+      number: number;
+    };
+  };
+} = {
+  payload: {
+    pull_request: {
+      number: 42,
+    },
+  },
+};
 
 const getConfig = vi.fn();
 const getOctokit = vi.fn();
@@ -28,13 +42,7 @@ vi.mock("@actions/core", () => ({
 
 vi.mock("@actions/github", () => ({
   getOctokit,
-  context: {
-    payload: {
-      pull_request: {
-        number: 42,
-      },
-    },
-  },
+  context: githubContext,
 }));
 
 vi.mock("node:fs/promises", () => ({
@@ -96,10 +104,18 @@ vi.mock("../src/utils/logger", () => ({
   },
 }));
 
+async function importMain(): Promise<void> {
+  await import("../src/main");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 describe("main", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    githubContext.payload.pull_request = {
+      number: 42,
+    };
 
     getConfig.mockReturnValue({
       token: "fake-token",
@@ -186,9 +202,7 @@ describe("main", () => {
   });
 
   it("sets the partial-data output and passes the state through analysis", async () => {
-    await import("../src/main");
-
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await importMain();
 
     expect(setOutput).toHaveBeenCalledWith("partial-data", "true");
     expect(processOutputModes).toHaveBeenCalledWith(
@@ -200,5 +214,159 @@ describe("main", () => {
       }),
     );
     expect(setFailed).not.toHaveBeenCalled();
+  });
+
+  it("sets all success outputs from the computed analysis", async () => {
+    const reportPath = path.join(
+      "/tmp/review-insights-abc",
+      "review-insights-report.html",
+    );
+
+    detectBias.mockReturnValue({
+      matrix: new Map(),
+      flaggedPairs: [
+        {
+          author: "alice",
+          reviewer: "bob",
+          reviews: 2,
+          zScore: 2.3,
+        },
+      ],
+      giniCoefficient: 0.2,
+    });
+
+    await importMain();
+
+    expect(setOutput).toHaveBeenCalledWith("report-path", reportPath);
+    expect(setOutput).toHaveBeenCalledWith("total-prs-analyzed", 1);
+    expect(setOutput).toHaveBeenCalledWith(
+      "top-reviewers",
+      JSON.stringify([
+        "bob",
+      ]),
+    );
+    expect(setOutput).toHaveBeenCalledWith("max-reviews-given", "1");
+    expect(setOutput).toHaveBeenCalledWith("bias-detected", "true");
+    expect(setOutput).toHaveBeenCalledWith("partial-data", "true");
+    expect(processOutputModes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reportPath,
+        pullRequestNumber: 42,
+        analysis: expect.objectContaining({
+          dateRange: {
+            since: "2025-01-01T00:00:00Z",
+            until: "2025-06-01T00:00:00Z",
+          },
+          biasThreshold: 2,
+          includeBots: false,
+        }),
+      }),
+    );
+  });
+
+  it("counts bot-authored PRs when includeBots is enabled", async () => {
+    const pullRequests = [
+      {
+        number: 1,
+        title: "Human PR",
+        state: "MERGED" as const,
+        author: "alice",
+        authorIsBot: false,
+        createdAt: "2025-05-01T00:00:00Z",
+        mergedAt: "2025-05-02T00:00:00Z",
+        closedAt: "2025-05-02T00:00:00Z",
+        mergedBy: "bob",
+        reviews: [],
+        reviewRequests: [],
+        commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only" as const,
+      },
+      {
+        number: 2,
+        title: "Bot PR",
+        state: "MERGED" as const,
+        author: "renovate[bot]",
+        authorIsBot: true,
+        createdAt: "2025-05-03T00:00:00Z",
+        mergedAt: "2025-05-04T00:00:00Z",
+        closedAt: "2025-05-04T00:00:00Z",
+        mergedBy: "bob",
+        reviews: [],
+        reviewRequests: [],
+        commitMessages: [],
+        additions: 20,
+        deletions: 10,
+        aiCategory: "human-only" as const,
+      },
+    ];
+
+    getConfig.mockReturnValue({
+      token: "fake-token",
+      owner: "test-owner",
+      repo: "test-repo",
+      since: "2025-01-01T00:00:00Z",
+      until: "2025-06-01T00:00:00Z",
+      outputModes: [
+        "summary",
+      ],
+      biasThreshold: 2,
+      includeBots: true,
+      maxPRs: 500,
+    });
+    fetchAllPullRequests.mockResolvedValue({
+      pullRequests,
+      partialData: false,
+      partialDataReason: null,
+    });
+    applyObservationWindow.mockReturnValue(pullRequests);
+
+    await importMain();
+
+    expect(computeUserStats).toHaveBeenCalledWith(pullRequests, true);
+    expect(computeMergeCorrelations).toHaveBeenCalledWith(pullRequests, true);
+    expect(detectBias).toHaveBeenCalledWith(pullRequests, 2, true);
+    expect(setOutput).toHaveBeenCalledWith("total-prs-analyzed", 2);
+    expect(setOutput).toHaveBeenCalledWith("partial-data", "false");
+  });
+
+  it("passes an undefined pull request number outside pull_request events", async () => {
+    githubContext.payload.pull_request = undefined;
+
+    await importMain();
+
+    expect(processOutputModes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pullRequestNumber: undefined,
+      }),
+    );
+  });
+
+  it("cleans up the temporary directory and reports non-Error write failures", async () => {
+    writeFile.mockRejectedValue("disk full");
+
+    await importMain();
+
+    expect(rm).toHaveBeenCalledWith("/tmp/review-insights-abc", {
+      recursive: true,
+      force: true,
+    });
+    expect(coreError).not.toHaveBeenCalled();
+    expect(setFailed).toHaveBeenCalledWith("disk full");
+  });
+
+  it("cleans up the temporary directory and reports Error output failures", async () => {
+    const err = new Error("publish failed");
+    processOutputModes.mockRejectedValue(err);
+
+    await importMain();
+
+    expect(rm).toHaveBeenCalledWith("/tmp/review-insights-abc", {
+      recursive: true,
+      force: true,
+    });
+    expect(coreError).toHaveBeenCalledWith(err);
+    expect(setFailed).toHaveBeenCalledWith("publish failed");
   });
 });

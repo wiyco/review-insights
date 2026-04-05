@@ -675,7 +675,7 @@ describe("detectBias", () => {
 
     it("flaggedPairs are sorted by zScore descending", () => {
       const prs: PullRequestRecord[] = [];
-      for (let i = 1; i <= 10; i++) {
+      for (let i = 1; i <= 20; i++) {
         prs.push(
           makePR({
             number: i,
@@ -690,7 +690,7 @@ describe("detectBias", () => {
           }),
         );
       }
-      for (let i = 11; i <= 15; i++) {
+      for (let i = 21; i <= 32; i++) {
         prs.push(
           makePR({
             number: i,
@@ -705,21 +705,37 @@ describe("detectBias", () => {
           }),
         );
       }
+      for (let i = 33; i <= 33; i++) {
+        prs.push(
+          makePR({
+            number: i,
+            author: "eve",
+            reviews: [
+              makeReview({
+                reviewer: "frank",
+                author: "eve",
+                prNumber: i,
+              }),
+            ],
+          }),
+        );
+      }
       prs.push(
         makePR({
-          number: 16,
-          author: "eve",
+          number: 34,
+          author: "grace",
           reviews: [
             makeReview({
-              reviewer: "frank",
-              author: "eve",
-              prNumber: 16,
+              reviewer: "heidi",
+              author: "grace",
+              prNumber: 34,
             }),
           ],
         }),
       );
 
-      const result = detectBias(prs, 0.5, false);
+      const result = detectBias(prs, 0.3, false);
+      expect(result.flaggedPairs).toHaveLength(2);
       for (let i = 1; i < result.flaggedPairs.length; i++) {
         expect(result.flaggedPairs[i - 1].zScore).toBeGreaterThanOrEqual(
           result.flaggedPairs[i].zScore,

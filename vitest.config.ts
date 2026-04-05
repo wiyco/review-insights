@@ -22,6 +22,7 @@ export default defineConfig({
       // tested independently.
       exclude: [
         "src/main.ts",
+        "src/types.ts",
       ],
     },
   },

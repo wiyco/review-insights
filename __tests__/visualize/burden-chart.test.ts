@@ -234,6 +234,44 @@ describe("renderBurdenSection", () => {
     expect(html).toContain("(n=8)");
   });
 
+  it("includes active size tiers even when only later categories have data", () => {
+    const html = renderBurdenSection(
+      makeBurden({
+        stratifiedBySize: {
+          S: {
+            aiAuthored: null,
+            aiAssisted: makeBurdenGroup({
+              prCount: 4,
+            }),
+            humanOnly: null,
+          },
+          M: {
+            aiAuthored: null,
+            aiAssisted: null,
+            humanOnly: makeBurdenGroup({
+              prCount: 6,
+            }),
+          },
+          L: {
+            aiAuthored: null,
+            aiAssisted: null,
+            humanOnly: null,
+          },
+          Empty: {
+            aiAuthored: null,
+            aiAssisted: null,
+            humanOnly: null,
+          },
+        },
+      }),
+    );
+
+    expect(html).toContain("Small (1\u201350)");
+    expect(html).toContain("Medium (51\u2013300)");
+    expect(html).toContain("(n=4)");
+    expect(html).toContain("(n=6)");
+  });
+
   it("shows no-stratified-data message when all tiers are empty", () => {
     const html = renderBurdenSection(
       makeBurden({

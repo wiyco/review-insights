@@ -118,7 +118,7 @@ export function renderBarChart(
     const user = sorted[i];
     const val = user[metric];
     const by = paddingTop + i * (barHeight + barGap);
-    const bw = maxValue > 0 ? (val / maxValue) * maxBarWidth : 0;
+    const bw = (val / maxValue) * maxBarWidth;
 
     // Label
     const label =

@@ -95,19 +95,16 @@ export function isAIToolAccount(login: string): boolean {
  * classified as bots even when they use a Bot identity on GitHub.
  */
 function isTraditionalBotAccount(
-  author:
-    | string
-    | {
-        login: string;
-        __typename?: string;
-      }
-    | null,
+  author: {
+    login: string;
+    __typename?: string;
+  } | null,
 ): boolean {
   if (!author) {
     return false;
   }
 
-  const login = typeof author === "string" ? author : author.login;
+  const login = author.login;
   return !isAIToolAccount(login) && isBot(author);
 }
 

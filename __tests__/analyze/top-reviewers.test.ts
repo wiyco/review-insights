@@ -46,6 +46,60 @@ describe("computeTopReviewerSummary", () => {
     });
   });
 
+  it("returns the single reviewer with the highest review count", () => {
+    const summary = computeTopReviewerSummary([
+      makeUser({
+        login: "alice",
+        reviewsGiven: 2,
+      }),
+      makeUser({
+        login: "bob",
+        reviewsGiven: 6,
+      }),
+      makeUser({
+        login: "carol",
+        reviewsGiven: 4,
+      }),
+      makeUser({
+        login: "dave",
+        reviewsGiven: 0,
+      }),
+    ]);
+
+    expect(summary).toEqual({
+      reviewerCount: 3,
+      maxReviewsGiven: 6,
+      topReviewers: [
+        "bob",
+      ],
+    });
+  });
+
+  it("ignores malformed non-positive review counts when computing the active population", () => {
+    const summary = computeTopReviewerSummary([
+      makeUser({
+        login: "negative",
+        reviewsGiven: -3,
+      }),
+      makeUser({
+        login: "zero",
+        reviewsGiven: 0,
+      }),
+      makeUser({
+        login: "winner",
+        reviewsGiven: 2,
+      }),
+    ]);
+
+    expect(summary).toEqual({
+      reviewerCount: 1,
+      maxReviewsGiven: 2,
+      topReviewers: [
+        "winner",
+      ],
+    });
+  });
+
   it("returns the full argmax set when multiple reviewers tie", () => {
     const summary = computeTopReviewerSummary([
       makeUser({
@@ -127,6 +181,38 @@ describe("computeTopReviewerSummary", () => {
       "a",
       "i",
     ]);
+  });
+
+  it("preserves duplicate tied logins when duplicate user entries are provided", () => {
+    const summary = computeTopReviewerSummary([
+      makeUser({
+        login: "bob",
+        reviewsGiven: 3,
+      }),
+      makeUser({
+        login: "alice",
+        reviewsGiven: 3,
+      }),
+      makeUser({
+        login: "alice",
+        reviewsGiven: 3,
+      }),
+      makeUser({
+        login: "alice",
+        reviewsGiven: 3,
+      }),
+    ]);
+
+    expect(summary).toEqual({
+      reviewerCount: 4,
+      maxReviewsGiven: 3,
+      topReviewers: [
+        "alice",
+        "alice",
+        "alice",
+        "bob",
+      ],
+    });
   });
 
   it("handles reviewer populations above the Math.max spread limit", () => {

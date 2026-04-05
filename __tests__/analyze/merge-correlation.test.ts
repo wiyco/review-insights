@@ -168,6 +168,34 @@ describe("computeMergeCorrelations", () => {
     expect(alice?.zeroReviewMerges).toBe(1);
   });
 
+  it("counts all non-pending reviews when mergedAt is unexpectedly null on a merged PR", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        state: "MERGED",
+        mergedAt: null,
+        reviews: [
+          makeReview({
+            reviewer: "bob",
+            author: "alice",
+            prNumber: 1,
+          }),
+          makeReview({
+            reviewer: "carol",
+            author: "alice",
+            prNumber: 1,
+          }),
+        ],
+      }),
+    ];
+
+    const result = computeMergeCorrelations(prs, false);
+    const alice = result.find((r) => r.login === "alice");
+    expect(alice?.avgReviewsBeforeMerge).toBe(2);
+    expect(alice?.zeroReviewMerges).toBe(0);
+  });
+
   it("counts zeroReviewMerges correctly", () => {
     const prs: PullRequestRecord[] = [
       makePR({
@@ -399,6 +427,30 @@ describe("computeMergeCorrelations", () => {
     expect(result[2].prsAuthored).toBe(1);
   });
 
+  it("handles tied prsAuthored counts without dropping authors", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+      }),
+      makePR({
+        number: 2,
+        author: "bob",
+      }),
+    ];
+
+    const result = computeMergeCorrelations(prs, false);
+    expect(result).toHaveLength(2);
+    expect(result.map((entry) => entry.prsAuthored)).toEqual([
+      1,
+      1,
+    ]);
+    expect(result.map((entry) => entry.login).sort()).toEqual([
+      "alice",
+      "bob",
+    ]);
+  });
+
   it("non-merged PRs don't count toward prsMerged, avgReviewsBeforeMerge, or zeroReviewMerges", () => {
     const prs: PullRequestRecord[] = [
       makePR({
@@ -579,6 +631,27 @@ describe("computeMergeCorrelations", () => {
   });
 
   describe("ghost user handling", () => {
+    it("counts reviews on ghost-authored PRs from normal reviewers", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "ghost",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "ghost",
+              prNumber: 1,
+            }),
+          ],
+        }),
+      ];
+
+      const result = computeMergeCorrelations(prs, true);
+      const ghost = result.find((r) => r.login === "ghost");
+      expect(ghost?.avgReviewsBeforeMerge).toBe(1);
+      expect(ghost?.zeroReviewMerges).toBe(0);
+    });
+
     it("does not exclude reviews between ghost users as self-reviews", () => {
       const prs: PullRequestRecord[] = [
         makePR({
