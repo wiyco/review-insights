@@ -8,7 +8,7 @@ Review Insights is a GitHub Action that analyzes pull request review activity an
 
 ## What Data Is Collected
 
-Each time the Action runs it queries the GitHub GraphQL API with the token supplied by the workflow. The following fields are retrieved:
+Each time the Action runs it queries GitHub-operated services with the token supplied by the workflow. The following fields are retrieved:
 
 ### Pull Request Metadata
 
@@ -22,7 +22,7 @@ Each time the Action runs it queries the GitHub GraphQL API with the token suppl
 
 ### Review Activity
 
-- Review state (approved, changes requested, commented, or dismissed)
+- Review state (approved, changes requested, commented, dismissed, or pending)
 - Review timestamps
 
 ### Commit Data
@@ -37,15 +37,15 @@ All data is processed **entirely within the GitHub Actions runner** for the dura
 - Computes statistical metrics (Z-scores, Gini coefficients, merge correlations)
 - Renders self-contained HTML/SVG reports with no external dependencies
 
-**No data is sent to any external server or third-party service.** Every API call targets the GitHub API exclusively.
+**No data is sent to any external server or third-party service.** Network calls remain within GitHub-operated infrastructure.
 
 ## Where Data Is Stored
 
 | Location | Scope | Retention |
 |---|---|---|
 | Runner memory | Single workflow job | Released when the job ends |
-| Temporary files | Runner filesystem (`/tmp/`) | Removed on error; discarded when the runner is recycled |
-| GitHub Actions artifact | Repository (when `output-mode` includes `artifact`) | Governed by the repository's artifact retention setting (default 90 days) |
+| Temporary files | Runner filesystem temporary directory (`os.tmpdir()`) | Removed on error; otherwise discarded when the runner is recycled |
+| GitHub Actions artifact | Repository (when `output-mode` includes `artifact`) | The action requests 30-day retention at upload time |
 | PR comment | Repository (when `output-mode` includes `comment`) | Persists until manually deleted |
 | Job summary | Workflow run (when `output-mode` includes `summary`) | Retained with the workflow run record |
 
@@ -56,11 +56,11 @@ The Action does **not** maintain any database, external store, or persistent sta
 Generated reports may include:
 
 - GitHub usernames in tables, heatmaps, and charts
-- PR numbers and titles (HTML report only)
+- PR numbers in truncation warnings (HTML report and PR comment, when applicable)
 - Aggregated review counts and derived statistics
 - Date-formatted timestamps
 
-All user-supplied content (usernames, PR titles) is escaped before being embedded in HTML or SVG to prevent cross-site scripting (XSS).
+All user-supplied content that is embedded in HTML or SVG output is escaped before rendering to prevent cross-site scripting (XSS).
 
 ## Token Handling
 
@@ -77,9 +77,9 @@ With `include-bots` set to `false` (the default), bot-authored PRs and bot revie
 
 ## Data Minimization
 
-- GraphQL queries request only the fields needed for analysis
+- GraphQL queries request a bounded subset of PR, review, and commit fields rather than whole objects
 - The `since`, `until`, and `max-prs` inputs let you narrow the window of data that is fetched
-- Nothing is persisted once the workflow run ends
+- Outside the configured outputs (job summary, PR comment, artifact), the Action does not persist additional state after the workflow run ends
 
 ## Third-Party Services
 
