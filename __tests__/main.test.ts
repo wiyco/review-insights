@@ -228,8 +228,9 @@ describe("main", () => {
         {
           author: "alice",
           reviewer: "bob",
-          reviews: 2,
-          zScore: 2.3,
+          count: 2,
+          expectedCount: 0.8,
+          pearsonResidual: 2.3,
         },
       ],
       giniCoefficient: 0.2,

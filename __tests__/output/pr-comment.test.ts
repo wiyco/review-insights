@@ -744,7 +744,7 @@ describe("postPRComment", () => {
     expect(body).toContain("truncated data");
   });
 
-  it("sorts bias warnings by zScore descending in comment body", async () => {
+  it("sorts bias warnings by pearsonResidual descending in comment body", async () => {
     const { mock, octokit } = makeOctokit([]);
     const analysis = makeAnalysis();
     analysis.bias = {
@@ -754,13 +754,15 @@ describe("postPRComment", () => {
           reviewer: "low",
           author: "a1",
           count: 5,
-          zScore: 2.0,
+          expectedCount: 2.5,
+          pearsonResidual: 2.0,
         },
         {
           reviewer: "high",
           author: "a2",
           count: 10,
-          zScore: 4.0,
+          expectedCount: 2.5,
+          pearsonResidual: 4.0,
         },
       ],
       giniCoefficient: 0.5,
@@ -784,7 +786,8 @@ describe("postPRComment", () => {
           reviewer: "alice",
           author: "bob",
           count: 15,
-          zScore: 3.5,
+          expectedCount: 4.29,
+          pearsonResidual: 3.5,
         },
       ],
       giniCoefficient: 0.5,
@@ -795,6 +798,7 @@ describe("postPRComment", () => {
     const body = mock.createComment.mock.calls[0][0].body as string;
     expect(body).toContain("Bias Warnings");
     expect(body).toContain("alice");
+    expect(body).toContain("4.29");
     expect(body).toContain("3.50");
   });
 
