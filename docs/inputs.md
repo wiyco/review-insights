@@ -73,6 +73,8 @@ updating. Unexpected identity-resolution errors fail the `comment` mode.
 
 Positive number. Clamped to the range `[0.5, 10.0]`. Non-numeric or non-positive values are rejected.
 
+This threshold is applied to the Pearson residual from the reviewer-author quasi-independence model used by `detectBias()`. Larger values make the bias detector less sensitive.
+
 ## `max-prs`
 
 Integer in the range `[1, 5000]`. Non-integer or out-of-range values are rejected.

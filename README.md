@@ -39,7 +39,7 @@ jobs:
 | `since` | Start date for the PR creation window (ISO 8601, e.g. `2025-01-01`) | 90 days ago |
 | `until` | End date for the snapshot. Reviews and merge/close state after this timestamp are ignored. | Now |
 | `output-mode` | Output targets: `summary`, `comment`, `artifact` (comma-separated) | `summary,artifact` |
-| `bias-threshold` | Std deviations to flag review imbalance (0.5–10.0) | `2.0` |
+| `bias-threshold` | Pearson residual threshold for activity-adjusted review imbalance (0.5–10.0) | `2.0` |
 | `include-bots` | Include bot accounts in statistics ([details](docs/filtering.md)) | `false` |
 | `max-prs` | Maximum PRs to analyze (1–5000) | `500` |
 
@@ -94,7 +94,7 @@ The HTML report includes the same capped/partial-dataset warnings and per-PR rev
 
 - **Per-user stats** — Reviews given/received, approval rate, avg time to first review
 - **Merge correlation** — PRs authored vs merged, zero-review merges
-- **Bias detection** — Statistical imbalance via z-score and Gini coefficient
+- **Bias detection** — Activity-adjusted reviewer-author concentration via Pearson residuals and Gini coefficient
 - **AI/Bot patterns** — Bot review percentage and AI co-authored PR detection using the same [AI tool email patterns](docs/ai-human-review-burden.md#ai-co-author-detection) that define `ai-assisted`
 - **Human review burden** — Compares review workload (review counts, latency, change-request rate, review rounds) across AI-authored, AI-assisted, and human-only PRs after excluding traditional bot-authored PRs from the comparison cohort, with size-stratified breakdowns
 
