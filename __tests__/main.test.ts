@@ -267,6 +267,20 @@ describe("main", () => {
     );
   });
 
+  it("logs bias-model unavailability even when the error message is empty", async () => {
+    detectBias.mockReturnValue({
+      matrix: new Map(),
+      flaggedPairs: [],
+      giniCoefficient: 0.2,
+      modelFitError: "",
+    });
+
+    await importMain();
+
+    const { logger } = await import("../src/utils/logger");
+    expect(logger.warning).toHaveBeenCalledWith("Bias warnings unavailable: ");
+  });
+
   it("counts bot-authored PRs when includeBots is enabled", async () => {
     const pullRequests = [
       {

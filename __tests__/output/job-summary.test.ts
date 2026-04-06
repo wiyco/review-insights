@@ -426,6 +426,38 @@ describe("writeJobSummary", () => {
     ).toBe(true);
   });
 
+  it("treats an empty bias model error as unavailable", async () => {
+    const analysis = makeAnalysis();
+    analysis.bias = {
+      matrix: new Map(),
+      flaggedPairs: [],
+      giniCoefficient: 0.5,
+      modelFitError: "",
+    };
+
+    await writeJobSummary(analysis);
+
+    expect(core.summary.addTable).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.arrayContaining([
+          "Bias detected",
+          "Unavailable",
+        ]),
+      ]),
+    );
+
+    const addedContent = (
+      core.summary as unknown as {
+        _addedContent: string[];
+      }
+    )._addedContent;
+    expect(
+      addedContent.some((content) =>
+        content.includes("Bias warnings are unavailable"),
+      ),
+    ).toBe(true);
+  });
+
   it("surfaces partial-data state in the summary", async () => {
     const analysis = makeAnalysis();
     analysis.partialData = true;

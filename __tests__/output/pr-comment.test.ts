@@ -825,6 +825,23 @@ describe("postPRComment", () => {
     );
   });
 
+  it("comment body treats an empty bias model error as unavailable", async () => {
+    const { mock, octokit } = makeOctokit([]);
+    const analysis = makeAnalysis();
+    analysis.bias = {
+      matrix: new Map(),
+      flaggedPairs: [],
+      giniCoefficient: 0.5,
+      modelFitError: "",
+    };
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
+
+    const body = mock.createComment.mock.calls[0][0].body as string;
+    expect(body).toContain("| Bias detected | Unavailable |");
+    expect(body).toContain("Bias warnings are unavailable");
+  });
+
   it("comment body surfaces partial-data state", async () => {
     const { mock, octokit } = makeOctokit([]);
     const analysis = makeAnalysis();

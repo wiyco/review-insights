@@ -400,6 +400,7 @@ describe("detectBias", () => {
       // This symmetric 2x2 fixture has an analytic quasi-independence fit:
       // one IPF sweep lands exactly on an expected count of 5 for each cell.
       // Keep the assertion tight to lock the regression to that exact value.
+      // This is not a generic IPF precision claim for arbitrary matrices.
       expect(bobAlice?.expectedCount).toBeCloseTo(5, 10);
       expect(bobAlice?.pearsonResidual).toBeCloseTo(4 / Math.sqrt(5), 10);
     });
