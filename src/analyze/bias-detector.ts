@@ -54,109 +54,141 @@ function countStructurallyExcludedDiagonalCells(
   return excludedDiagonals;
 }
 
-function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
+export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
   expectedCount: (reviewer: string, author: string) => number;
 } {
-  const reviewerTotals = new Map<string, number>();
-  const authorTotals = new Map<string, number>();
-  const reviewerAuthors = new Map<string, string[]>();
-  const authorReviewers = new Map<string, string[]>();
+  const authors: Array<{
+    author: string;
+    columnTotal: number;
+    reviewerPositions: number[];
+  }> = [];
+  const authorIndex = new Map<string, number>();
+  const reviewers: Array<{
+    reviewer: string;
+    rowTotal: number;
+    authorPositions: number[];
+  }> = [];
 
   for (const [reviewer, row] of matrix) {
+    const reviewerPosition = reviewers.length;
     let rowTotal = 0;
-    const authorsForReviewer: string[] = [];
+    const authorPositions: number[] = [];
 
     for (const [author, count] of row) {
       rowTotal += count;
-      authorTotals.set(author, (authorTotals.get(author) ?? 0) + count);
-      authorsForReviewer.push(author);
 
-      const reviewersForAuthor = authorReviewers.get(author) ?? [];
-      reviewersForAuthor.push(reviewer);
-      authorReviewers.set(author, reviewersForAuthor);
+      let authorPosition = authorIndex.get(author);
+      if (authorPosition == null) {
+        authorPosition = authors.length;
+        authorIndex.set(author, authorPosition);
+        authors.push({
+          author,
+          columnTotal: 0,
+          reviewerPositions: [],
+        });
+      }
+
+      authorPositions.push(authorPosition);
+      authors[authorPosition].columnTotal += count;
+      authors[authorPosition].reviewerPositions.push(reviewerPosition);
     }
 
-    reviewerTotals.set(reviewer, rowTotal);
-    reviewerAuthors.set(reviewer, authorsForReviewer);
+    reviewers.push({
+      reviewer,
+      rowTotal,
+      authorPositions,
+    });
   }
 
-  const reviewers = [
-    ...reviewerTotals.keys(),
-  ];
-  const authors = [
-    ...authorTotals.keys(),
-  ];
   const reviewerFactors = reviewers.map(() => 1);
   const authorFactors = authors.map(() => 1);
   const reviewerIndex = new Map(
-    reviewers.map((reviewer, index) => [
+    reviewers.map(({ reviewer }, index) => [
       reviewer,
       index,
     ]),
   );
-  const authorIndex = new Map(
-    authors.map((author, index) => [
+  const reviewerSupportSets = reviewers.map(
+    ({ authorPositions }) => new Set(authorPositions),
+  );
+  const authorIndexByName = new Map(
+    authors.map(({ author }, index) => [
       author,
       index,
     ]),
   );
 
-  function getReviewerSupportMass(reviewer: string): number {
-    return (reviewerAuthors.get(reviewer) ?? []).reduce((sum, author) => {
-      const authorPosition = authorIndex.get(author);
-      return sum + (authorPosition == null ? 0 : authorFactors[authorPosition]);
-    }, 0);
+  function getReviewerSupportMass(reviewerPosition: number): number {
+    return reviewers[reviewerPosition].authorPositions.reduce(
+      (sum, authorPosition) => {
+        return sum + authorFactors[authorPosition];
+      },
+      0,
+    );
   }
 
-  function getAuthorSupportMass(author: string): number {
-    return (authorReviewers.get(author) ?? []).reduce((sum, reviewer) => {
-      const reviewerPosition = reviewerIndex.get(reviewer);
-      return (
-        sum + (reviewerPosition == null ? 0 : reviewerFactors[reviewerPosition])
-      );
-    }, 0);
+  function getAuthorSupportMass(authorPosition: number): number {
+    return authors[authorPosition].reviewerPositions.reduce(
+      (sum, reviewerPosition) => {
+        return sum + reviewerFactors[reviewerPosition];
+      },
+      0,
+    );
   }
 
   for (let iteration = 0; iteration < IPF_MAX_ITERATIONS; iteration++) {
-    for (let index = 0; index < reviewers.length; index++) {
-      const reviewer = reviewers[index];
-      const rowTotal = reviewerTotals.get(reviewer) ?? 0;
-      const supportMass = getReviewerSupportMass(reviewer);
+    for (
+      let reviewerPosition = 0;
+      reviewerPosition < reviewers.length;
+      reviewerPosition++
+    ) {
+      const { reviewer, rowTotal } = reviewers[reviewerPosition];
+      const supportMass = getReviewerSupportMass(reviewerPosition);
       if (supportMass <= 0) {
         throw new Error(
           `Bias model support is empty for reviewer "${reviewer}".`,
         );
       }
-      const fittedRowTotal = reviewerFactors[index] * supportMass;
-      reviewerFactors[index] *= rowTotal / fittedRowTotal;
+      const fittedRowTotal = reviewerFactors[reviewerPosition] * supportMass;
+      reviewerFactors[reviewerPosition] *= rowTotal / fittedRowTotal;
     }
 
-    for (let index = 0; index < authors.length; index++) {
-      const author = authors[index];
-      const columnTotal = authorTotals.get(author) ?? 0;
-      const supportMass = getAuthorSupportMass(author);
+    for (
+      let authorPosition = 0;
+      authorPosition < authors.length;
+      authorPosition++
+    ) {
+      const { author, columnTotal } = authors[authorPosition];
+      const supportMass = getAuthorSupportMass(authorPosition);
       if (supportMass <= 0) {
         throw new Error(`Bias model support is empty for author "${author}".`);
       }
-      const fittedColumnTotal = authorFactors[index] * supportMass;
-      authorFactors[index] *= columnTotal / fittedColumnTotal;
+      const fittedColumnTotal = authorFactors[authorPosition] * supportMass;
+      authorFactors[authorPosition] *= columnTotal / fittedColumnTotal;
     }
 
     let maxDiff = 0;
 
-    for (let index = 0; index < reviewers.length; index++) {
-      const reviewer = reviewers[index];
-      const rowTotal = reviewerTotals.get(reviewer) ?? 0;
+    for (
+      let reviewerPosition = 0;
+      reviewerPosition < reviewers.length;
+      reviewerPosition++
+    ) {
+      const { rowTotal } = reviewers[reviewerPosition];
       const fittedRowTotal =
-        reviewerFactors[index] * getReviewerSupportMass(reviewer);
+        reviewerFactors[reviewerPosition] *
+        getReviewerSupportMass(reviewerPosition);
       maxDiff = Math.max(maxDiff, Math.abs(fittedRowTotal - rowTotal));
     }
 
-    for (let index = 0; index < authors.length; index++) {
-      const author = authors[index];
-      const columnTotal = authorTotals.get(author) ?? 0;
+    for (
+      let authorPosition = 0;
+      authorPosition < authors.length;
+      authorPosition++
+    ) {
+      const { columnTotal } = authors[authorPosition];
       const fittedColumnTotal =
-        authorFactors[index] * getAuthorSupportMass(author);
+        authorFactors[authorPosition] * getAuthorSupportMass(authorPosition);
       maxDiff = Math.max(maxDiff, Math.abs(fittedColumnTotal - columnTotal));
     }
 
@@ -164,11 +196,11 @@ function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
       return {
         expectedCount(reviewer: string, author: string): number {
           const reviewerPosition = reviewerIndex.get(reviewer);
-          const authorPosition = authorIndex.get(author);
+          const authorPosition = authorIndexByName.get(author);
           if (reviewerPosition == null || authorPosition == null) {
             return 0;
           }
-          if (!(matrix.get(reviewer)?.has(author) ?? false)) {
+          if (!reviewerSupportSets[reviewerPosition].has(authorPosition)) {
             return 0;
           }
           return (
@@ -246,10 +278,6 @@ export function detectBias(
   for (const [reviewer, row] of matrix) {
     for (const [author, count] of row) {
       const fittedCount = expectedCount(reviewer, author);
-      if (fittedCount <= 0) {
-        continue;
-      }
-
       const pearsonResidual = (count - fittedCount) / Math.sqrt(fittedCount);
       if (count > fittedCount && pearsonResidual > threshold) {
         flaggedPairs.push({
