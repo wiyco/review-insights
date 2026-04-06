@@ -480,7 +480,7 @@ describe("computeMergeCorrelations", () => {
 
     expect(alice?.prsAuthored).toBe(2);
     expect(alice?.prsMerged).toBe(0);
-    expect(alice?.avgReviewsBeforeMerge).toBe(0);
+    expect(alice?.avgReviewsBeforeMerge).toBeNull();
     expect(alice?.medianReviewsBeforeMerge).toBeNull();
     expect(alice?.zeroReviewMerges).toBe(0);
   });
@@ -626,6 +626,7 @@ describe("computeMergeCorrelations", () => {
 
       const result = computeMergeCorrelations(prs, false);
       const alice = result.find((r) => r.login === "alice");
+      expect(alice?.avgReviewsBeforeMerge).toBeNull();
       expect(alice?.medianReviewsBeforeMerge).toBeNull();
     });
   });
