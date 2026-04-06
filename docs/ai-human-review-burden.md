@@ -87,6 +87,9 @@ The GraphQL query is extended to fetch both PR size fields and the commit SHA as
 additions
 deletions
 reviews(first: $maxReviews) {
+  pageInfo {
+    hasNextPage
+  }
   nodes {
     commit {
       oid
@@ -356,7 +359,7 @@ interface AIPatternResult {
 | PR has reviews but all are bot/PENDING/self | Treated as zero human reviews; included in `humanReviewsPerPR` distribution (as 0) but excluded from latency, changeRequestRate, and reviewRounds |
 | `review.createdAt < pr.createdAt` | Review excluded from first-review latency and `reviewRounds`. A PR whose qualifying human reviews **all** predate `pr.createdAt` is treated as unreviewed for latency, `changeRequestRate`, and `reviewRounds` (it contributes no datapoint to $P_g$ / $Q_g$) |
 | Any qualifying post-creation human review has `commitOid === null` | The PR is excluded from `reviewRounds` only, because the reviewed revision cannot be identified exactly |
-| PR hits the per-PR review fetch limit | The PR is excluded from `reviewRounds` only, because the observed review set may be truncated |
+| GitHub reports additional review pages beyond the first fetched review page | The PR is excluded from `reviewRounds` only, because the observed review set is truncated |
 | Division by zero | Always returns `null`, never `NaN` or `Infinity` |
 | AI tool account reviews its own PR | Excluded by self-review rule (reviewer === author) |
 | Size tier group has fewer than 3 PRs | Stratified metrics for that cell return `null` |
