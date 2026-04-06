@@ -81,14 +81,25 @@ Within `ai-patterns`, the split is intentional:
 
 ### GraphQL extension
 
-The GraphQL query is extended to fetch PR size fields:
+The GraphQL query is extended to fetch both PR size fields and the commit SHA associated with each review submission:
 
 ```graphql
 additions
 deletions
+reviews(first: $maxReviews) {
+  nodes {
+    commit {
+      oid
+    }
+  }
+}
 ```
 
-These are stored on `PullRequestRecord` as `additions: number` and `deletions: number`.
+These are stored on normalized records as:
+
+- `PullRequestRecord.additions`
+- `PullRequestRecord.deletions`
+- `ReviewRecord.commitOid`
 
 ### PR size tiers
 
@@ -214,17 +225,37 @@ Both return `null` when $|Q_g| = 0$.
 
 #### reviewRounds — Review iteration distribution
 
-For each PR $pr_i \in Q_g$ (PRs with at least one qualifying human review where `review.createdAt >= pr.createdAt`):
+For each PR $pr_i \in Q_g$ (PRs with at least one qualifying human review where `review.createdAt >= pr.createdAt`), define the observed post-creation review set:
 
-$$rounds_i = \max_{u \in \text{humanReviewers}(pr_i)} |\{r \in R_{\text{human}}(pr_i) \mid r.\text{reviewer} = u\}|$$
+$$R_{\text{obs}}(pr_i) = \{r \in R_{\text{human}}(pr_i) \mid r.\text{createdAt} \ge pr_i.\text{createdAt}\}$$
+
+Let $Q_g^{\text{round}} \subseteq Q_g$ be the subset of PRs whose observed post-creation human reviews all have non-null `commitOid` values and whose per-PR review list was not truncated.
+
+Each submitted review is linked by GitHub to the commit SHA it reviewed (`review.commit.oid`). A review round is the set of qualifying human reviews attached to the same reviewed revision. For each $pr_i \in Q_g^{\text{round}}$:
+
+$$rounds_i = \left|\{r.\text{commitOid} \mid r \in R_{\text{obs}}(pr_i)\}\right|$$
+
+where the set contains only distinct commit SHAs.
+
+Interpretation:
+
+- Multiple reviewers commenting on the same reviewed revision count as **one** round.
+- Re-reviews after the author updates the PR head count as a **new** round when they reference a new commit SHA.
+- Multiple submissions from the same reviewer on the same reviewed revision still count as **one** round.
 
 | Statistic | Definition |
 |---|---|
-| `median` | 50th percentile of $\{rounds_i\}$ |
-| `p90` | 90th percentile of $\{rounds_i\}$ |
-| `mean` | $\frac{1}{\|Q_g\|}\sum rounds_i$ |
+| `median` | 50th percentile of $\{rounds_i \mid pr_i \in Q_g^{\text{round}}\}$ |
+| `p90` | 90th percentile of $\{rounds_i \mid pr_i \in Q_g^{\text{round}}\}$ |
+| `mean` | $\frac{1}{\|Q_g^{\text{round}}\|}\sum_{pr_i \in Q_g^{\text{round}}} rounds_i$ |
 
-All three return `null` when $|Q_g| = 0$.
+All three return `null` when no PR in the group has an observable round count.
+
+> [!TIP]
+>
+> **Rationale**
+>
+> This definition measures review iteration at the PR revision level rather than at the reviewer level. It matches the quantity of interest: how many distinct code states required human re-review.
 
 ### Size-stratified analysis
 
@@ -239,7 +270,7 @@ The stratified view controls for the confounding effect of PR size. Comparing AI
 >
 > **Example**
 >
-> If AI-authored Large PRs have a median of 3 review rounds while human-only Large PRs have a median of 2, the difference is more likely attributable to AI involvement than to PR size.
+> If AI-authored Large PRs have a median `reviewRounds` of 3 while human-only Large PRs have a median of 2, the difference is more likely attributable to AI involvement than to PR size.
 
 Groups with fewer than 3 PRs in a given size tier report `null` for all metrics in that cell to avoid misleading statistics from tiny samples.
 
@@ -259,6 +290,11 @@ Each group's `prCount` field provides the count of comparison-eligible PRs in th
 
 ```typescript
 type AICategory = "ai-authored" | "ai-assisted" | "human-only";
+
+interface ReviewRecord {
+  // ... existing fields ...
+  commitOid: string | null;
+}
 
 interface PullRequestRecord {
   // ... existing fields ...
@@ -318,7 +354,9 @@ interface AIPatternResult {
 | No PRs in a group | All metrics for that group return `null`; `prCount` is `0` |
 | PR author is a traditional bot | Excluded from `humanReviewBurden` entirely, regardless of `include-bots` |
 | PR has reviews but all are bot/PENDING/self | Treated as zero human reviews; included in `humanReviewsPerPR` distribution (as 0) but excluded from latency, changeRequestRate, and reviewRounds |
-| `review.createdAt < pr.createdAt` | Review excluded from first-review latency calculation only. For `changeRequestRate` and `reviewRounds`, all qualifying human reviews are included regardless of timestamp. A PR whose qualifying human reviews **all** predate `pr.createdAt` is treated as unreviewed for latency, `changeRequestRate`, and `reviewRounds` (it contributes no datapoint to $P_g$ / $Q_g$) |
+| `review.createdAt < pr.createdAt` | Review excluded from first-review latency and `reviewRounds`. A PR whose qualifying human reviews **all** predate `pr.createdAt` is treated as unreviewed for latency, `changeRequestRate`, and `reviewRounds` (it contributes no datapoint to $P_g$ / $Q_g$) |
+| Any qualifying post-creation human review has `commitOid === null` | The PR is excluded from `reviewRounds` only, because the reviewed revision cannot be identified exactly |
+| PR hits the per-PR review fetch limit | The PR is excluded from `reviewRounds` only, because the observed review set may be truncated |
 | Division by zero | Always returns `null`, never `NaN` or `Infinity` |
 | AI tool account reviews its own PR | Excluded by self-review rule (reviewer === author) |
 | Size tier group has fewer than 3 PRs | Stratified metrics for that cell return `null` |
@@ -336,6 +374,7 @@ interface AIPatternResult {
 | PR size tier assignment | `src/analyze/ai-patterns.ts` — helper function |
 | Percentile computation | `src/analyze/ai-patterns.ts` — pure helper function |
 | Human review burden computation | `src/analyze/ai-patterns.ts` — within `analyzeAIPatterns()` |
+| Review round commit SHA extraction | `src/collect/graphql-queries.ts` / `src/collect/normalizer.ts` — `reviews.nodes.commit.oid` to `ReviewRecord.commitOid` |
 | AI co-author patterns (email list) | `src/collect/normalizer.ts` — constant array |
 | AI tool account prefixes | `src/collect/normalizer.ts` — constant array |
-| GraphQL additions/deletions fields | `src/collect/graphql-queries.ts` — query extension |
+| GraphQL additions/deletions + review commit SHA fields | `src/collect/graphql-queries.ts` — query extension |

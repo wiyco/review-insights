@@ -151,7 +151,7 @@ If $|M_u| = 0$, this metric is undefined and is represented as `null` in machine
 
 ### medianReviewsBeforeMerge
 
-The median of per-PR review counts across merged PRs for each author. Like `medianTimeToFirstReview`, this is more robust to outliers (e.g., a single PR with an unusually high number of review rounds) and better represents the typical merge experience.
+The median of per-PR review counts across merged PRs for each author. Like `medianTimeToFirstReview`, this is more robust to outliers (e.g., a single PR with an unusually high number of review submissions) and better represents the typical merge experience.
 
 For an even number of merged PRs, the median is the arithmetic mean of the two middle values. Returns `null` when the author has no merged PRs.
 
@@ -187,6 +187,9 @@ where totalReviews includes all reviews (including PENDING and bot reviews) acro
 Count of PRs where any commit message contains an AI co-author trailer as defined in [ai-human-review-burden.md](ai-human-review-burden.md#ai-co-author-detection). Only the last commit per PR is inspected (GraphQL limitation), so this is a lower-bound estimate.
 
 ### Human review burden (per AI category)
+
+`reviewRounds` counts distinct reviewed revisions per PR from qualifying human reviews observed at or after PR creation, using the commit SHA attached to each review. PRs are excluded from this metric when an observed review is missing a commit SHA or when the per-PR review list is truncated.
+
 
 See [ai-human-review-burden.md](ai-human-review-burden.md) for the full specification of PR classification (`ai-authored` / `ai-assisted` / `human-only`) and per-group human review burden metrics (`humanReviewsPerPR`, `firstReviewLatencyMs`, `unreviewedRate`, `changeRequestRate`, `reviewRounds`) — each reported as distribution statistics (median, p90, mean) rather than a single average. These metrics are computed only on the comparison cohort of non-traditional-bot PRs.
 
