@@ -74,7 +74,7 @@ Writes a visual report to the GitHub Actions **Job Summary** with inline SVG cha
 
 ### `comment`
 
-Posts or updates a comment on the triggering PR with review stats when the workflow event payload includes `pull_request.number`. Requires `pull-requests: write` permission.
+Posts or updates a workflow-managed comment on the triggering PR with review stats when the workflow event payload includes `pull_request.number`. Existing comments are updated only when they were authored by the current workflow identity; otherwise a new comment is created. If the workflow identity cannot be resolved because of permission restrictions or missing identity metadata, the action creates a new comment instead of updating. Unexpected identity-resolution errors fail the `comment` mode. Requires `pull-requests: write` permission.
 
 ### `artifact`
 

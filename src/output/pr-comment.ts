@@ -11,6 +11,26 @@ import { escapeHtml } from "../utils/sanitize";
 
 const COMMENT_MARKER = "<!-- review-insights-report -->";
 
+interface PRCommentAuthor {
+  login?: string | null;
+}
+
+interface PRCommentApp {
+  slug?: string | null;
+}
+
+interface PRComment {
+  id: number;
+  body?: string | null;
+  user?: PRCommentAuthor | null;
+  performed_via_github_app?: PRCommentApp | null;
+}
+
+interface CommentAuthorIdentity {
+  login?: string;
+  appSlug?: string;
+}
+
 /**
  * Builds the markdown body for the PR comment.
  */
@@ -99,7 +119,8 @@ ${biasSection}
 
 /**
  * Creates or updates a PR comment containing the review insights report.
- * Uses a hidden HTML marker to identify existing comments for updates.
+ * Uses a hidden HTML marker plus the current workflow identity to identify
+ * existing comments that are safe to update.
  *
  * Requires `pull-requests: write` permission in the workflow.
  * @see {@link https://docs.github.com/en/rest/issues/comments#list-issue-comments} listComments
@@ -126,33 +147,47 @@ export async function postPRComment(
       }),
     );
 
-    const existingComment = comments.find((c) =>
+    const markerComments = comments.filter((c) =>
       c.body?.includes(COMMENT_MARKER),
     );
+    const existingComment =
+      markerComments.length === 0
+        ? undefined
+        : await findExistingComment(octokit, markerComments);
 
     if (existingComment) {
       logger.info(
         `Updating existing review-insights comment #${existingComment.id}`,
       );
-      await retry(() =>
-        octokit.rest.issues.updateComment({
-          owner,
-          repo,
-          comment_id: existingComment.id,
-          body,
-        }),
-      );
-    } else {
-      logger.info("Creating new review-insights comment");
-      await retry(() =>
-        octokit.rest.issues.createComment({
-          owner,
-          repo,
-          issue_number: prNumber,
-          body,
-        }),
-      );
+      try {
+        await retry(() =>
+          octokit.rest.issues.updateComment({
+            owner,
+            repo,
+            comment_id: existingComment.id,
+            body,
+          }),
+        );
+        return;
+      } catch (err: unknown) {
+        if (!isMissingCommentError(err)) {
+          throw err;
+        }
+        logger.warning(
+          `Existing review-insights comment #${existingComment.id} no longer exists; creating a new comment instead`,
+        );
+      }
     }
+
+    logger.info("Creating new review-insights comment");
+    await retry(() =>
+      octokit.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: prNumber,
+        body,
+      }),
+    );
   } catch (err: unknown) {
     if (isPermissionError(err)) {
       throw new Error(
@@ -161,6 +196,147 @@ export async function postPRComment(
     }
     throw err;
   }
+}
+
+async function findExistingComment(
+  octokit: ReturnType<typeof import("@actions/github").getOctokit>,
+  comments: PRComment[],
+): Promise<PRComment | undefined> {
+  const authorIdentity = await resolveCommentAuthorIdentity(octokit);
+  if (!hasCommentAuthorIdentity(authorIdentity)) {
+    return undefined;
+  }
+
+  const matchingComments = comments.filter((comment) =>
+    matchesCommentAuthor(comment, authorIdentity),
+  );
+
+  if (matchingComments.length === 0) {
+    logger.warning(
+      "Found review-insights marker in existing PR comments, but none were authored by this workflow identity; creating a new comment instead",
+    );
+    return undefined;
+  }
+
+  if (matchingComments.length > 1) {
+    logger.warning(
+      `Found ${matchingComments.length} existing review-insights comments from this workflow identity; updating the most recent one`,
+    );
+  }
+
+  return matchingComments.at(-1);
+}
+
+async function resolveCommentAuthorIdentity(
+  octokit: ReturnType<typeof import("@actions/github").getOctokit>,
+): Promise<CommentAuthorIdentity> {
+  const authenticatedUserLogin =
+    await tryResolveAuthenticatedUserLogin(octokit);
+  if (authenticatedUserLogin !== undefined) {
+    return {
+      login: authenticatedUserLogin,
+    };
+  }
+
+  const authenticatedAppSlug = await tryResolveAuthenticatedAppSlug(octokit);
+  if (authenticatedAppSlug !== undefined) {
+    return {
+      appSlug: authenticatedAppSlug,
+    };
+  }
+
+  logger.warning(
+    "Could not reliably determine the current workflow identity for PR comment updates; creating a new comment instead",
+  );
+  return {};
+}
+
+async function tryResolveAuthenticatedUserLogin(
+  octokit: ReturnType<typeof import("@actions/github").getOctokit>,
+): Promise<string | undefined> {
+  try {
+    const authenticatedUser = await retry(() =>
+      octokit.rest.users.getAuthenticated(),
+    );
+    const login = authenticatedUser.data.login ?? undefined;
+    if (login !== undefined) {
+      return login;
+    }
+    logger.warning(
+      "Authenticated GitHub user lookup returned no login for PR comment updates; creating a new comment instead",
+    );
+    return undefined;
+  } catch (error: unknown) {
+    if (!isPermissionError(error)) {
+      throw error;
+    }
+    logger.debug(
+      `Could not resolve authenticated GitHub user for PR comment updates: ${String(error)}`,
+    );
+  }
+
+  return undefined;
+}
+
+async function tryResolveAuthenticatedAppSlug(
+  octokit: ReturnType<typeof import("@actions/github").getOctokit>,
+): Promise<string | undefined> {
+  try {
+    const authenticatedApp = await retry(() =>
+      octokit.rest.apps.getAuthenticated(),
+    );
+    const appSlug = authenticatedApp.data?.slug ?? undefined;
+    if (appSlug !== undefined) {
+      return appSlug;
+    }
+    logger.warning(
+      "Authenticated GitHub App lookup returned no app slug for PR comment updates; creating a new comment instead",
+    );
+    return undefined;
+  } catch (error: unknown) {
+    if (!isPermissionError(error)) {
+      throw error;
+    }
+    logger.debug(
+      `Could not resolve authenticated GitHub App for PR comment updates: ${String(error)}`,
+    );
+  }
+
+  return undefined;
+}
+
+function hasCommentAuthorIdentity(identity: CommentAuthorIdentity): boolean {
+  return identity.login !== undefined || identity.appSlug !== undefined;
+}
+
+function matchesCommentAuthor(
+  comment: PRComment,
+  identity: CommentAuthorIdentity,
+): boolean {
+  const commentLogin = comment.user?.login ?? undefined;
+  const commentAppSlug = comment.performed_via_github_app?.slug ?? undefined;
+
+  if (identity.login !== undefined && commentLogin === identity.login) {
+    return true;
+  }
+
+  if (identity.appSlug === undefined) {
+    return false;
+  }
+
+  return (
+    commentAppSlug === identity.appSlug ||
+    commentLogin === `${identity.appSlug}[bot]`
+  );
+}
+
+function isMissingCommentError(error: unknown): boolean {
+  if (error === null || typeof error !== "object") {
+    return false;
+  }
+
+  const record = error as Record<string, unknown>;
+  return record.status === 404 || record.status === 410;
 }
 
 function isPermissionError(error: unknown): boolean {

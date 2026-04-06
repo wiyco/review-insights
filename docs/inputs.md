@@ -60,6 +60,15 @@ Format: `owner/repo`. Validated by `validateRepositoryFormat()` in `src/utils/sa
 
 Comma-separated list of: `summary`, `comment`, `artifact`. At least one mode is required. Duplicates are removed.
 
+When `comment` is included, the action manages a workflow-owned PR comment on
+the triggering pull request. An existing comment is updated only when it was
+authored by the current workflow identity; otherwise a new comment is created.
+If the previously managed comment no longer exists, the action creates a new
+comment instead of failing the mode.
+If the workflow identity cannot be resolved because of permission restrictions
+or missing identity metadata, the action creates a new comment instead of
+updating. Unexpected identity-resolution errors fail the `comment` mode.
+
 ## `bias-threshold`
 
 Positive number. Clamped to the range `[0.5, 10.0]`. Non-numeric or non-positive values are rejected.

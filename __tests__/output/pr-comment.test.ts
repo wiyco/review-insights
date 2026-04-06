@@ -25,24 +25,70 @@ function makeOctokit(
   existingComments: {
     id: number;
     body: string;
+    user?: {
+      login?: string;
+    };
+    performed_via_github_app?: {
+      slug?: string;
+    };
   }[] = [],
+  options: {
+    authenticatedUserLogin?: string;
+    authenticatedUserData?: {
+      login?: string;
+    } | null;
+    authenticatedUserError?: unknown;
+    authenticatedAppSlug?: string;
+    authenticatedAppData?: {
+      slug?: string;
+    } | null;
+    authenticatedAppError?: unknown;
+  } = {},
 ) {
   const createComment = vi.fn();
   const updateComment = vi.fn();
   const paginate = vi.fn().mockResolvedValue(existingComments);
+  const getAuthenticatedUser = options.authenticatedUserError
+    ? vi.fn().mockRejectedValue(options.authenticatedUserError)
+    : vi.fn().mockResolvedValue({
+        data:
+          "authenticatedUserData" in options
+            ? options.authenticatedUserData
+            : {
+                login: options.authenticatedUserLogin ?? "github-actions[bot]",
+              },
+      });
+  const getAuthenticatedApp = options.authenticatedAppError
+    ? vi.fn().mockRejectedValue(options.authenticatedAppError)
+    : vi.fn().mockResolvedValue({
+        data:
+          "authenticatedAppData" in options
+            ? options.authenticatedAppData
+            : {
+                slug: options.authenticatedAppSlug ?? "github-actions",
+              },
+      });
   return {
     mock: {
       createComment,
       updateComment,
       paginate,
+      getAuthenticatedUser,
+      getAuthenticatedApp,
     },
     octokit: {
       paginate,
       rest: {
+        apps: {
+          getAuthenticated: getAuthenticatedApp,
+        },
         issues: {
           listComments: "listComments",
           createComment,
           updateComment,
+        },
+        users: {
+          getAuthenticated: getAuthenticatedUser,
         },
       },
     },
@@ -124,6 +170,9 @@ describe("postPRComment", () => {
       {
         id: 999,
         body: "<!-- review-insights-report -->\nold content",
+        user: {
+          login: "github-actions[bot]",
+        },
       },
     ];
     const { mock, octokit } = makeOctokit(existing);
@@ -139,6 +188,335 @@ describe("postPRComment", () => {
         comment_id: 999,
       }),
     );
+    expect(mock.createComment).not.toHaveBeenCalled();
+  });
+
+  it("creates a new comment when a marker exists on a different author's comment", async () => {
+    const existing = [
+      {
+        id: 999,
+        body: "<!-- review-insights-report -->\nold content",
+        user: {
+          login: "someone-else",
+        },
+      },
+    ];
+    const { mock, octokit } = makeOctokit(existing, {
+      authenticatedUserLogin: "github-actions[bot]",
+    });
+    const analysis = makeAnalysis();
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 42, analysis);
+
+    expect(mock.updateComment).not.toHaveBeenCalled();
+    expect(mock.createComment).toHaveBeenCalledOnce();
+  });
+
+  it("creates a new comment when the workflow identity cannot be resolved from permission-denied lookups", async () => {
+    const existing = [
+      {
+        id: 999,
+        body: "<!-- review-insights-report -->\nold content",
+        performed_via_github_app: {
+          slug: "github-actions",
+        },
+      },
+    ];
+    const { mock, octokit } = makeOctokit(existing, {
+      authenticatedUserError: {
+        status: 403,
+        message: "Resource not accessible by integration",
+      },
+      authenticatedAppError: {
+        status: 403,
+        message: "Resource not accessible by integration",
+      },
+    });
+    const analysis = makeAnalysis();
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 42, analysis);
+
+    expect(mock.updateComment).not.toHaveBeenCalled();
+    expect(mock.createComment).toHaveBeenCalledOnce();
+  });
+
+  it("updates an existing comment authored via the authenticated GitHub App slug", async () => {
+    const existing = [
+      {
+        id: 999,
+        body: "<!-- review-insights-report -->\nold content",
+        user: {
+          login: "review-insights[bot]",
+        },
+      },
+    ];
+    const { mock, octokit } = makeOctokit(existing, {
+      authenticatedUserError: {
+        status: 403,
+        message: "Resource not accessible by integration",
+      },
+      authenticatedAppSlug: "review-insights",
+    });
+    const analysis = makeAnalysis();
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 42, analysis);
+
+    expect(mock.getAuthenticatedUser).toHaveBeenCalledOnce();
+    expect(mock.getAuthenticatedApp).toHaveBeenCalledOnce();
+    expect(mock.updateComment).toHaveBeenCalledOnce();
+    expect(mock.updateComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        comment_id: 999,
+      }),
+    );
+    expect(mock.createComment).not.toHaveBeenCalled();
+  });
+
+  it("updates an existing comment when the matching GitHub App slug is stored in performed_via_github_app", async () => {
+    const existing = [
+      {
+        id: 999,
+        body: "<!-- review-insights-report -->\nold content",
+        performed_via_github_app: {
+          slug: "review-insights",
+        },
+      },
+    ];
+    const { mock, octokit } = makeOctokit(existing, {
+      authenticatedUserError: {
+        status: 403,
+        message: "Resource not accessible by integration",
+      },
+      authenticatedAppSlug: "review-insights",
+    });
+    const analysis = makeAnalysis();
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 42, analysis);
+
+    expect(mock.getAuthenticatedUser).toHaveBeenCalledOnce();
+    expect(mock.getAuthenticatedApp).toHaveBeenCalledOnce();
+    expect(mock.updateComment).toHaveBeenCalledOnce();
+    expect(mock.updateComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        comment_id: 999,
+      }),
+    );
+    expect(mock.createComment).not.toHaveBeenCalled();
+  });
+
+  it("creates a new comment when the authenticated app response does not include an app identity", async () => {
+    const existing = [
+      {
+        id: 999,
+        body: "<!-- review-insights-report -->\nold content",
+        user: {
+          login: "github-actions[bot]",
+        },
+      },
+    ];
+    const { mock, octokit } = makeOctokit(existing, {
+      authenticatedUserError: {
+        status: 403,
+        message: "Resource not accessible by integration",
+      },
+      authenticatedAppData: null,
+    });
+    const analysis = makeAnalysis();
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 42, analysis);
+
+    expect(mock.getAuthenticatedUser).toHaveBeenCalledOnce();
+    expect(mock.getAuthenticatedApp).toHaveBeenCalledOnce();
+    expect(mock.updateComment).not.toHaveBeenCalled();
+    expect(mock.createComment).toHaveBeenCalledOnce();
+  });
+
+  it("falls back to app identity lookup when the authenticated user response does not include a login", async () => {
+    const existing = [
+      {
+        id: 999,
+        body: "<!-- review-insights-report -->\nold content",
+        user: {
+          login: "review-insights[bot]",
+        },
+      },
+    ];
+    const { mock, octokit } = makeOctokit(existing, {
+      authenticatedUserData: {},
+      authenticatedAppSlug: "review-insights",
+    });
+    const analysis = makeAnalysis();
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 42, analysis);
+
+    expect(mock.getAuthenticatedUser).toHaveBeenCalledOnce();
+    expect(mock.getAuthenticatedApp).toHaveBeenCalledOnce();
+    expect(mock.updateComment).toHaveBeenCalledOnce();
+    expect(mock.updateComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        comment_id: 999,
+      }),
+    );
+    expect(mock.createComment).not.toHaveBeenCalled();
+  });
+
+  it("re-throws unexpected authenticated user lookup errors without creating or updating comments", async () => {
+    const existing = [
+      {
+        id: 999,
+        body: "<!-- review-insights-report -->\nold content",
+        user: {
+          login: "github-actions[bot]",
+        },
+      },
+    ];
+    const lookupError = {
+      status: 500,
+      message: "Internal Server Error",
+    };
+    const { mock, octokit } = makeOctokit(existing, {
+      authenticatedUserError: lookupError,
+    });
+    const analysis = makeAnalysis();
+
+    await expect(
+      postPRComment(octokit as never, "my-org", "my-repo", 42, analysis),
+    ).rejects.toBe(lookupError);
+
+    expect(mock.getAuthenticatedUser).toHaveBeenCalledOnce();
+    expect(mock.getAuthenticatedApp).not.toHaveBeenCalled();
+    expect(mock.updateComment).not.toHaveBeenCalled();
+    expect(mock.createComment).not.toHaveBeenCalled();
+  });
+
+  it("re-throws rate-limit errors from authenticated app lookup without creating or updating comments", async () => {
+    const existing = [
+      {
+        id: 999,
+        body: "<!-- review-insights-report -->\nold content",
+        user: {
+          login: "github-actions[bot]",
+        },
+      },
+    ];
+    const lookupError = {
+      status: 403,
+      message: "You have exceeded a secondary rate limit",
+    };
+    const { mock, octokit } = makeOctokit(existing, {
+      authenticatedUserError: {
+        status: 403,
+        message: "Resource not accessible by integration",
+      },
+      authenticatedAppError: lookupError,
+    });
+    const analysis = makeAnalysis();
+
+    await expect(
+      postPRComment(octokit as never, "my-org", "my-repo", 42, analysis),
+    ).rejects.toBe(lookupError);
+
+    expect(mock.getAuthenticatedUser).toHaveBeenCalledOnce();
+    expect(mock.getAuthenticatedApp).toHaveBeenCalledOnce();
+    expect(mock.updateComment).not.toHaveBeenCalled();
+    expect(mock.createComment).not.toHaveBeenCalled();
+  });
+
+  it("updates the most recent matching comment when multiple managed comments exist", async () => {
+    const existing = [
+      {
+        id: 100,
+        body: "<!-- review-insights-report -->\nolder content",
+        user: {
+          login: "github-actions[bot]",
+        },
+      },
+      {
+        id: 101,
+        body: "<!-- review-insights-report -->\nnewer content",
+        user: {
+          login: "github-actions[bot]",
+        },
+      },
+    ];
+    const { mock, octokit } = makeOctokit(existing);
+    const analysis = makeAnalysis();
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 42, analysis);
+
+    expect(mock.updateComment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        comment_id: 101,
+      }),
+    );
+  });
+
+  it("creates a new comment when the selected comment disappears before update", async () => {
+    const existing = [
+      {
+        id: 999,
+        body: "<!-- review-insights-report -->\nold content",
+        user: {
+          login: "github-actions[bot]",
+        },
+      },
+    ];
+    const { mock, octokit } = makeOctokit(existing);
+    mock.updateComment.mockRejectedValue({
+      status: 404,
+      message: "Not Found",
+    });
+    const analysis = makeAnalysis();
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 42, analysis);
+
+    expect(mock.updateComment).toHaveBeenCalledOnce();
+    expect(mock.createComment).toHaveBeenCalledOnce();
+  });
+
+  it("re-throws non-missing update errors without creating a new comment", async () => {
+    const existing = [
+      {
+        id: 999,
+        body: "<!-- review-insights-report -->\nold content",
+        user: {
+          login: "github-actions[bot]",
+        },
+      },
+    ];
+    const { mock, octokit } = makeOctokit(existing);
+    const updateError = {
+      status: 500,
+      message: "Internal Server Error",
+    };
+    mock.updateComment.mockRejectedValue(updateError);
+    const analysis = makeAnalysis();
+
+    await expect(
+      postPRComment(octokit as never, "my-org", "my-repo", 42, analysis),
+    ).rejects.toBe(updateError);
+
+    expect(mock.createComment).not.toHaveBeenCalled();
+  });
+
+  it("re-throws non-object update errors without creating a new comment", async () => {
+    const existing = [
+      {
+        id: 999,
+        body: "<!-- review-insights-report -->\nold content",
+        user: {
+          login: "github-actions[bot]",
+        },
+      },
+    ];
+    const { mock, octokit } = makeOctokit(existing);
+    mock.updateComment.mockRejectedValue("comment update failed");
+    const analysis = makeAnalysis();
+
+    await expect(
+      postPRComment(octokit as never, "my-org", "my-repo", 42, analysis),
+    ).rejects.toBe("comment update failed");
+
     expect(mock.createComment).not.toHaveBeenCalled();
   });
 
