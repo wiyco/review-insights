@@ -5,6 +5,7 @@ import {
   getDataCompletenessLabel,
   getPartialDataWarning,
 } from "../utils/partial-data";
+import { getReviewFetchLimitWarning } from "../utils/review-fetch-limit";
 import { escapeHtml } from "../utils/sanitize";
 import { renderBarChart } from "./bar-chart";
 import { renderBurdenSection } from "./burden-chart";
@@ -60,12 +61,12 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
         ).toFixed(1)
       : null;
 
-  const truncatedPRs = filteredPRs.filter((pr) => pr.reviewLimitReached);
   const dataCompleteness = getDataCompletenessLabel(
     partialData,
     partialDataReason,
   );
   const partialDataWarning = getPartialDataWarning(partialDataReason);
+  const reviewFetchLimitWarning = getReviewFetchLimitWarning(filteredPRs);
 
   const sinceStr = escapeHtml(String(dateRange.since));
   const untilStr = escapeHtml(String(dateRange.until));
@@ -210,14 +211,9 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
   }
 
   ${
-    truncatedPRs.length > 0
+    reviewFetchLimitWarning
       ? `<div class="card" style="border-color: var(--warn);">
-    <p class="warn">Warning: ${truncatedPRs.length} PR(s) hit the review fetch limit and may have truncated data (PRs: ${truncatedPRs
-      .slice(0, 10)
-      .map((pr) => `#${pr.number}`)
-      .join(
-        ", ",
-      )}${truncatedPRs.length > 10 ? ", ..." : ""}). Statistics for these PRs may be incomplete.</p>
+    <p class="warn">Warning: ${escapeHtml(reviewFetchLimitWarning)}</p>
   </div>`
       : ""
   }

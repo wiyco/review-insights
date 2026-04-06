@@ -471,6 +471,82 @@ describe("writeJobSummary", () => {
     expect(hasCappedStatus).toBe(true);
   });
 
+  it("surfaces a review-fetch-limit warning in the summary", async () => {
+    const analysis = makeAnalysis();
+    analysis.pullRequests = [
+      {
+        number: 42,
+        title: "PR",
+        state: "MERGED",
+        author: "alice",
+        authorIsBot: false,
+        createdAt: "2025-06-01T00:00:00Z",
+        mergedAt: "2025-06-02T00:00:00Z",
+        closedAt: "2025-06-02T00:00:00Z",
+        mergedBy: null,
+        reviewLimitReached: true,
+        reviews: [],
+        reviewRequests: [],
+        commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
+      },
+    ];
+
+    await writeJobSummary(analysis);
+
+    const addedContent = (
+      core.summary as unknown as {
+        _addedContent: string[];
+      }
+    )._addedContent;
+    const hasTruncationWarning = addedContent.some(
+      (c) =>
+        c.includes("review fetch limit") &&
+        c.includes("#42") &&
+        c.includes("truncated data"),
+    );
+    expect(hasTruncationWarning).toBe(true);
+  });
+
+  it("excludes bot-authored PRs from the summary truncation warning when includeBots is false", async () => {
+    const analysis = makeAnalysis();
+    analysis.includeBots = false;
+    analysis.pullRequests = [
+      {
+        number: 99,
+        title: "Bot PR with many reviews",
+        state: "MERGED",
+        author: "dependabot[bot]",
+        authorIsBot: true,
+        createdAt: "2025-06-01T00:00:00Z",
+        mergedAt: "2025-06-02T00:00:00Z",
+        closedAt: "2025-06-02T00:00:00Z",
+        mergedBy: null,
+        reviewLimitReached: true,
+        reviews: [],
+        reviewRequests: [],
+        commitMessages: [],
+        additions: 10,
+        deletions: 5,
+        aiCategory: "human-only",
+      },
+    ];
+
+    await writeJobSummary(analysis);
+
+    const addedContent = (
+      core.summary as unknown as {
+        _addedContent: string[];
+      }
+    )._addedContent;
+    const hasTruncationWarning = addedContent.some((c) =>
+      c.includes("review fetch limit"),
+    );
+    expect(hasTruncationWarning).toBe(false);
+  });
+
   it("contains escaped date range in raw content", async () => {
     const analysis = makeAnalysis();
 

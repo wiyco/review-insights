@@ -5,6 +5,7 @@ import {
   getDataCompletenessLabel,
   getPartialDataWarning,
 } from "../utils/partial-data";
+import { getReviewFetchLimitWarning } from "../utils/review-fetch-limit";
 import { escapeHtml } from "../utils/sanitize";
 import { renderBarChart } from "../visualize/bar-chart";
 import { renderHeatmap } from "../visualize/heatmap";
@@ -25,7 +26,7 @@ function getSummaryStatusBanner(
 
 /**
  * Writes a GitHub Actions job summary with key analysis metrics,
- * an inline heatmap SVG, and a top-reviewers bar chart.
+ * an inline heatmap SVG, a top-reviewers bar chart, and dataset warnings.
  */
 export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
   const {
@@ -49,6 +50,7 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
     partialDataReason,
   );
   const partialDataWarning = getPartialDataWarning(partialDataReason);
+  const reviewFetchLimitWarning = getReviewFetchLimitWarning(filteredPRs);
   const summaryStatusBanner = getSummaryStatusBanner(partialDataReason);
   const biasDetected = bias.flaggedPairs.length > 0;
 
@@ -76,6 +78,12 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
   if (partialDataWarning) {
     summary.addRaw(
       `<p><strong>Warning:</strong> ${escapeHtml(partialDataWarning)}</p>`,
+    );
+  }
+
+  if (reviewFetchLimitWarning) {
+    summary.addRaw(
+      `<p><strong>Warning:</strong> ${escapeHtml(reviewFetchLimitWarning)}</p>`,
     );
   }
 

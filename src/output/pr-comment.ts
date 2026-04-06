@@ -7,6 +7,7 @@ import {
   getPartialDataWarning,
 } from "../utils/partial-data";
 import { isRateLimitError, retry } from "../utils/rate-limit";
+import { getReviewFetchLimitWarning } from "../utils/review-fetch-limit";
 import { escapeHtml } from "../utils/sanitize";
 
 const COMMENT_MARKER = "<!-- review-insights-report -->";
@@ -56,18 +57,11 @@ function buildCommentBody(analysis: AnalysisResult): string {
     partialDataReason,
   );
   const partialDataWarning = getPartialDataWarning(partialDataReason);
+  const reviewFetchLimitWarning = getReviewFetchLimitWarning(filteredPRs);
 
-  const truncatedPRs = filteredPRs.filter((pr) => pr.reviewLimitReached);
-
-  const truncationWarning =
-    truncatedPRs.length > 0
-      ? `> **Warning:** ${truncatedPRs.length} PR(s) hit the review fetch limit and may have truncated data (${truncatedPRs
-          .slice(0, 10)
-          .map((pr) => `#${pr.number}`)
-          .join(
-            ", ",
-          )}${truncatedPRs.length > 10 ? ", ..." : ""}). Statistics for these PRs may be incomplete.\n\n`
-      : "";
+  const truncationWarning = reviewFetchLimitWarning
+    ? `> **Warning:** ${reviewFetchLimitWarning}\n\n`
+    : "";
   const partialDataWarningBlock = partialDataWarning
     ? `> **Warning:** ${partialDataWarning}\n\n`
     : "";
