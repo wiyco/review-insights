@@ -79,6 +79,15 @@ export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
     const authorPositions: number[] = [];
 
     for (const [author, count] of row) {
+      if (count < 0) {
+        throw new Error(
+          `Review matrix contains a negative count for reviewer "${reviewer}" and author "${author}": ${count}`,
+        );
+      }
+      if (count === 0) {
+        continue;
+      }
+
       rowTotal += count;
 
       let authorPosition = authorIndex.get(author);
@@ -97,11 +106,21 @@ export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
       authors[authorPosition].reviewerPositions.push(reviewerPosition);
     }
 
+    if (authorPositions.length === 0) {
+      continue;
+    }
+
     reviewers.push({
       reviewer,
       rowTotal,
       authorPositions,
     });
+  }
+
+  if (reviewers.length === 0) {
+    throw new Error(
+      "Bias model requires at least one positive reviewer-author count.",
+    );
   }
 
   const reviewerFactors = reviewers.map(() => 1);
@@ -146,13 +165,8 @@ export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
       reviewerPosition < reviewers.length;
       reviewerPosition++
     ) {
-      const { reviewer, rowTotal } = reviewers[reviewerPosition];
+      const { rowTotal } = reviewers[reviewerPosition];
       const supportMass = getReviewerSupportMass(reviewerPosition);
-      if (supportMass <= 0) {
-        throw new Error(
-          `Bias model support is empty for reviewer "${reviewer}".`,
-        );
-      }
       const fittedRowTotal = reviewerFactors[reviewerPosition] * supportMass;
       reviewerFactors[reviewerPosition] *= rowTotal / fittedRowTotal;
     }
@@ -162,11 +176,8 @@ export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
       authorPosition < authors.length;
       authorPosition++
     ) {
-      const { author, columnTotal } = authors[authorPosition];
+      const { columnTotal } = authors[authorPosition];
       const supportMass = getAuthorSupportMass(authorPosition);
-      if (supportMass <= 0) {
-        throw new Error(`Bias model support is empty for author "${author}".`);
-      }
       const fittedColumnTotal = authorFactors[authorPosition] * supportMass;
       authorFactors[authorPosition] *= columnTotal / fittedColumnTotal;
     }
