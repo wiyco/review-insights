@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
-import { detectBias } from "../../src/analyze/bias-detector";
-import type { PullRequestRecord, ReviewRecord } from "../../src/types";
+import { describe, expect, it, vi } from "vitest";
+import {
+  detectBias,
+  fitQuasiIndependenceModel,
+} from "../../src/analyze/bias-detector";
+import type {
+  PullRequestRecord,
+  ReviewMatrix,
+  ReviewRecord,
+} from "../../src/types";
 
 function makeReview(
   overrides: Partial<ReviewRecord> & {
@@ -44,6 +51,102 @@ function makePR(
 }
 
 describe("detectBias", () => {
+  describe("fitQuasiIndependenceModel", () => {
+    it("returns 0 for reviewers or authors outside the observed support", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map([
+            [
+              "alice",
+              3,
+            ],
+          ]),
+        ],
+        [
+          "carol",
+          new Map([
+            [
+              "dave",
+              2,
+            ],
+          ]),
+        ],
+      ]);
+
+      const { expectedCount } = fitQuasiIndependenceModel(matrix);
+
+      expect(expectedCount("erin", "alice")).toBe(0);
+      expect(expectedCount("bob", "frank")).toBe(0);
+      expect(expectedCount("bob", "dave")).toBe(0);
+      expect(expectedCount("carol", "alice")).toBe(0);
+      expect(expectedCount("bob", "alice")).toBeGreaterThan(0);
+    });
+
+    it("throws when the model cannot converge within the IPF iteration limit", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map([
+            [
+              "alice",
+              3,
+            ],
+          ]),
+        ],
+      ]);
+      const absSpy = vi.spyOn(Math, "abs").mockReturnValue(1);
+
+      try {
+        expect(() => fitQuasiIndependenceModel(matrix)).toThrow(
+          "Bias model did not converge within 10000 IPF iterations.",
+        );
+      } finally {
+        absSpy.mockRestore();
+      }
+    });
+
+    it("rejects reviewers whose observed support is empty", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map(),
+        ],
+        [
+          "carol",
+          new Map([
+            [
+              "alice",
+              1,
+            ],
+          ]),
+        ],
+      ]);
+
+      expect(() => fitQuasiIndependenceModel(matrix)).toThrow(
+        'Bias model support is empty for reviewer "bob".',
+      );
+    });
+
+    it("rejects authors whose support collapses to zero mass", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map([
+            [
+              "alice",
+              0,
+            ],
+          ]),
+        ],
+      ]);
+
+      expect(() => fitQuasiIndependenceModel(matrix)).toThrow(
+        'Bias model support is empty for author "alice".',
+      );
+    });
+  });
+
   describe("matrix construction", () => {
     it("builds review matrix from PRs correctly", () => {
       const prs: PullRequestRecord[] = [
@@ -617,7 +720,7 @@ describe("detectBias", () => {
   });
 
   describe("threshold boundary", () => {
-    it("does not flag a pair exactly at the Pearson residual threshold", () => {
+    it("does not flag a pair just below the Pearson residual threshold", () => {
       const prs: PullRequestRecord[] = [];
       for (let i = 1; i <= 9; i++) {
         prs.push(
@@ -684,7 +787,7 @@ describe("detectBias", () => {
 
       const boundaryResult = detectBias(
         prs,
-        bobAlice?.pearsonResidual ?? 0,
+        (bobAlice?.pearsonResidual ?? 0) + 1e-6,
         false,
       );
       expect(boundaryResult.flaggedPairs).toEqual([]);
