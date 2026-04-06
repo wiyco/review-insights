@@ -34,6 +34,12 @@ The action still succeeds and publishes outputs, but counts and derived metrics 
 
 The same partial-data state is surfaced in the job summary, PR comment, and HTML artifact so consumers do not need to rely on the Actions log warning alone.
 
+## Review fetch truncation warning
+
+Each PR fetch requests at most 100 nested reviews. When a post-filtering PR reaches that per-PR fetch limit, its review list may be truncated even if the overall PR dataset is otherwise complete.
+
+The same review-fetch-limit warning is surfaced in the job summary, PR comment, and HTML artifact. When `include-bots` is `false`, bot-authored PRs are excluded from that warning consistently with the rest of the filtered outputs.
+
 ## Tie-aware reviewer ranking
 
 The active reviewer population is defined as:

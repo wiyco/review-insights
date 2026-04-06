@@ -71,14 +71,17 @@ For details on each output, see [docs/outputs.md](docs/outputs.md).
 ### `summary` (default)
 
 Writes a visual report to the GitHub Actions **Job Summary** with inline SVG charts.
+When the collected dataset is capped/partial, or when any post-filtering PR hits the per-PR review fetch limit, the corresponding warning is shown near the top of the summary.
 
 ### `comment`
 
 Posts or updates a workflow-managed comment on the triggering PR with review stats when the workflow event payload includes `pull_request.number`. Existing comments are updated only when they were authored by the current workflow identity; otherwise a new comment is created. If the workflow identity cannot be resolved because of permission restrictions or missing identity metadata, the action creates a new comment instead of updating. Unexpected identity-resolution errors fail the `comment` mode. Requires `pull-requests: write` permission.
+The comment also surfaces capped/partial-dataset warnings and per-PR review-fetch-limit warnings for the same filtered PR set used by the report body.
 
 ### `artifact`
 
 Uploads a self-contained HTML report as a downloadable artifact.
+The HTML report includes the same capped/partial-dataset warnings and per-PR review-fetch-limit warnings near the top of the page.
 
 ## Visualizations
 
@@ -126,7 +129,7 @@ permissions:
 ## Known Limitations
 
 - **AI co-authored detection is approximate.** Only the last commit of each PR is fetched from the GraphQL API (`commits(last: 1)`). This means AI co-author trailers on earlier commits are not inspected, and the result varies by merge strategy: merge commits typically do not carry the trailer, squash merges may or may not preserve it depending on the repository's settings, and rebase merges only expose the final commit. The `aiCoAuthoredPRs` metric should be treated as a lower-bound estimate.
-- **Review fetches are capped at 100 per PR.** The GitHub GraphQL query requests at most 100 nested reviews per PR. When a PR hits that fetch limit, its review data may be truncated and a warning is surfaced in the HTML report and PR comment.
+- **Review fetches are capped at 100 per PR.** The GitHub GraphQL query requests at most 100 nested reviews per PR. When a PR hits that fetch limit, its review data may be truncated and a warning is surfaced in the job summary, HTML report, and PR comment.
 - **PR collection may complete with capped or partial data.** Pagination runs within a fixed 10-minute wall-clock collection budget and may also be bounded by `max-prs`. If the action finds additional PRs within the requested date range after reaching `max-prs`, it marks the dataset as `Capped`; if the wall-clock budget is exhausted, it marks the dataset as `Partial`. In both cases the action still succeeds, sets `partial-data` to `true`, and surfaces a warning in the job summary, PR comment, and HTML report. Counts and derived metrics then reflect only the collected subset rather than the full date-range population.
 - **Large repositories may cause long execution times.** When the GitHub API rate limit is exhausted during pagination, the action waits up to 5 minutes per reset cycle. For very active repositories with high `max-prs` values, this can result in extended run times. Set `timeout-minutes` in your workflow job to guard against this (e.g. `timeout-minutes: 15`), and consider using a shorter date range or lower `max-prs` value.
 
