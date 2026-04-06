@@ -44,7 +44,7 @@ export interface PullRequestRecord {
   mergedAt: string | null;
   closedAt: string | null;
   mergedBy: string | null;
-  /** True when the fetched review connection hit the per-PR GraphQL cap; otherwise false on normalized records. */
+  /** True when the fetched review connection has additional pages beyond the first per-PR GraphQL page. */
   reviewLimitReached: boolean;
   reviews: ReviewRecord[];
   reviewRequests: string[];

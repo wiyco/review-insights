@@ -1,4 +1,4 @@
-/** Maximum number of reviews fetched per PR by the GraphQL query. */
+/** Maximum number of reviews fetched per PR in the first GraphQL page. */
 export const MAX_REVIEWS_PER_PR = 100;
 
 /** Maximum number of review requests fetched per PR by the GraphQL query. */
@@ -51,6 +51,9 @@ export const PULL_REQUESTS_QUERY = `
             login
           }
           reviews(first: $maxReviews) {
+            pageInfo {
+              hasNextPage
+            }
             nodes {
               author {
                 login
@@ -168,6 +171,9 @@ export interface RawPullRequestNode {
     login: string;
   } | null;
   reviews: {
+    pageInfo: {
+      hasNextPage: boolean;
+    };
     nodes: RawReview[];
   };
   reviewRequests: {

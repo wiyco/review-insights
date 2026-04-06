@@ -6,11 +6,7 @@ import type {
   ReviewState,
 } from "../types";
 import { logger } from "../utils/logger";
-import {
-  MAX_REVIEWS_PER_PR,
-  type RawPullRequestNode,
-  type RawReview,
-} from "./graphql-queries";
+import type { RawPullRequestNode, RawReview } from "./graphql-queries";
 
 export const UNKNOWN_USER = "ghost";
 
@@ -189,11 +185,11 @@ export function normalizePullRequests(
     const author = node.author?.login ?? UNKNOWN_USER;
     const authorIsBot = isTraditionalBotAccount(node.author);
     const state: PullRequestState = node.state;
-    const reviewLimitReached = node.reviews.nodes.length >= MAX_REVIEWS_PER_PR;
+    const reviewLimitReached = node.reviews.pageInfo.hasNextPage;
 
     if (reviewLimitReached) {
       logger.warning(
-        `PR #${node.number} has ${MAX_REVIEWS_PER_PR}+ reviews; some may be truncated by the GraphQL query limit.`,
+        `PR #${node.number} has additional review pages beyond the first fetched page; review data is truncated by the GraphQL query limit.`,
       );
     }
 
