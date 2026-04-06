@@ -1,4 +1,4 @@
-/** Maximum number of reviews fetched per PR by the GraphQL query. */
+/** Maximum number of reviews fetched per PR in the first GraphQL page. */
 export const MAX_REVIEWS_PER_PR = 100;
 
 /** Maximum number of review requests fetched per PR by the GraphQL query. */
@@ -6,7 +6,7 @@ export const MAX_REVIEW_REQUESTS_PER_PR = 50;
 
 /**
  * GraphQL query to fetch pull requests with reviews, review requests,
- * and commit messages for a repository.
+ * and commit metadata for a repository.
  *
  * All values are passed via GraphQL variables — NEVER interpolated
  * into the query string.
@@ -51,6 +51,9 @@ export const PULL_REQUESTS_QUERY = `
             login
           }
           reviews(first: $maxReviews) {
+            pageInfo {
+              hasNextPage
+            }
             nodes {
               author {
                 login
@@ -58,6 +61,9 @@ export const PULL_REQUESTS_QUERY = `
               }
               state
               createdAt
+              commit {
+                oid
+              }
             }
           }
           reviewRequests(first: $maxReviewRequests) {
@@ -124,6 +130,9 @@ export interface RawReview {
   author: RawAuthor | null;
   state: string;
   createdAt: string;
+  commit?: {
+    oid: string;
+  } | null;
 }
 
 /**
@@ -162,6 +171,9 @@ export interface RawPullRequestNode {
     login: string;
   } | null;
   reviews: {
+    pageInfo: {
+      hasNextPage: boolean;
+    };
     nodes: RawReview[];
   };
   reviewRequests: {

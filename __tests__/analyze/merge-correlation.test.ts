@@ -12,6 +12,7 @@ function makeReview(
     reviewerIsBot: false,
     state: "APPROVED",
     createdAt: "2025-06-02T09:00:00Z",
+    commitOid: "commit-1",
     prNumber: 1,
     ...overrides,
   };

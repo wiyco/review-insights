@@ -16,6 +16,7 @@ function makeReview(
     reviewerIsBot: false,
     state: "APPROVED",
     createdAt: "2025-06-02T09:00:00Z",
+    commitOid: "commit-1",
     prNumber: 1,
     ...overrides,
   };
@@ -499,6 +500,7 @@ describe("humanReviewBurden", () => {
             author: "alice",
             state: "CHANGES_REQUESTED",
             createdAt: "2025-06-02T14:00:00Z",
+            commitOid: "commit-a",
             prNumber: 2,
           }),
           makeReview({
@@ -506,6 +508,7 @@ describe("humanReviewBurden", () => {
             author: "alice",
             state: "APPROVED",
             createdAt: "2025-06-03T10:00:00Z",
+            commitOid: "commit-b",
             prNumber: 2,
           }),
         ],
@@ -541,7 +544,7 @@ describe("humanReviewBurden", () => {
     expect(burden.aiAssisted.prCount).toBe(1);
     expect(burden.aiAssisted.humanReviewsPerPR.median).toBe(2);
     expect(burden.aiAssisted.changeRequestRate.mean).toBe(0.5);
-    // Bob reviewed twice → 2 rounds
+    // Two distinct reviewed revisions → 2 rounds
     expect(burden.aiAssisted.reviewRounds.median).toBe(2);
 
     // Human-only: 1 PR, 1 review
@@ -577,6 +580,118 @@ describe("humanReviewBurden", () => {
     const burden = analyzeAIPatterns(prs).humanReviewBurden;
     // 2 out of 3 unreviewed
     expect(burden.humanOnly.unreviewedRate).toBeCloseTo(2 / 3);
+  });
+
+  it("counts distinct reviewed revisions, not reviewer submission totals", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        reviews: [
+          makeReview({
+            reviewer: "bob",
+            author: "alice",
+            createdAt: "2025-06-01T11:00:00Z",
+            commitOid: "commit-a",
+            prNumber: 1,
+          }),
+          makeReview({
+            reviewer: "carol",
+            author: "alice",
+            createdAt: "2025-06-01T12:00:00Z",
+            commitOid: "commit-a",
+            prNumber: 1,
+          }),
+          makeReview({
+            reviewer: "bob",
+            author: "alice",
+            createdAt: "2025-06-01T13:00:00Z",
+            commitOid: "commit-b",
+            prNumber: 1,
+          }),
+          makeReview({
+            reviewer: "carol",
+            author: "alice",
+            createdAt: "2025-06-01T14:00:00Z",
+            commitOid: "commit-b",
+            prNumber: 1,
+          }),
+          makeReview({
+            reviewer: "bob",
+            author: "alice",
+            createdAt: "2025-06-01T15:00:00Z",
+            commitOid: "commit-c",
+            prNumber: 1,
+          }),
+        ],
+      }),
+    ];
+
+    const burden = analyzeAIPatterns(prs).humanReviewBurden;
+
+    expect(burden.humanOnly.humanReviewsPerPR.median).toBe(5);
+    expect(burden.humanOnly.reviewRounds.median).toBe(3);
+  });
+
+  it("returns null reviewRounds when qualifying reviews lack commit SHAs", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        reviews: [
+          makeReview({
+            reviewer: "bob",
+            author: "alice",
+            createdAt: "2025-06-01T11:00:00Z",
+            commitOid: null,
+            prNumber: 1,
+          }),
+          makeReview({
+            reviewer: "carol",
+            author: "alice",
+            createdAt: "2025-06-01T12:00:00Z",
+            commitOid: "commit-b",
+            prNumber: 1,
+          }),
+        ],
+      }),
+    ];
+
+    const burden = analyzeAIPatterns(prs).humanReviewBurden;
+
+    expect(burden.humanOnly.unreviewedRate).toBe(0);
+    expect(burden.humanOnly.reviewRounds.median).toBeNull();
+  });
+
+  it("returns null reviewRounds when the review fetch limit is hit", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        reviewLimitReached: true,
+        reviews: [
+          makeReview({
+            reviewer: "bob",
+            author: "alice",
+            createdAt: "2025-06-01T11:00:00Z",
+            commitOid: "commit-a",
+            prNumber: 1,
+          }),
+          makeReview({
+            reviewer: "carol",
+            author: "alice",
+            createdAt: "2025-06-01T12:00:00Z",
+            commitOid: "commit-b",
+            prNumber: 1,
+          }),
+        ],
+      }),
+    ];
+
+    const burden = analyzeAIPatterns(prs).humanReviewBurden;
+
+    expect(burden.humanOnly.unreviewedRate).toBe(0);
+    expect(burden.humanOnly.reviewRounds.median).toBeNull();
   });
 
   it("excludes bot reviews, PENDING, and self-reviews from burden", () => {

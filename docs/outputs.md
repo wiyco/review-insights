@@ -36,7 +36,7 @@ The same partial-data state is surfaced in the job summary, PR comment, and HTML
 
 ## Review fetch truncation warning
 
-Each PR fetch requests at most 100 nested reviews. When a post-filtering PR reaches that per-PR fetch limit, its review list may be truncated even if the overall PR dataset is otherwise complete.
+Each PR fetch requests the first 100 nested reviews plus `reviews.pageInfo.hasNextPage`. A post-filtering PR is warned as truncated only when GitHub reports additional review pages beyond that first page.
 
 The same review-fetch-limit warning is surfaced in the job summary, PR comment, and HTML artifact. When `include-bots` is `false`, bot-authored PRs are excluded from that warning consistently with the rest of the filtered outputs.
 

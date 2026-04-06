@@ -724,6 +724,7 @@ describe("postPRComment", () => {
             author: "alice",
             state: "APPROVED",
             createdAt: "2025-06-02T12:00:00Z",
+            commitOid: "commit-42",
             prNumber: 42,
           },
         ],
