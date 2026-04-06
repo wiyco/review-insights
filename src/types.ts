@@ -25,6 +25,8 @@ export interface ReviewRecord {
   author: string;
   state: ReviewState;
   createdAt: string;
+  /** Commit SHA associated with the submitted review, if GitHub provides one. */
+  commitOid: string | null;
   prNumber: number;
 }
 
@@ -131,6 +133,7 @@ export interface HumanReviewBurdenGroup {
     median: number | null;
     mean: number | null;
   };
+  /** Number of distinct reviewed revisions per PR. */
   reviewRounds: DistributionStats;
 }
 

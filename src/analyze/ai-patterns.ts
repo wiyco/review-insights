@@ -77,6 +77,35 @@ function getQualifyingHumanReviews(pr: PullRequestRecord): ReviewRecord[] {
   );
 }
 
+function getObservedHumanReviews(
+  pr: PullRequestRecord,
+  humanReviews: ReviewRecord[],
+): ReviewRecord[] {
+  const prCreatedMs = new Date(pr.createdAt).getTime();
+  return humanReviews.filter(
+    (review) => new Date(review.createdAt).getTime() >= prCreatedMs,
+  );
+}
+
+function computeReviewRoundCount(
+  pr: PullRequestRecord,
+  observedHumanReviews: ReviewRecord[],
+): number | null {
+  if (observedHumanReviews.length === 0 || pr.reviewLimitReached) {
+    return null;
+  }
+
+  const reviewedRevisionOids = new Set<string>();
+  for (const review of observedHumanReviews) {
+    if (review.commitOid == null) {
+      return null;
+    }
+    reviewedRevisionOids.add(review.commitOid);
+  }
+
+  return reviewedRevisionOids.size;
+}
+
 /**
  * Returns the PRs that are eligible for AI-vs-human burden comparison.
  * Traditional bot-authored PRs are excluded because they do not represent
@@ -129,8 +158,8 @@ function computeBurdenGroup(prs: PullRequestRecord[]): HumanReviewBurdenGroup {
   const latencies: number[] = [];
   // Per-PR change request rates (only for PRs with qualifying reviews)
   const crRates: number[] = [];
-  // Per-PR max review rounds (only for PRs with qualifying reviews)
-  const rounds: number[] = [];
+  // Per-PR distinct reviewed revisions among qualifying post-creation reviews
+  const reviewRoundCounts: number[] = [];
 
   let reviewedCount = 0;
 
@@ -144,17 +173,9 @@ function computeBurdenGroup(prs: PullRequestRecord[]): HumanReviewBurdenGroup {
     // A PR is considered "reviewed" for unreviewedRate only when at least
     // one review has createdAt >= pr.createdAt (matching the spec's P_g).
     const prCreated = new Date(pr.createdAt).getTime();
-    let earliest: number | null = null;
-    for (const r of humanReviews) {
-      const reviewTime = new Date(r.createdAt).getTime();
-      if (reviewTime >= prCreated) {
-        if (earliest === null || reviewTime < earliest) {
-          earliest = reviewTime;
-        }
-      }
-    }
+    const observedHumanReviews = getObservedHumanReviews(pr, humanReviews);
 
-    if (earliest === null) {
+    if (observedHumanReviews.length === 0) {
       // All human reviews are timestamped before PR creation.
       // This PR has qualifying reviews but none with valid timestamps,
       // so it is NOT counted as "reviewed" — it contributes no latency,
@@ -163,7 +184,12 @@ function computeBurdenGroup(prs: PullRequestRecord[]): HumanReviewBurdenGroup {
     }
 
     reviewedCount++;
-    latencies.push(earliest - prCreated);
+    const earliestObservedReviewMs = Math.min(
+      ...observedHumanReviews.map((review) =>
+        new Date(review.createdAt).getTime(),
+      ),
+    );
+    latencies.push(earliestObservedReviewMs - prCreated);
 
     // Change request rate (macro: per-PR)
     const crCount = humanReviews.filter(
@@ -171,16 +197,10 @@ function computeBurdenGroup(prs: PullRequestRecord[]): HumanReviewBurdenGroup {
     ).length;
     crRates.push(crCount / humanReviews.length);
 
-    // Review rounds: max submissions by a single reviewer on this PR
-    const reviewerCounts = new Map<string, number>();
-    for (const r of humanReviews) {
-      reviewerCounts.set(r.reviewer, (reviewerCounts.get(r.reviewer) ?? 0) + 1);
+    const reviewRoundCount = computeReviewRoundCount(pr, observedHumanReviews);
+    if (reviewRoundCount != null) {
+      reviewRoundCounts.push(reviewRoundCount);
     }
-    let maxRounds = 0;
-    for (const count of reviewerCounts.values()) {
-      if (count > maxRounds) maxRounds = count;
-    }
-    rounds.push(maxRounds);
   }
 
   const unreviewedRate = (prCount - reviewedCount) / prCount;
@@ -205,7 +225,7 @@ function computeBurdenGroup(prs: PullRequestRecord[]): HumanReviewBurdenGroup {
             median: null,
             mean: null,
           },
-    reviewRounds: distributionStats(rounds),
+    reviewRounds: distributionStats(reviewRoundCounts),
   };
 }
 

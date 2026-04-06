@@ -6,7 +6,7 @@ export const MAX_REVIEW_REQUESTS_PER_PR = 50;
 
 /**
  * GraphQL query to fetch pull requests with reviews, review requests,
- * and commit messages for a repository.
+ * and commit metadata for a repository.
  *
  * All values are passed via GraphQL variables — NEVER interpolated
  * into the query string.
@@ -58,6 +58,9 @@ export const PULL_REQUESTS_QUERY = `
               }
               state
               createdAt
+              commit {
+                oid
+              }
             }
           }
           reviewRequests(first: $maxReviewRequests) {
@@ -124,6 +127,9 @@ export interface RawReview {
   author: RawAuthor | null;
   state: string;
   createdAt: string;
+  commit?: {
+    oid: string;
+  } | null;
 }
 
 /**

@@ -174,6 +174,7 @@ export function normalizeReview(
     author: prAuthor,
     state,
     createdAt: rawReview.createdAt,
+    commitOid: rawReview.commit?.oid ?? null,
     prNumber,
   };
 }
