@@ -24,6 +24,7 @@ function makeReview(overrides?: Partial<ReviewRecord>): ReviewRecord {
     author: "author-a",
     state: "APPROVED",
     createdAt: "2025-06-02T12:00:00Z",
+    commitOid: "commit-1",
     prNumber: 1,
     ...overrides,
   };

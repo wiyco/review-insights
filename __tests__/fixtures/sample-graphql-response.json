@@ -33,7 +33,10 @@
                   "__typename": "User"
                 },
                 "state": "APPROVED",
-                "createdAt": "2025-06-02T09:00:00Z"
+                "createdAt": "2025-06-02T09:00:00Z",
+                "commit": {
+                  "oid": "commit-101-a"
+                }
               },
               {
                 "author": {
@@ -41,7 +44,10 @@
                   "__typename": "User"
                 },
                 "state": "CHANGES_REQUESTED",
-                "createdAt": "2025-06-01T15:00:00Z"
+                "createdAt": "2025-06-01T15:00:00Z",
+                "commit": {
+                  "oid": "commit-101-a"
+                }
               },
               {
                 "author": {
@@ -49,7 +55,10 @@
                   "__typename": "User"
                 },
                 "state": "APPROVED",
-                "createdAt": "2025-06-02T16:00:00Z"
+                "createdAt": "2025-06-02T16:00:00Z",
+                "commit": {
+                  "oid": "commit-101-b"
+                }
               }
             ]
           },
@@ -99,7 +108,10 @@
                   "__typename": "User"
                 },
                 "state": "APPROVED",
-                "createdAt": "2025-06-04T12:00:00Z"
+                "createdAt": "2025-06-04T12:00:00Z",
+                "commit": {
+                  "oid": "commit-102-a"
+                }
               },
               {
                 "author": {
@@ -107,7 +119,10 @@
                   "__typename": "Bot"
                 },
                 "state": "COMMENTED",
-                "createdAt": "2025-06-04T08:30:00Z"
+                "createdAt": "2025-06-04T08:30:00Z",
+                "commit": {
+                  "oid": "commit-102-a"
+                }
               }
             ]
           },
@@ -150,7 +165,10 @@
                   "__typename": "User"
                 },
                 "state": "CHANGES_REQUESTED",
-                "createdAt": "2025-06-06T14:00:00Z"
+                "createdAt": "2025-06-06T14:00:00Z",
+                "commit": {
+                  "oid": "commit-103-a"
+                }
               },
               {
                 "author": {
@@ -158,7 +176,10 @@
                   "__typename": "User"
                 },
                 "state": "COMMENTED",
-                "createdAt": "2025-06-06T15:00:00Z"
+                "createdAt": "2025-06-06T15:00:00Z",
+                "commit": {
+                  "oid": "commit-103-a"
+                }
               }
             ]
           },
@@ -195,7 +216,10 @@
                   "__typename": "User"
                 },
                 "state": "APPROVED",
-                "createdAt": "2025-06-07T16:00:00Z"
+                "createdAt": "2025-06-07T16:00:00Z",
+                "commit": {
+                  "oid": "commit-104-a"
+                }
               }
             ]
           },

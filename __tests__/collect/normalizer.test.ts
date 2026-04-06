@@ -31,6 +31,9 @@ function makeRawReview(overrides?: Partial<RawReview>): RawReview {
     },
     state: "APPROVED",
     createdAt: "2025-06-02T12:00:00Z",
+    commit: {
+      oid: "commit-1",
+    },
     ...overrides,
   };
 }
@@ -233,6 +236,7 @@ describe("normalizeReview", () => {
       author: "author-a",
       state: "APPROVED",
       createdAt: "2025-06-02T12:00:00Z",
+      commitOid: "commit-1",
       prNumber: 42,
     });
   });
@@ -247,6 +251,18 @@ describe("normalizeReview", () => {
     );
     expect(result.reviewer).toBe("ghost");
     expect(result.reviewerIsBot).toBe(false);
+    expect(result.commitOid).toBe("commit-1");
+  });
+
+  it("uses null when the review commit SHA is missing", () => {
+    const result = normalizeReview(
+      makeRawReview({
+        commit: null,
+      }),
+      1,
+      "author-a",
+    );
+    expect(result.commitOid).toBeNull();
   });
 
   it("detects bot reviewer", () => {
@@ -339,6 +355,7 @@ describe("normalizePullRequests", () => {
     expect(result[0].commitMessages).toEqual([
       "fix: something",
     ]);
+    expect(result[0].reviews[0].commitOid).toBe("commit-1");
   });
 
   it("uses 'ghost' when PR author is null", () => {
