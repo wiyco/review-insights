@@ -86,6 +86,8 @@ Let:
 - $A^+$ = authors with at least one qualifying received review submission
 - $S = \{(i, j) \in R \times A^+ \mid M_{ij} > 0\}$, the observed reviewer-author interaction support
 
+Explicit zero-valued matrix entries are treated as absent support and do not enter $R$, $A^+$, or $S$. Negative matrix entries are invalid because review-submission counts cannot be negative.
+
 The detector fits a quasi-independence model on $S$:
 
 $$E_{ij} = \alpha_i \beta_j \quad \text{for } (i, j) \in S$$
@@ -159,6 +161,7 @@ $$G = \frac{2 \sum_{i=1}^{n} i \cdot x_i}{n \sum_{i=1}^{n} x_i} - \frac{n+1}{n}$
 > - rows are reviewers with at least one qualifying review
 > - columns are authors with at least one qualifying received review
 > - only reviewer-author pairs with at least one observed qualifying review enter the fitted support
+> - explicit zero-valued cells are treated the same as absent pairs and do not enter the fitted support
 > - unobserved reviewer-author pairs are excluded because the dataset does not record whether they were genuine review opportunities
 >
 > Authors whose PRs received zero qualifying reviews do not enter this model because their column margin is zero and they cannot contribute to a positive flag.
