@@ -98,6 +98,15 @@ $$\sum_{i:(i,j)\in S} E_{ij} = \sum_{i:(i,j)\in S} M_{ij}$$
 
 The parameters $\alpha_i, \beta_j$ are solved by iterative proportional fitting (IPF). Self-reviews are removed before the review matrix is built, so they never enter $S$.
 
+Convergence is checked on the fitted row and column margins using the maximum relative margin error:
+
+$$\max \left(
+\max_i \frac{\left|\sum_{j:(i,j)\in S} E_{ij} - \sum_{j:(i,j)\in S} M_{ij}\right|}{\max\left(1,\sum_{j:(i,j)\in S} M_{ij}\right)},
+\max_j \frac{\left|\sum_{i:(i,j)\in S} E_{ij} - \sum_{i:(i,j)\in S} M_{ij}\right|}{\max\left(1,\sum_{i:(i,j)\in S} M_{ij}\right)}
+\right) < 10^{-8}$$
+
+with a hard cap of 10,000 IPF iterations.
+
 This means a high-volume reviewer paired with a high-volume author is compared against its activity-adjusted expected count $E_{ij}$ instead of against a global mean of populated cells. Unobserved reviewer-author pairs do not enter this model because the dataset does not record the full review-assignment opportunity graph.
 
 ### Pearson residual
@@ -116,6 +125,8 @@ The output for each flagged pair includes:
 - `count = M_{ij}`
 - `expectedCount = E_{ij}`
 - `pearsonResidual = r_{ij}`
+
+If the quasi-independence model cannot be fit numerically, no reviewer-author pair is flagged. In that case the reports surface bias warnings as unavailable rather than claiming that no pair exceeded the threshold. The review matrix and Gini coefficient are still reported because they do not depend on the fitted model.
 
 > [!NOTE]
 >

@@ -10,7 +10,7 @@ This document defines the outputs set by the review-insights GitHub Action via `
 | `total-prs-analyzed` | `number` | Number of PRs included in the analysis after filtering. When `include-bots` is `false`, bot-authored PRs are excluded from this count. |
 | `top-reviewers` | `string` | JSON array of logins in the argmax set of `reviewsGiven`, restricted to users with `reviewsGiven > 0` and sorted in ascending code-unit order for deterministic serialization. Returns `[]` if no active reviewers exist. |
 | `max-reviews-given` | `string` | JSON number for the maximum `reviewsGiven` among active reviewers, or `null` if no active reviewers exist. |
-| `bias-detected` | `string` | `"true"` if at least one reviewer-author pair was flagged by bias detection, `"false"` otherwise. |
+| `bias-detected` | `string` | `"true"` if at least one reviewer-author pair was flagged by bias detection, `"false"` otherwise. A `"false"` value does not distinguish between "no flagged pair" and "bias warnings unavailable because the quasi-independence model could not be fit"; that state is surfaced in the workflow warning and rendered reports. |
 | `partial-data` | `string` | `"true"` when analysis used a capped or partial PR dataset because pagination hit `max-prs` or the fixed 10-minute collection budget, `"false"` otherwise. |
 
 ## Filtering consistency

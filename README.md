@@ -61,7 +61,7 @@ The date range selects PRs by `createdAt`. For those PRs, review activity and me
 | `total-prs-analyzed` | Number of PRs analyzed |
 | `top-reviewers` | JSON array of logins tied for the maximum `reviewsGiven` among users with `reviewsGiven > 0`; `[]` if no active reviewers exist |
 | `max-reviews-given` | JSON number for the maximum `reviewsGiven` among users with `reviewsGiven > 0`; `null` if no active reviewers exist |
-| `bias-detected` | Whether review imbalance was detected (`true`/`false`) |
+| `bias-detected` | Whether at least one reviewer-author pair was flagged (`true`/`false`). If the bias model is unavailable, reports surface that warning separately. |
 | `partial-data` | Whether analysis used a capped or partial PR dataset because pagination hit `max-prs` or the fixed collection budget (`true`/`false`) |
 
 For details on each output, see [docs/outputs.md](docs/outputs.md).
