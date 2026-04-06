@@ -2,7 +2,7 @@ import { UNKNOWN_USER } from "../collect/normalizer";
 import type { BiasResult, PullRequestRecord, ReviewMatrix } from "../types";
 
 const IPF_MAX_ITERATIONS = 10_000;
-const IPF_TOLERANCE = 1e-10;
+const IPF_RELATIVE_TOLERANCE = 1e-8;
 
 /**
  * Computes the Gini coefficient (0 = equal, 1 = maximally unequal).
@@ -52,6 +52,10 @@ function countStructurallyExcludedDiagonalCells(
   }
 
   return excludedDiagonals;
+}
+
+function getRelativeMarginDiff(fitted: number, observed: number): number {
+  return Math.abs(fitted - observed) / Math.max(1, Math.abs(observed));
 }
 
 export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
@@ -167,7 +171,7 @@ export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
       authorFactors[authorPosition] *= columnTotal / fittedColumnTotal;
     }
 
-    let maxDiff = 0;
+    let maxRelativeDiff = 0;
 
     for (
       let reviewerPosition = 0;
@@ -178,7 +182,10 @@ export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
       const fittedRowTotal =
         reviewerFactors[reviewerPosition] *
         getReviewerSupportMass(reviewerPosition);
-      maxDiff = Math.max(maxDiff, Math.abs(fittedRowTotal - rowTotal));
+      maxRelativeDiff = Math.max(
+        maxRelativeDiff,
+        getRelativeMarginDiff(fittedRowTotal, rowTotal),
+      );
     }
 
     for (
@@ -189,10 +196,13 @@ export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
       const { columnTotal } = authors[authorPosition];
       const fittedColumnTotal =
         authorFactors[authorPosition] * getAuthorSupportMass(authorPosition);
-      maxDiff = Math.max(maxDiff, Math.abs(fittedColumnTotal - columnTotal));
+      maxRelativeDiff = Math.max(
+        maxRelativeDiff,
+        getRelativeMarginDiff(fittedColumnTotal, columnTotal),
+      );
     }
 
-    if (maxDiff < IPF_TOLERANCE) {
+    if (maxRelativeDiff < IPF_RELATIVE_TOLERANCE) {
       return {
         expectedCount(reviewer: string, author: string): number {
           const reviewerPosition = reviewerIndex.get(reviewer);
@@ -219,6 +229,10 @@ export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
 /**
  * Detects reviewer-author concentration by comparing observed counts against a
  * quasi-independence model that conditions on reviewer and author activity.
+ *
+ * When the model cannot be fit numerically, the function returns an
+ * unavailable bias result (no flagged pairs plus a modelFitError) instead of
+ * throwing, so downstream reports can still render descriptive statistics.
  */
 export function detectBias(
   pullRequests: PullRequestRecord[],
@@ -269,29 +283,9 @@ export function detectBias(
       matrix,
       flaggedPairs: [],
       giniCoefficient: 0,
+      modelFitError: null,
     };
   }
-
-  const { expectedCount } = fitQuasiIndependenceModel(matrix);
-
-  const flaggedPairs: BiasResult["flaggedPairs"] = [];
-  for (const [reviewer, row] of matrix) {
-    for (const [author, count] of row) {
-      const fittedCount = expectedCount(reviewer, author);
-      const pearsonResidual = (count - fittedCount) / Math.sqrt(fittedCount);
-      if (count > fittedCount && pearsonResidual > threshold) {
-        flaggedPairs.push({
-          reviewer,
-          author,
-          count,
-          expectedCount: fittedCount,
-          pearsonResidual,
-        });
-      }
-    }
-  }
-
-  flaggedPairs.sort((a, b) => b.pearsonResidual - a.pearsonResidual);
 
   // Build the full matrix dimensions for Gini coefficient.
   // Reviewers: users with >=1 qualifying review (from the matrix).
@@ -314,9 +308,40 @@ export function detectBias(
 
   const giniCoefficient = computeGiniCoefficient(allValues, totalCells);
 
-  return {
-    matrix,
-    flaggedPairs,
-    giniCoefficient,
-  };
+  try {
+    const { expectedCount } = fitQuasiIndependenceModel(matrix);
+
+    const flaggedPairs: BiasResult["flaggedPairs"] = [];
+    for (const [reviewer, row] of matrix) {
+      for (const [author, count] of row) {
+        const fittedCount = expectedCount(reviewer, author);
+        const pearsonResidual = (count - fittedCount) / Math.sqrt(fittedCount);
+        if (count > fittedCount && pearsonResidual > threshold) {
+          flaggedPairs.push({
+            reviewer,
+            author,
+            count,
+            expectedCount: fittedCount,
+            pearsonResidual,
+          });
+        }
+      }
+    }
+
+    flaggedPairs.sort((a, b) => b.pearsonResidual - a.pearsonResidual);
+
+    return {
+      matrix,
+      flaggedPairs,
+      giniCoefficient,
+      modelFitError: null,
+    };
+  } catch (err: unknown) {
+    return {
+      matrix,
+      flaggedPairs: [],
+      giniCoefficient,
+      modelFitError: err instanceof Error ? err.message : String(err),
+    };
+  }
 }

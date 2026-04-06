@@ -120,6 +120,13 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
     0,
     aiPatterns.totalPRs - burdenPRTotal,
   );
+  const biasModelFitError = bias.modelFitError;
+  const biasWarningUnavailable = biasModelFitError != null;
+  const biasUnavailableNotice =
+    biasModelFitError == null
+      ? ""
+      : `<p class="warn">Bias warnings unavailable: ${escapeHtml(biasModelFitError)}</p>
+           <p class="note">The review matrix and Gini coefficient are still reported because they do not depend on a successful quasi-independence fit.</p>`;
 
   // Bias warnings
   const biasWarnings = bias.flaggedPairs
@@ -301,10 +308,12 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
   <div class="card">
     <h2>Bias Warnings</h2>
     ${
-      bias.flaggedPairs.length > 0
-        ? `<p class="note">Pairs whose observed review frequency materially exceeds the activity-adjusted expectation:</p>
+      biasWarningUnavailable
+        ? biasUnavailableNotice
+        : bias.flaggedPairs.length > 0
+          ? `<p class="note">Pairs whose observed review frequency materially exceeds the activity-adjusted expectation:</p>
            <table style="margin-top:12px"><thead><tr><th>Reviewer</th><th>Author</th><th>Count</th><th>Expected</th><th>Residual</th></tr></thead><tbody>${biasWarnings}</tbody></table>`
-        : '<p class="note">No reviewer-author pair exceeds the configured activity-adjusted bias threshold.</p>'
+          : '<p class="note">No reviewer-author pair exceeds the configured activity-adjusted bias threshold.</p>'
     }
     <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 8px;">
       ${biasExplanation}
