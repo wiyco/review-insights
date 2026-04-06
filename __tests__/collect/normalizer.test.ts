@@ -58,6 +58,9 @@ function makeRawNode(
       login: "merger",
     },
     reviews: {
+      pageInfo: {
+        hasNextPage: false,
+      },
       nodes: [
         makeRawReview(),
       ],
@@ -391,7 +394,7 @@ describe("normalizePullRequests", () => {
     expect(result[0].mergedBy).toBeNull();
   });
 
-  it("warns when reviews reach MAX_REVIEWS_PER_PR", () => {
+  it("warns when the review connection has an additional page", () => {
     const reviews = Array.from(
       {
         length: MAX_REVIEWS_PER_PR,
@@ -402,6 +405,9 @@ describe("normalizePullRequests", () => {
       makeRawNode({
         number: 42,
         reviews: {
+          pageInfo: {
+            hasNextPage: true,
+          },
           nodes: reviews,
         },
       }),
@@ -413,6 +419,27 @@ describe("normalizePullRequests", () => {
     expect(logger.warning).toHaveBeenCalledWith(
       expect.stringContaining("truncated"),
     );
+  });
+
+  it("does not warn when exactly MAX_REVIEWS_PER_PR reviews fit on one page", () => {
+    const reviews = Array.from(
+      {
+        length: MAX_REVIEWS_PER_PR,
+      },
+      () => makeRawReview(),
+    );
+    const result = normalizePullRequests([
+      makeRawNode({
+        reviews: {
+          pageInfo: {
+            hasNextPage: false,
+          },
+          nodes: reviews,
+        },
+      }),
+    ]);
+    expect(result[0].reviewLimitReached).toBe(false);
+    expect(logger.warning).not.toHaveBeenCalled();
   });
 
   it("does not warn when reviews are below threshold", () => {

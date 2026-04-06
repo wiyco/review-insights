@@ -26,6 +26,9 @@
             "login": "bob"
           },
           "reviews": {
+            "pageInfo": {
+              "hasNextPage": false
+            },
             "nodes": [
               {
                 "author": {
@@ -101,6 +104,9 @@
             "login": "alice"
           },
           "reviews": {
+            "pageInfo": {
+              "hasNextPage": false
+            },
             "nodes": [
               {
                 "author": {
@@ -158,6 +164,9 @@
           },
           "mergedBy": null,
           "reviews": {
+            "pageInfo": {
+              "hasNextPage": false
+            },
             "nodes": [
               {
                 "author": {
@@ -209,6 +218,9 @@
           },
           "mergedBy": null,
           "reviews": {
+            "pageInfo": {
+              "hasNextPage": false
+            },
             "nodes": [
               {
                 "author": {
@@ -251,6 +263,9 @@
             "login": "alice"
           },
           "reviews": {
+            "pageInfo": {
+              "hasNextPage": false
+            },
             "nodes": []
           },
           "reviewRequests": {
