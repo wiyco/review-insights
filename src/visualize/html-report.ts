@@ -97,7 +97,7 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
         <td>${escapeHtml(m.login)}</td>
         <td>${m.prsAuthored}</td>
         <td>${m.prsMerged}</td>
-        <td>${m.avgReviewsBeforeMerge.toFixed(1)}</td>
+        <td>${m.avgReviewsBeforeMerge != null ? m.avgReviewsBeforeMerge.toFixed(1) : "N/A"}</td>
         <td>${m.medianReviewsBeforeMerge != null ? m.medianReviewsBeforeMerge.toFixed(1) : "N/A"}</td>
         <td class="${m.zeroReviewMerges > 0 ? "warn" : ""}">${m.zeroReviewMerges}</td>
       </tr>`,

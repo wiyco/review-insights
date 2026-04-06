@@ -79,7 +79,7 @@ export interface MergeCorrelation {
   login: string;
   prsAuthored: number;
   prsMerged: number;
-  avgReviewsBeforeMerge: number;
+  avgReviewsBeforeMerge: number | null;
   medianReviewsBeforeMerge: number | null;
   zeroReviewMerges: number;
 }

@@ -147,6 +147,8 @@ $$\text{avgReviewsBeforeMerge}(u) = \frac{\sum_{pr \in M_u} |pr.\text{reviews}|}
 
 where $M_u$ is the set of PRs authored by $u$ that were merged on or before `until`, and reviews are filtered by the same bot/PENDING/self-review rules and must satisfy `review.createdAt <= pr.mergedAt`.
 
+If $|M_u| = 0$, this metric is undefined and is represented as `null` in machine-readable outputs and `N/A` in the HTML report.
+
 ### medianReviewsBeforeMerge
 
 The median of per-PR review counts across merged PRs for each author. Like `medianTimeToFirstReview`, this is more robust to outliers (e.g., a single PR with an unusually high number of review rounds) and better represents the typical merge experience.

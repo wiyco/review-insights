@@ -72,7 +72,9 @@ export function computeMergeCorrelations(
       prsAuthored: stats.prsAuthored,
       prsMerged: stats.prsMerged,
       avgReviewsBeforeMerge:
-        stats.prsMerged > 0 ? stats.totalReviewsOnMerged / stats.prsMerged : 0,
+        stats.prsMerged > 0
+          ? stats.totalReviewsOnMerged / stats.prsMerged
+          : null,
       medianReviewsBeforeMerge,
       zeroReviewMerges: stats.zeroReviewMerges,
     });

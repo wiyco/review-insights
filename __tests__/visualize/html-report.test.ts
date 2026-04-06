@@ -259,7 +259,7 @@ describe("generateHtmlReport", () => {
     expect(html).toMatch(/<td>1\.5<\/td>\s*<td>2\.0<\/td>/);
   });
 
-  it("renders N/A for null medianReviewsBeforeMerge", () => {
+  it("renders N/A for null avgReviewsBeforeMerge and medianReviewsBeforeMerge", () => {
     const html = generateHtmlReport(
       makeAnalysis({
         mergeCorrelations: [
@@ -267,7 +267,7 @@ describe("generateHtmlReport", () => {
             login: "author-a",
             prsAuthored: 1,
             prsMerged: 0,
-            avgReviewsBeforeMerge: 0,
+            avgReviewsBeforeMerge: null,
             medianReviewsBeforeMerge: null,
             zeroReviewMerges: 0,
           },
@@ -275,7 +275,7 @@ describe("generateHtmlReport", () => {
       }),
     );
     expect(html).toContain("<th>Median Reviews Before Merge</th>");
-    expect(html).toContain("<td>N/A</td>");
+    expect(html).toMatch(/<td>N\/A<\/td>\s*<td>N\/A<\/td>/);
   });
 
   it("shows 'no bias detected' when flaggedPairs is empty", () => {
