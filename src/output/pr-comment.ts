@@ -75,11 +75,11 @@ function buildCommentBody(analysis: AnalysisResult): string {
     .join("\n");
 
   const biasSection = biasDetected
-    ? `### Bias Warnings\n\n| Reviewer | Author | Count | Z-Score |\n|----------|--------|-------|---------|\n${bias.flaggedPairs
-        .sort((a, b) => b.zScore - a.zScore)
+    ? `### Bias Warnings\n\n| Reviewer | Author | Count | Expected | Residual |\n|----------|--------|-------|----------|----------|\n${bias.flaggedPairs
+        .sort((a, b) => b.pearsonResidual - a.pearsonResidual)
         .map(
           (fp) =>
-            `| ${escapeHtml(fp.reviewer)} | ${escapeHtml(fp.author)} | ${fp.count} | ${fp.zScore.toFixed(2)} |`,
+            `| ${escapeHtml(fp.reviewer)} | ${escapeHtml(fp.author)} | ${fp.count} | ${fp.expectedCount.toFixed(2)} | ${fp.pearsonResidual.toFixed(2)} |`,
         )
         .join("\n")}\n`
     : "";

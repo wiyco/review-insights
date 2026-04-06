@@ -94,7 +94,8 @@ export interface FlaggedPair {
   reviewer: string;
   author: string;
   count: number;
-  zScore: number;
+  expectedCount: number;
+  pearsonResidual: number;
 }
 
 /** Results of the bias detection analysis. */

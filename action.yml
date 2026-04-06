@@ -40,7 +40,7 @@ inputs:
     default: "summary,artifact"
 
   bias-threshold:
-    description: "Standard deviations above mean to flag review imbalance (default: 2.0)."
+    description: "Pearson residual threshold for activity-adjusted reviewer-author imbalance (default: 2.0)."
     required: false
     default: "2.0"
 
