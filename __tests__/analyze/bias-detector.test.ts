@@ -106,7 +106,7 @@ describe("detectBias", () => {
       }
     });
 
-    it("rejects reviewers whose observed support is empty", () => {
+    it("ignores reviewers whose rows contain no positive support", () => {
       const matrix: ReviewMatrix = new Map([
         [
           "bob",
@@ -123,12 +123,54 @@ describe("detectBias", () => {
         ],
       ]);
 
+      const { expectedCount } = fitQuasiIndependenceModel(matrix);
+
+      expect(expectedCount("bob", "alice")).toBe(0);
+      expect(expectedCount("carol", "alice")).toBeGreaterThan(0);
+    });
+
+    it("treats explicit zero cells as absent support", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map([
+            [
+              "alice",
+              0,
+            ],
+            [
+              "dave",
+              2,
+            ],
+          ]),
+        ],
+      ]);
+
+      const { expectedCount } = fitQuasiIndependenceModel(matrix);
+
+      expect(expectedCount("bob", "alice")).toBe(0);
+      expect(expectedCount("bob", "dave")).toBeGreaterThan(0);
+    });
+
+    it("rejects negative review counts", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map([
+            [
+              "alice",
+              -1,
+            ],
+          ]),
+        ],
+      ]);
+
       expect(() => fitQuasiIndependenceModel(matrix)).toThrow(
-        'Bias model support is empty for reviewer "bob".',
+        'Review matrix contains a negative count for reviewer "bob" and author "alice": -1',
       );
     });
 
-    it("rejects authors whose support collapses to zero mass", () => {
+    it("rejects matrices without any positive reviewer-author counts", () => {
       const matrix: ReviewMatrix = new Map([
         [
           "bob",
@@ -142,7 +184,7 @@ describe("detectBias", () => {
       ]);
 
       expect(() => fitQuasiIndependenceModel(matrix)).toThrow(
-        'Bias model support is empty for author "alice".',
+        "Bias model requires at least one positive reviewer-author count.",
       );
     });
   });
