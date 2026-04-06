@@ -92,6 +92,7 @@ function makeAnalysis(overrides?: Partial<AnalysisResult>): AnalysisResult {
       matrix: new Map(),
       flaggedPairs: [],
       giniCoefficient: 0.25,
+      modelFitError: null,
     },
     aiPatterns: {
       botReviewers: [],
@@ -286,6 +287,27 @@ describe("generateHtmlReport", () => {
     );
   });
 
+  it("shows when bias warnings are unavailable because model fitting failed", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        bias: {
+          matrix: new Map(),
+          flaggedPairs: [],
+          giniCoefficient: 0.25,
+          modelFitError:
+            "Bias model did not converge within 10000 IPF iterations.",
+        },
+      }),
+    );
+    expect(html).toContain("Bias warnings unavailable");
+    expect(html).toContain(
+      "Bias model did not converge within 10000 IPF iterations.",
+    );
+    expect(html).not.toContain(
+      "No reviewer-author pair exceeds the configured activity-adjusted bias threshold.",
+    );
+  });
+
   it("renders bias warnings when flaggedPairs exist", () => {
     const html = generateHtmlReport(
       makeAnalysis({
@@ -301,6 +323,7 @@ describe("generateHtmlReport", () => {
             },
           ],
           giniCoefficient: 0.4,
+          modelFitError: null,
         },
       }),
     );
@@ -483,6 +506,7 @@ describe("generateHtmlReport", () => {
               },
             ],
             giniCoefficient: 0.5,
+            modelFitError: null,
           },
         }),
       );
@@ -610,6 +634,7 @@ describe("generateHtmlReport", () => {
             },
           ],
           giniCoefficient: 0.5,
+          modelFitError: null,
         },
       }),
     );
@@ -669,6 +694,7 @@ describe("generateHtmlReport", () => {
             matrix: new Map(),
             flaggedPairs: [],
             giniCoefficient: 0,
+            modelFitError: null,
           },
           aiPatterns: {
             botReviewers: [],

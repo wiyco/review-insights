@@ -61,6 +61,7 @@ function makeAnalysis(): AnalysisResult {
       matrix: new Map(),
       flaggedPairs: [],
       giniCoefficient: 0.3,
+      modelFitError: null,
     },
     aiPatterns: {
       botReviewers: [],
@@ -378,6 +379,7 @@ describe("writeJobSummary", () => {
         },
       ],
       giniCoefficient: 0.5,
+      modelFitError: null,
     };
 
     await writeJobSummary(analysis);
@@ -390,6 +392,38 @@ describe("writeJobSummary", () => {
         ]),
       ]),
     );
+  });
+
+  it("shows bias detection as unavailable when model fitting fails", async () => {
+    const analysis = makeAnalysis();
+    analysis.bias = {
+      matrix: new Map(),
+      flaggedPairs: [],
+      giniCoefficient: 0.5,
+      modelFitError: "Bias model did not converge within 10000 IPF iterations.",
+    };
+
+    await writeJobSummary(analysis);
+
+    expect(core.summary.addTable).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.arrayContaining([
+          "Bias detected",
+          "Unavailable",
+        ]),
+      ]),
+    );
+
+    const addedContent = (
+      core.summary as unknown as {
+        _addedContent: string[];
+      }
+    )._addedContent;
+    expect(
+      addedContent.some((content) =>
+        content.includes("Bias warnings are unavailable"),
+      ),
+    ).toBe(true);
   });
 
   it("surfaces partial-data state in the summary", async () => {

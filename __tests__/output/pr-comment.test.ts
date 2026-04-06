@@ -126,6 +126,7 @@ function makeAnalysis(): AnalysisResult {
       matrix: new Map(),
       flaggedPairs: [],
       giniCoefficient: 0.3,
+      modelFitError: null,
     },
     aiPatterns: {
       botReviewers: [],
@@ -766,6 +767,7 @@ describe("postPRComment", () => {
         },
       ],
       giniCoefficient: 0.5,
+      modelFitError: null,
     };
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
@@ -791,6 +793,7 @@ describe("postPRComment", () => {
         },
       ],
       giniCoefficient: 0.5,
+      modelFitError: null,
     };
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
@@ -800,6 +803,26 @@ describe("postPRComment", () => {
     expect(body).toContain("alice");
     expect(body).toContain("4.29");
     expect(body).toContain("3.50");
+  });
+
+  it("comment body marks bias detection as unavailable when model fitting fails", async () => {
+    const { mock, octokit } = makeOctokit([]);
+    const analysis = makeAnalysis();
+    analysis.bias = {
+      matrix: new Map(),
+      flaggedPairs: [],
+      giniCoefficient: 0.5,
+      modelFitError: "Bias model did not converge within 10000 IPF iterations.",
+    };
+
+    await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
+
+    const body = mock.createComment.mock.calls[0][0].body as string;
+    expect(body).toContain("| Bias detected | Unavailable |");
+    expect(body).toContain("Bias warnings are unavailable");
+    expect(body).toContain(
+      "Bias model did not converge within 10000 IPF iterations.",
+    );
   });
 
   it("comment body surfaces partial-data state", async () => {

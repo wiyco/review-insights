@@ -230,6 +230,62 @@ describe("detectBias", () => {
       // bob reviewing alice should appear
       expect(result.matrix.get("bob")?.get("alice")).toBe(1);
     });
+
+    it("returns an unavailable bias result instead of throwing when model fitting fails", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              prNumber: 1,
+            }),
+          ],
+        }),
+      ];
+      const absSpy = vi.spyOn(Math, "abs").mockReturnValue(1);
+
+      try {
+        const result = detectBias(prs, 2.0, false);
+        expect(result.flaggedPairs).toEqual([]);
+        expect(result.giniCoefficient).toBe(0);
+        expect(result.modelFitError).toBe(
+          "Bias model did not converge within 10000 IPF iterations.",
+        );
+      } finally {
+        absSpy.mockRestore();
+      }
+    });
+
+    it("stringifies non-Error failures while preserving descriptive outputs", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              prNumber: 1,
+            }),
+          ],
+        }),
+      ];
+      const sqrtSpy = vi.spyOn(Math, "sqrt").mockImplementation(() => {
+        throw "sqrt failed";
+      });
+
+      try {
+        const result = detectBias(prs, 2.0, false);
+        expect(result.flaggedPairs).toEqual([]);
+        expect(result.giniCoefficient).toBe(0);
+        expect(result.modelFitError).toBe("sqrt failed");
+      } finally {
+        sqrtSpy.mockRestore();
+      }
+    });
   });
 
   describe("flagged pairs detection", () => {
@@ -507,6 +563,7 @@ describe("detectBias", () => {
       expect(result.giniCoefficient).toBe(0);
       expect(result.matrix.size).toBe(0);
       expect(result.flaggedPairs).toEqual([]);
+      expect(result.modelFitError).toBeNull();
     });
 
     it("includes structural zeros in Gini calculation", () => {

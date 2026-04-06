@@ -186,6 +186,7 @@ describe("main", () => {
       matrix: new Map(),
       flaggedPairs: [],
       giniCoefficient: 0.2,
+      modelFitError: null,
     });
     analyzeAIPatterns.mockReturnValue({
       botReviewers: [],
@@ -234,6 +235,7 @@ describe("main", () => {
         },
       ],
       giniCoefficient: 0.2,
+      modelFitError: null,
     });
 
     await importMain();
