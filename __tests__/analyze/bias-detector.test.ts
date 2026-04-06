@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
-import { detectBias } from "../../src/analyze/bias-detector";
-import type { PullRequestRecord, ReviewRecord } from "../../src/types";
+import { describe, expect, it, vi } from "vitest";
+import {
+  detectBias,
+  fitQuasiIndependenceModel,
+} from "../../src/analyze/bias-detector";
+import type {
+  PullRequestRecord,
+  ReviewMatrix,
+  ReviewRecord,
+} from "../../src/types";
 
 function makeReview(
   overrides: Partial<ReviewRecord> & {
@@ -44,6 +51,144 @@ function makePR(
 }
 
 describe("detectBias", () => {
+  describe("fitQuasiIndependenceModel", () => {
+    it("returns 0 for reviewers or authors outside the observed support", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map([
+            [
+              "alice",
+              3,
+            ],
+          ]),
+        ],
+        [
+          "carol",
+          new Map([
+            [
+              "dave",
+              2,
+            ],
+          ]),
+        ],
+      ]);
+
+      const { expectedCount } = fitQuasiIndependenceModel(matrix);
+
+      expect(expectedCount("erin", "alice")).toBe(0);
+      expect(expectedCount("bob", "frank")).toBe(0);
+      expect(expectedCount("bob", "dave")).toBe(0);
+      expect(expectedCount("carol", "alice")).toBe(0);
+      expect(expectedCount("bob", "alice")).toBeGreaterThan(0);
+    });
+
+    it("throws when the model cannot converge within the IPF iteration limit", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map([
+            [
+              "alice",
+              3,
+            ],
+          ]),
+        ],
+      ]);
+      const absSpy = vi.spyOn(Math, "abs").mockReturnValue(1);
+
+      try {
+        expect(() => fitQuasiIndependenceModel(matrix)).toThrow(
+          "Bias model did not converge within 10000 IPF iterations.",
+        );
+      } finally {
+        absSpy.mockRestore();
+      }
+    });
+
+    it("ignores reviewers whose rows contain no positive support", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map(),
+        ],
+        [
+          "carol",
+          new Map([
+            [
+              "alice",
+              1,
+            ],
+          ]),
+        ],
+      ]);
+
+      const { expectedCount } = fitQuasiIndependenceModel(matrix);
+
+      expect(expectedCount("bob", "alice")).toBe(0);
+      expect(expectedCount("carol", "alice")).toBeGreaterThan(0);
+    });
+
+    it("treats explicit zero cells as absent support", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map([
+            [
+              "alice",
+              0,
+            ],
+            [
+              "dave",
+              2,
+            ],
+          ]),
+        ],
+      ]);
+
+      const { expectedCount } = fitQuasiIndependenceModel(matrix);
+
+      expect(expectedCount("bob", "alice")).toBe(0);
+      expect(expectedCount("bob", "dave")).toBeGreaterThan(0);
+    });
+
+    it("rejects negative review counts", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map([
+            [
+              "alice",
+              -1,
+            ],
+          ]),
+        ],
+      ]);
+
+      expect(() => fitQuasiIndependenceModel(matrix)).toThrow(
+        'Review matrix contains a negative count for reviewer "bob" and author "alice": -1',
+      );
+    });
+
+    it("rejects matrices without any positive reviewer-author counts", () => {
+      const matrix: ReviewMatrix = new Map([
+        [
+          "bob",
+          new Map([
+            [
+              "alice",
+              0,
+            ],
+          ]),
+        ],
+      ]);
+
+      expect(() => fitQuasiIndependenceModel(matrix)).toThrow(
+        "Bias model requires at least one positive reviewer-author count.",
+      );
+    });
+  });
+
   describe("matrix construction", () => {
     it("builds review matrix from PRs correctly", () => {
       const prs: PullRequestRecord[] = [
@@ -127,13 +272,225 @@ describe("detectBias", () => {
       // bob reviewing alice should appear
       expect(result.matrix.get("bob")?.get("alice")).toBe(1);
     });
+
+    it("returns an unavailable bias result instead of throwing when model fitting fails", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              prNumber: 1,
+            }),
+          ],
+        }),
+      ];
+      const absSpy = vi.spyOn(Math, "abs").mockReturnValue(1);
+
+      try {
+        const result = detectBias(prs, 2.0, false);
+        expect(result.flaggedPairs).toEqual([]);
+        expect(result.giniCoefficient).toBe(0);
+        expect(result.modelFitError).toBe(
+          "Bias model did not converge within 10000 IPF iterations.",
+        );
+      } finally {
+        absSpy.mockRestore();
+      }
+    });
+
+    it("stringifies non-Error failures while preserving descriptive outputs", () => {
+      const prs: PullRequestRecord[] = [
+        makePR({
+          number: 1,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "alice",
+              prNumber: 1,
+            }),
+          ],
+        }),
+      ];
+      const sqrtSpy = vi.spyOn(Math, "sqrt").mockImplementation(() => {
+        throw "sqrt failed";
+      });
+
+      try {
+        const result = detectBias(prs, 2.0, false);
+        expect(result.flaggedPairs).toEqual([]);
+        expect(result.giniCoefficient).toBe(0);
+        expect(result.modelFitError).toBe("sqrt failed");
+      } finally {
+        sqrtSpy.mockRestore();
+      }
+    });
   });
 
   describe("flagged pairs detection", () => {
-    it("flags pairs that exceed a low threshold", () => {
-      // Create a scenario where bob reviews alice disproportionately
+    it("flags pairs whose counts exceed the activity-adjusted expectation", () => {
       const prs: PullRequestRecord[] = [];
-      // bob reviews alice 10 times
+      for (let i = 1; i <= 9; i++) {
+        prs.push(
+          makePR({
+            number: i,
+            author: "alice",
+            reviews: [
+              makeReview({
+                reviewer: "bob",
+                author: "alice",
+                prNumber: i,
+              }),
+            ],
+          }),
+        );
+      }
+      prs.push(
+        makePR({
+          number: 10,
+          author: "dave",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "dave",
+              prNumber: 10,
+            }),
+          ],
+        }),
+      );
+      prs.push(
+        makePR({
+          number: 11,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "carol",
+              author: "alice",
+              prNumber: 11,
+            }),
+          ],
+        }),
+      );
+      for (let i = 12; i <= 20; i++) {
+        prs.push(
+          makePR({
+            number: i,
+            author: "dave",
+            reviews: [
+              makeReview({
+                reviewer: "carol",
+                author: "dave",
+                prNumber: i,
+              }),
+            ],
+          }),
+        );
+      }
+
+      const result = detectBias(prs, 1.5, false);
+
+      const bobAlice = result.flaggedPairs.find(
+        (pair) => pair.reviewer === "bob" && pair.author === "alice",
+      );
+      expect(bobAlice).toBeDefined();
+      expect(bobAlice?.count).toBe(9);
+      // This fixture is the symmetric 2x2 table [[9, 1], [1, 9]], so both row
+      // and column margins are exactly 10. For this specific support pattern,
+      // starting IPF from unit factors reaches the analytic quasi-independence
+      // solution after one sweep: every eligible cell has fitted count 5, and
+      // the bob->alice Pearson residual is therefore exactly 4 / sqrt(5).
+      // Keep the assertion tight to lock this special-case regression to the
+      // exact value; this is not a generic precision claim about arbitrary IPF
+      // fits or the global convergence tolerance.
+      expect(bobAlice?.expectedCount).toBeCloseTo(5, 10);
+      expect(bobAlice?.pearsonResidual).toBeCloseTo(4 / Math.sqrt(5), 10);
+    });
+
+    it("does not flag a high-volume pair when reviewer and author margins already explain it", () => {
+      const prs: PullRequestRecord[] = [];
+      let prNumber = 1;
+      const counts: Array<
+        [
+          reviewer: string,
+          author: string,
+          count: number,
+        ]
+      > = [
+        [
+          "bob",
+          "alice",
+          50,
+        ],
+        [
+          "bob",
+          "erin",
+          30,
+        ],
+        [
+          "bob",
+          "frank",
+          20,
+        ],
+        [
+          "carol",
+          "alice",
+          25,
+        ],
+        [
+          "carol",
+          "erin",
+          15,
+        ],
+        [
+          "carol",
+          "frank",
+          10,
+        ],
+        [
+          "dave",
+          "alice",
+          25,
+        ],
+        [
+          "dave",
+          "erin",
+          15,
+        ],
+        [
+          "dave",
+          "frank",
+          10,
+        ],
+      ];
+
+      for (const [reviewer, author, count] of counts) {
+        for (let i = 0; i < count; i++) {
+          prs.push(
+            makePR({
+              number: prNumber,
+              author,
+              reviews: [
+                makeReview({
+                  reviewer,
+                  author,
+                  prNumber,
+                }),
+              ],
+            }),
+          );
+          prNumber++;
+        }
+      }
+
+      const result = detectBias(prs, 0.5, false);
+      expect(result.flaggedPairs).toEqual([]);
+    });
+
+    it("respects the structural-zero self-review diagonal when fitting expected counts", () => {
+      const prs: PullRequestRecord[] = [];
       for (let i = 1; i <= 10; i++) {
         prs.push(
           makePR({
@@ -149,97 +506,23 @@ describe("detectBias", () => {
           }),
         );
       }
-      // carol reviews dave once
-      prs.push(
-        makePR({
-          number: 11,
-          author: "dave",
-          reviews: [
-            makeReview({
-              reviewer: "carol",
-              author: "dave",
-              prNumber: 11,
-            }),
-          ],
-        }),
-      );
-      // alice reviews carol once
-      prs.push(
-        makePR({
-          number: 12,
-          author: "carol",
-          reviews: [
-            makeReview({
-              reviewer: "alice",
-              author: "carol",
-              prNumber: 12,
-            }),
-          ],
-        }),
-      );
+      for (let i = 11; i <= 20; i++) {
+        prs.push(
+          makePR({
+            number: i,
+            author: "bob",
+            reviews: [
+              makeReview({
+                reviewer: "alice",
+                author: "bob",
+                prNumber: i,
+              }),
+            ],
+          }),
+        );
+      }
 
       const result = detectBias(prs, 0.5, false);
-
-      expect(result.flaggedPairs.length).toBeGreaterThan(0);
-
-      const bobAlice = result.flaggedPairs.find(
-        (p) => p.reviewer === "bob" && p.author === "alice",
-      );
-      expect(bobAlice).toBeDefined();
-      expect(bobAlice?.count).toBe(10);
-      expect(bobAlice?.zScore).toBeGreaterThan(0);
-    });
-
-    it("produces no false positives with a high threshold", () => {
-      // Evenly distributed reviews
-      const prs: PullRequestRecord[] = [
-        makePR({
-          number: 1,
-          author: "alice",
-          reviews: [
-            makeReview({
-              reviewer: "bob",
-              author: "alice",
-              prNumber: 1,
-            }),
-          ],
-        }),
-        makePR({
-          number: 2,
-          author: "bob",
-          reviews: [
-            makeReview({
-              reviewer: "alice",
-              author: "bob",
-              prNumber: 2,
-            }),
-          ],
-        }),
-        makePR({
-          number: 3,
-          author: "carol",
-          reviews: [
-            makeReview({
-              reviewer: "alice",
-              author: "carol",
-              prNumber: 3,
-            }),
-          ],
-        }),
-        makePR({
-          number: 4,
-          author: "alice",
-          reviews: [
-            makeReview({
-              reviewer: "carol",
-              author: "alice",
-              prNumber: 4,
-            }),
-          ],
-        }),
-      ];
-
-      const result = detectBias(prs, 10.0, false);
       expect(result.flaggedPairs).toEqual([]);
     });
   });
@@ -330,6 +613,7 @@ describe("detectBias", () => {
       expect(result.giniCoefficient).toBe(0);
       expect(result.matrix.size).toBe(0);
       expect(result.flaggedPairs).toEqual([]);
+      expect(result.modelFitError).toBeNull();
     });
 
     it("includes structural zeros in Gini calculation", () => {
@@ -543,14 +827,9 @@ describe("detectBias", () => {
   });
 
   describe("threshold boundary", () => {
-    it("does not flag a pair exactly at the threshold boundary", () => {
-      // 3 pairs with counts [3, 1, 1]. mean=5/3, stddev=sqrt(8/9)
-      // z-score of 3: (3 - 5/3) / sqrt(8/9) = (4/3) / (2sqrt(2)/3) = 4/(2sqrt(2)) = sqrt(2) ≈ 1.4142
-      // With threshold=sqrt(2), count must be > mean + threshold*stddev to flag
-      // mean + sqrt(2)*stddev = 5/3 + sqrt(2)*2sqrt(2)/3 = 5/3 + 4/3 = 3
-      // count=3 is NOT > 3, so it should NOT be flagged
+    it("does not flag a pair just below the Pearson residual threshold", () => {
       const prs: PullRequestRecord[] = [];
-      for (let i = 1; i <= 3; i++) {
+      for (let i = 1; i <= 9; i++) {
         prs.push(
           makePR({
             number: i,
@@ -567,89 +846,125 @@ describe("detectBias", () => {
       }
       prs.push(
         makePR({
-          number: 4,
-          author: "bob",
+          number: 10,
+          author: "dave",
           reviews: [
             makeReview({
-              reviewer: "carol",
-              author: "bob",
-              prNumber: 4,
+              reviewer: "bob",
+              author: "dave",
+              prNumber: 10,
             }),
           ],
         }),
       );
       prs.push(
         makePR({
-          number: 5,
-          author: "carol",
+          number: 11,
+          author: "alice",
           reviews: [
             makeReview({
-              reviewer: "alice",
-              author: "carol",
-              prNumber: 5,
+              reviewer: "carol",
+              author: "alice",
+              prNumber: 11,
             }),
           ],
         }),
       );
-
-      const threshold = Math.SQRT2;
-      const result = detectBias(prs, threshold, false);
-      expect(result.flaggedPairs).toEqual([]);
-    });
-
-    it("flags a pair just above the threshold boundary", () => {
-      // Use a very low threshold so the same data gets flagged
-      const prs: PullRequestRecord[] = [];
-      for (let i = 1; i <= 3; i++) {
+      for (let i = 12; i <= 20; i++) {
         prs.push(
           makePR({
             number: i,
-            author: "alice",
+            author: "dave",
             reviews: [
               makeReview({
-                reviewer: "bob",
-                author: "alice",
+                reviewer: "carol",
+                author: "dave",
                 prNumber: i,
               }),
             ],
           }),
         );
       }
-      prs.push(
-        makePR({
-          number: 4,
-          author: "bob",
-          reviews: [
-            makeReview({
-              reviewer: "carol",
-              author: "bob",
-              prNumber: 4,
-            }),
-          ],
-        }),
-      );
-      prs.push(
-        makePR({
-          number: 5,
-          author: "carol",
-          reviews: [
-            makeReview({
-              reviewer: "alice",
-              author: "carol",
-              prNumber: 5,
-            }),
-          ],
-        }),
-      );
 
-      // With threshold just below the z-score of bob→alice, it should be flagged
-      const result = detectBias(prs, 1.0, false);
-      const bobAlice = result.flaggedPairs.find(
-        (p) => p.reviewer === "bob" && p.author === "alice",
+      const flaggedResult = detectBias(prs, 0.1, false);
+      const bobAlice = flaggedResult.flaggedPairs.find(
+        (pair) => pair.reviewer === "bob" && pair.author === "alice",
       );
       expect(bobAlice).toBeDefined();
-      expect(bobAlice?.count).toBe(3);
-      expect(bobAlice?.zScore).toBeGreaterThan(1.0);
+
+      const boundaryResult = detectBias(
+        prs,
+        (bobAlice?.pearsonResidual ?? 0) + 1e-6,
+        false,
+      );
+      expect(boundaryResult.flaggedPairs).toEqual([]);
+    });
+
+    it("flags a pair just above the Pearson residual threshold", () => {
+      const prs: PullRequestRecord[] = [];
+      for (let i = 1; i <= 9; i++) {
+        prs.push(
+          makePR({
+            number: i,
+            author: "alice",
+            reviews: [
+              makeReview({
+                reviewer: "bob",
+                author: "alice",
+                prNumber: i,
+              }),
+            ],
+          }),
+        );
+      }
+      prs.push(
+        makePR({
+          number: 10,
+          author: "dave",
+          reviews: [
+            makeReview({
+              reviewer: "bob",
+              author: "dave",
+              prNumber: 10,
+            }),
+          ],
+        }),
+      );
+      prs.push(
+        makePR({
+          number: 11,
+          author: "alice",
+          reviews: [
+            makeReview({
+              reviewer: "carol",
+              author: "alice",
+              prNumber: 11,
+            }),
+          ],
+        }),
+      );
+      for (let i = 12; i <= 20; i++) {
+        prs.push(
+          makePR({
+            number: i,
+            author: "dave",
+            reviews: [
+              makeReview({
+                reviewer: "carol",
+                author: "dave",
+                prNumber: i,
+              }),
+            ],
+          }),
+        );
+      }
+
+      const result = detectBias(prs, 1.5, false);
+      const bobAlice = result.flaggedPairs.find(
+        (pair) => pair.reviewer === "bob" && pair.author === "alice",
+      );
+      expect(bobAlice).toBeDefined();
+      expect(bobAlice?.pearsonResidual).toBeGreaterThan(1.5);
     });
   });
 
@@ -674,73 +989,83 @@ describe("detectBias", () => {
       expect(result.giniCoefficient).toBe(0);
     });
 
-    it("flaggedPairs are sorted by zScore descending", () => {
+    it("flaggedPairs are sorted by pearsonResidual descending", () => {
       const prs: PullRequestRecord[] = [];
-      for (let i = 1; i <= 20; i++) {
-        prs.push(
-          makePR({
-            number: i,
-            author: "alice",
-            reviews: [
-              makeReview({
-                reviewer: "bob",
-                author: "alice",
-                prNumber: i,
-              }),
-            ],
-          }),
-        );
-      }
-      for (let i = 21; i <= 32; i++) {
-        prs.push(
-          makePR({
-            number: i,
-            author: "carol",
-            reviews: [
-              makeReview({
-                reviewer: "dave",
-                author: "carol",
-                prNumber: i,
-              }),
-            ],
-          }),
-        );
-      }
-      for (let i = 33; i <= 33; i++) {
-        prs.push(
-          makePR({
-            number: i,
-            author: "eve",
-            reviews: [
-              makeReview({
-                reviewer: "frank",
-                author: "eve",
-                prNumber: i,
-              }),
-            ],
-          }),
-        );
-      }
-      prs.push(
-        makePR({
-          number: 34,
-          author: "grace",
-          reviews: [
-            makeReview({
-              reviewer: "heidi",
-              author: "grace",
-              prNumber: 34,
-            }),
-          ],
-        }),
-      );
+      let prNumber = 1;
+      const counts: Array<
+        [
+          reviewer: string,
+          author: string,
+          count: number,
+        ]
+      > = [
+        [
+          "bob",
+          "alice",
+          16,
+        ],
+        [
+          "bob",
+          "carol",
+          4,
+        ],
+        [
+          "dave",
+          "alice",
+          4,
+        ],
+        [
+          "dave",
+          "carol",
+          16,
+        ],
+        [
+          "frank",
+          "eve",
+          12,
+        ],
+        [
+          "frank",
+          "grace",
+          8,
+        ],
+        [
+          "heidi",
+          "eve",
+          8,
+        ],
+        [
+          "heidi",
+          "grace",
+          12,
+        ],
+      ];
 
-      const result = detectBias(prs, 0.3, false);
-      expect(result.flaggedPairs).toHaveLength(2);
+      for (const [reviewer, author, count] of counts) {
+        for (let i = 0; i < count; i++) {
+          prs.push(
+            makePR({
+              number: prNumber,
+              author,
+              reviews: [
+                makeReview({
+                  reviewer,
+                  author,
+                  prNumber,
+                }),
+              ],
+            }),
+          );
+          prNumber++;
+        }
+      }
+
+      const result = detectBias(prs, 0.5, false);
+      expect(result.flaggedPairs).toHaveLength(4);
       for (let i = 1; i < result.flaggedPairs.length; i++) {
-        expect(result.flaggedPairs[i - 1].zScore).toBeGreaterThanOrEqual(
-          result.flaggedPairs[i].zScore,
-        );
+        expect(
+          result.flaggedPairs[i - 1].pearsonResidual,
+        ).toBeGreaterThanOrEqual(result.flaggedPairs[i].pearsonResidual);
       }
     });
   });

@@ -51,7 +51,14 @@ function buildCommentBody(analysis: AnalysisResult): string {
     : pullRequests.filter((pr) => !pr.authorIsBot);
   const totalPRs = filteredPRs.length;
   const topReviewerSummary = computeTopReviewerSummary(userStats);
+  const biasModelFitError = bias.modelFitError;
   const biasDetected = bias.flaggedPairs.length > 0;
+  const biasStatus =
+    biasModelFitError != null
+      ? "Unavailable"
+      : biasDetected
+        ? `Yes (${bias.flaggedPairs.length} pairs)`
+        : "No";
   const dataCompleteness = getDataCompletenessLabel(
     partialData,
     partialDataReason,
@@ -74,15 +81,18 @@ function buildCommentBody(analysis: AnalysisResult): string {
     )
     .join("\n");
 
-  const biasSection = biasDetected
-    ? `### Bias Warnings\n\n| Reviewer | Author | Count | Z-Score |\n|----------|--------|-------|---------|\n${bias.flaggedPairs
-        .sort((a, b) => b.zScore - a.zScore)
-        .map(
-          (fp) =>
-            `| ${escapeHtml(fp.reviewer)} | ${escapeHtml(fp.author)} | ${fp.count} | ${fp.zScore.toFixed(2)} |`,
-        )
-        .join("\n")}\n`
-    : "";
+  const biasSection =
+    biasModelFitError != null
+      ? `### Bias Warnings\n\n> **Warning:** Bias warnings are unavailable because the reviewer-author quasi-independence model could not be fit: ${escapeHtml(biasModelFitError)}\n\n`
+      : biasDetected
+        ? `### Bias Warnings\n\n| Reviewer | Author | Count | Expected | Residual |\n|----------|--------|-------|----------|----------|\n${bias.flaggedPairs
+            .sort((a, b) => b.pearsonResidual - a.pearsonResidual)
+            .map(
+              (fp) =>
+                `| ${escapeHtml(fp.reviewer)} | ${escapeHtml(fp.author)} | ${fp.count} | ${fp.expectedCount.toFixed(2)} | ${fp.pearsonResidual.toFixed(2)} |`,
+            )
+            .join("\n")}\n`
+        : "";
 
   return `${COMMENT_MARKER}
 ## Review Insights Report
@@ -95,7 +105,7 @@ ${partialDataWarningBlock}${truncationWarning}**Date range:** ${escapeHtml(dateR
 | Unique reviewers | ${topReviewerSummary.reviewerCount} |
 | Top reviewers | ${topReviewerSummary.topReviewers.length > 0 ? `${escapeHtml(topReviewerSummary.topReviewers.join(", "))} (${topReviewerSummary.maxReviewsGiven} reviews each)` : "N/A"} |
 | Max reviews given | ${topReviewerSummary.maxReviewsGiven ?? "N/A"} |
-| Bias detected | ${biasDetected ? `Yes (${bias.flaggedPairs.length} pairs)` : "No"} |
+| Bias detected | ${biasStatus} |
 | Gini coefficient | ${bias.giniCoefficient.toFixed(2)} |
 | Data completeness | ${dataCompleteness} |
 

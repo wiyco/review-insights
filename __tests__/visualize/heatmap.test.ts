@@ -33,6 +33,7 @@ function makeBiasResult(
     matrix: buildMatrix(entries),
     flaggedPairs,
     giniCoefficient: 0,
+    modelFitError: null,
   };
 }
 
@@ -165,6 +166,7 @@ describe("renderHeatmap", () => {
         matrix: new Map(),
         flaggedPairs: [],
         giniCoefficient: 0,
+        modelFitError: null,
       };
 
       const svg = renderHeatmap(bias);
@@ -183,6 +185,7 @@ describe("renderHeatmap", () => {
         matrix,
         flaggedPairs: [],
         giniCoefficient: 0,
+        modelFitError: null,
       };
 
       const svg = renderHeatmap(bias);
@@ -293,6 +296,7 @@ describe("renderHeatmap", () => {
         matrix,
         flaggedPairs: [],
         giniCoefficient: 0,
+        modelFitError: null,
       };
 
       const svg = renderHeatmap(bias, {
@@ -381,10 +385,12 @@ describe("renderHeatmap", () => {
             reviewer: "bob",
             author: "alice",
             count: 10,
-            zScore: 3.5,
+            expectedCount: 4.2,
+            pearsonResidual: 3.5,
           },
         ],
         giniCoefficient: 0.6,
+        modelFitError: null,
       };
 
       const svg = renderHeatmap(bias);

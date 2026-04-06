@@ -186,6 +186,7 @@ describe("main", () => {
       matrix: new Map(),
       flaggedPairs: [],
       giniCoefficient: 0.2,
+      modelFitError: null,
     });
     analyzeAIPatterns.mockReturnValue({
       botReviewers: [],
@@ -228,11 +229,13 @@ describe("main", () => {
         {
           author: "alice",
           reviewer: "bob",
-          reviews: 2,
-          zScore: 2.3,
+          count: 2,
+          expectedCount: 0.8,
+          pearsonResidual: 2.3,
         },
       ],
       giniCoefficient: 0.2,
+      modelFitError: null,
     });
 
     await importMain();
@@ -262,6 +265,20 @@ describe("main", () => {
         }),
       }),
     );
+  });
+
+  it("logs bias-model unavailability even when the error message is empty", async () => {
+    detectBias.mockReturnValue({
+      matrix: new Map(),
+      flaggedPairs: [],
+      giniCoefficient: 0.2,
+      modelFitError: "",
+    });
+
+    await importMain();
+
+    const { logger } = await import("../src/utils/logger");
+    expect(logger.warning).toHaveBeenCalledWith("Bias warnings unavailable: ");
   });
 
   it("counts bot-authored PRs when includeBots is enabled", async () => {

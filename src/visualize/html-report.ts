@@ -120,25 +120,32 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
     0,
     aiPatterns.totalPRs - burdenPRTotal,
   );
+  const biasModelFitError = bias.modelFitError;
+  const biasWarningUnavailable = biasModelFitError != null;
+  const biasUnavailableNotice =
+    biasModelFitError == null
+      ? ""
+      : `<p class="warn">Bias warnings unavailable: ${escapeHtml(biasModelFitError)}</p>
+           <p class="note">The review matrix and Gini coefficient are still reported because they do not depend on a successful quasi-independence fit.</p>`;
 
   // Bias warnings
   const biasWarnings = bias.flaggedPairs
-    .sort((a, b) => b.zScore - a.zScore)
+    .sort((a, b) => b.pearsonResidual - a.pearsonResidual)
     .map(
       (fp) =>
         `<tr>
           <td>${escapeHtml(fp.reviewer)}</td>
           <td>${escapeHtml(fp.author)}</td>
           <td>${fp.count}</td>
-          <td>${fp.zScore.toFixed(2)}</td>
+          <td>${fp.expectedCount.toFixed(2)}</td>
+          <td>${fp.pearsonResidual.toFixed(2)}</td>
         </tr>`,
     )
     .join("\n");
 
   const biasExplanation = `
-    <p class="note">Bias is detected using a <strong>Z-Score</strong>, which measures how many standard deviations a reviewer-author pair's review count is above the mean.
-    A high Z-Score indicates a significant outlier in review frequency between two individuals.</p>
-    <p class="note">Pairs are flagged when their review count exceeds the mean by more than <strong>${biasThreshold.toFixed(1)}</strong> standard deviations (i.e. Z-Score &gt; ${biasThreshold.toFixed(1)}).</p>
+    <p class="note">Bias is detected using a <strong>Pearson residual</strong> from a reviewer-author quasi-independence model on the observed interaction graph. The model matches each reviewer's total outgoing reviews and each author's total incoming reviews, so high-volume people are not flagged merely for being active.</p>
+    <p class="note">Pairs are flagged when their observed review count exceeds the model's expected count by more than <strong>${biasThreshold.toFixed(1)}</strong> residual units (i.e. Residual &gt; ${biasThreshold.toFixed(1)}). This is an exploratory diagnostic, not a multiplicity-adjusted significance test.</p>
   `;
 
   return `<!DOCTYPE html>
@@ -301,10 +308,12 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
   <div class="card">
     <h2>Bias Warnings</h2>
     ${
-      bias.flaggedPairs.length > 0
-        ? `<p class="note">Pairs with unusually high review frequency (z-score flagged):</p>
-           <table style="margin-top:12px"><thead><tr><th>Reviewer</th><th>Author</th><th>Count</th><th>Z-Score</th></tr></thead><tbody>${biasWarnings}</tbody></table>`
-        : '<p class="note">No significant review bias detected.</p>'
+      biasWarningUnavailable
+        ? biasUnavailableNotice
+        : bias.flaggedPairs.length > 0
+          ? `<p class="note">Pairs whose observed review frequency materially exceeds the activity-adjusted expectation:</p>
+           <table style="margin-top:12px"><thead><tr><th>Reviewer</th><th>Author</th><th>Count</th><th>Expected</th><th>Residual</th></tr></thead><tbody>${biasWarnings}</tbody></table>`
+          : '<p class="note">No reviewer-author pair exceeds the configured activity-adjusted bias threshold.</p>'
     }
     <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 8px;">
       ${biasExplanation}

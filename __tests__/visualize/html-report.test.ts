@@ -92,6 +92,7 @@ function makeAnalysis(overrides?: Partial<AnalysisResult>): AnalysisResult {
       matrix: new Map(),
       flaggedPairs: [],
       giniCoefficient: 0.25,
+      modelFitError: null,
     },
     aiPatterns: {
       botReviewers: [],
@@ -281,7 +282,30 @@ describe("generateHtmlReport", () => {
 
   it("shows 'no bias detected' when flaggedPairs is empty", () => {
     const html = generateHtmlReport(makeAnalysis());
-    expect(html).toContain("No significant review bias detected.");
+    expect(html).toContain(
+      "No reviewer-author pair exceeds the configured activity-adjusted bias threshold.",
+    );
+  });
+
+  it("shows when bias warnings are unavailable because model fitting failed", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        bias: {
+          matrix: new Map(),
+          flaggedPairs: [],
+          giniCoefficient: 0.25,
+          modelFitError:
+            "Bias model did not converge within 10000 IPF iterations.",
+        },
+      }),
+    );
+    expect(html).toContain("Bias warnings unavailable");
+    expect(html).toContain(
+      "Bias model did not converge within 10000 IPF iterations.",
+    );
+    expect(html).not.toContain(
+      "No reviewer-author pair exceeds the configured activity-adjusted bias threshold.",
+    );
   });
 
   it("renders bias warnings when flaggedPairs exist", () => {
@@ -294,17 +318,22 @@ describe("generateHtmlReport", () => {
               reviewer: "alice",
               author: "bob",
               count: 15,
-              zScore: 3.5,
+              expectedCount: 4.29,
+              pearsonResidual: 3.5,
             },
           ],
           giniCoefficient: 0.4,
+          modelFitError: null,
         },
       }),
     );
     expect(html).toContain("alice");
     expect(html).toContain("bob");
+    expect(html).toContain("4.29");
     expect(html).toContain("3.50");
-    expect(html).not.toContain("No significant review bias detected.");
+    expect(html).not.toContain(
+      "No reviewer-author pair exceeds the configured activity-adjusted bias threshold.",
+    );
   });
 
   it("renders bot reviewer table when bots exist", () => {
@@ -472,10 +501,12 @@ describe("generateHtmlReport", () => {
                 reviewer: reviewerPayload,
                 author: authorPayload,
                 count: 10,
-                zScore: 3.0,
+                expectedCount: 4.5,
+                pearsonResidual: 3.0,
               },
             ],
             giniCoefficient: 0.5,
+            modelFitError: null,
           },
         }),
       );
@@ -581,7 +612,7 @@ describe("generateHtmlReport", () => {
     expect(highIdx).toBeLessThan(lowIdx);
   });
 
-  it("sorts bias warnings by zScore descending", () => {
+  it("sorts bias warnings by pearsonResidual descending", () => {
     const html = generateHtmlReport(
       makeAnalysis({
         bias: {
@@ -591,16 +622,19 @@ describe("generateHtmlReport", () => {
               reviewer: "r-low",
               author: "a1",
               count: 5,
-              zScore: 2.0,
+              expectedCount: 2.5,
+              pearsonResidual: 2.0,
             },
             {
               reviewer: "r-high",
               author: "a2",
               count: 10,
-              zScore: 4.0,
+              expectedCount: 2.5,
+              pearsonResidual: 4.0,
             },
           ],
           giniCoefficient: 0.5,
+          modelFitError: null,
         },
       }),
     );
@@ -660,6 +694,7 @@ describe("generateHtmlReport", () => {
             matrix: new Map(),
             flaggedPairs: [],
             giniCoefficient: 0,
+            modelFitError: null,
           },
           aiPatterns: {
             botReviewers: [],

@@ -57,6 +57,9 @@ async function run(): Promise<void> {
     config.biasThreshold,
     config.includeBots,
   );
+  if (bias.modelFitError != null) {
+    logger.warning(`Bias warnings unavailable: ${bias.modelFitError}`);
+  }
   const aiPatterns = analyzeAIPatterns(pullRequests);
 
   // 6. Build AnalysisResult

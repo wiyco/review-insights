@@ -76,33 +76,68 @@ Source: `bias-detector.ts`
 
 A matrix $M$ where $M[reviewer][author]$ is the count of review submissions from reviewer to author. Every qualifying review submission is counted (not unique PRs), capturing the full frequency of interactions.
 
-### Z-Score
+### Quasi-independence expected counts
 
-For each reviewer-author pair, the z-score measures how many standard deviations the pair's count is above the population mean.
+Bias detection conditions on both reviewer activity and author activity.
 
-$$z_{ij} = \frac{M_{ij} - \mu}{\sigma}$$
+Let:
 
-where:
+- $R$ = reviewers with at least one qualifying review submission
+- $A^+$ = authors with at least one qualifying received review submission
+- $S = \{(i, j) \in R \times A^+ \mid M_{ij} > 0\}$, the observed reviewer-author interaction support
 
-- $\mu = \frac{1}{n} \sum_{ij} M_{ij}$ (mean across all non-zero cells)
-- $\sigma = \sqrt{\frac{1}{n} \sum_{ij} (M_{ij} - \mu)^2}$ (population standard deviation)
-- $n$ = number of non-zero (populated) reviewer-author pairs in the matrix
+Explicit zero-valued matrix entries are treated as absent support and do not enter $R$, $A^+$, or $S$. Negative matrix entries are invalid because review-submission counts cannot be negative.
 
-A pair is flagged when $M_{ij} > \mu + t \cdot \sigma$, where $t$ is the `bias-threshold` input (default: 2.0).
+The detector fits a quasi-independence model on $S$:
 
-Note: the population standard deviation ($\div n$) is used, not the sample standard deviation ($\div (n-1)$). This is appropriate because the matrix represents the complete observed review population within the analysis window, not a sample drawn from a larger population.
+$$E_{ij} = \alpha_i \beta_j \quad \text{for } (i, j) \in S$$
+
+with row and column margins matched to the observed review matrix:
+
+$$\sum_{j:(i,j)\in S} E_{ij} = \sum_{j:(i,j)\in S} M_{ij}$$
+
+$$\sum_{i:(i,j)\in S} E_{ij} = \sum_{i:(i,j)\in S} M_{ij}$$
+
+The parameters $\alpha_i, \beta_j$ are solved by iterative proportional fitting (IPF). Self-reviews are removed before the review matrix is built, so they never enter $S$.
+
+Convergence is checked on the fitted row and column margins using the maximum relative margin error:
+
+$$\max \left(
+\max_i \frac{\left|\sum_{j:(i,j)\in S} E_{ij} - \sum_{j:(i,j)\in S} M_{ij}\right|}{\max\left(1,\sum_{j:(i,j)\in S} M_{ij}\right)},
+\max_j \frac{\left|\sum_{i:(i,j)\in S} E_{ij} - \sum_{i:(i,j)\in S} M_{ij}\right|}{\max\left(1,\sum_{i:(i,j)\in S} M_{ij}\right)}
+\right) < 10^{-8}$$
+
+with a hard cap of 10,000 IPF iterations.
+
+This means a high-volume reviewer paired with a high-volume author is compared against its activity-adjusted expected count $E_{ij}$ instead of against a global mean of populated cells. Unobserved reviewer-author pairs do not enter this model because the dataset does not record the full review-assignment opportunity graph.
+
+### Pearson residual
+
+For each observed reviewer-author pair, the detector computes the Pearson residual:
+
+$$r_{ij} = \frac{M_{ij} - E_{ij}}{\sqrt{E_{ij}}}$$
+
+A pair is flagged when both of the following hold:
+
+- $M_{ij} > E_{ij}$
+- $r_{ij} > t$, where $t$ is the `bias-threshold` input (default: 2.0)
+
+The output for each flagged pair includes:
+
+- `count = M_{ij}`
+- `expectedCount = E_{ij}`
+- `pearsonResidual = r_{ij}`
+
+If the quasi-independence model cannot be fit numerically, no reviewer-author pair is flagged. In that case the reports surface bias warnings as unavailable rather than claiming that no pair exceeded the threshold. The review matrix and Gini coefficient are still reported because they do not depend on the fitted model.
 
 > [!NOTE]
 >
-> **Limitation: normality assumption**
+> **Interpretation**
 >
-> The z-score threshold ($\mu + t \cdot \sigma$) implicitly assumes that review counts are approximately normally distributed. In practice, review counts follow a right-skewed distribution (closer to Poisson or negative binomial): most pairs interact infrequently, while a few pairs interact heavily. Under right-skewed distributions, the standard deviation $\sigma$ is inflated by the long right tail, causing the flagging threshold to be higher than intended and increasing the false-negative rate.
+> The Pearson residual is a model diagnostic, not a multiplicity-adjusted significance test.
 >
-> This is a known trade-off. The z-score approach is retained as a simple, interpretable heuristic that works reasonably well for the purpose of surfacing the most extreme outliers. For teams requiring more rigorous detection, potential improvements include:
+> It answers "how much larger was the observed cell than the activity-adjusted expectation?" rather than "what is the family-wise false positive rate across all pairs?".
 >
-> - **Log-transformation** — applying $\ln(M_{ij} + 1)$ before computing z-scores to compress the right tail
-> - **Non-parametric methods** — Tukey's fences ($Q_3 + 1.5 \cdot \text{IQR}$), which make no distributional assumption
-> - **Count-based models** — fitting a Poisson or negative binomial model and flagging pairs exceeding expected counts
 
 ### Gini coefficient
 
@@ -117,11 +152,19 @@ $$G = \frac{2 \sum_{i=1}^{n} i \cdot x_i}{n \sum_{i=1}^{n} x_i} - \frac{n+1}{n}$
 >
 > **Note on structural zeros**
 >
-> The z-score and Gini coefficient use **different** treatments of zero cells in the review matrix, because they measure different things:
+> The Pearson residual detector and Gini coefficient use **different** matrix domains, because they answer different questions:
 >
-> **Z-score (non-zero cells only)**
+> **Pearson residual detector (active interaction submatrix)**
 >
-> The z-score statistics ($\mu$, $\sigma$) are computed exclusively over populated (non-zero) cells. In sparse matrices (typical for real teams), including structural zeros would drive the mean close to zero and inflate standard deviations, causing nearly every active pair to appear as an outlier. The populated-cells-only approach avoids this false-positive noise and focuses on detecting skew *among pairs that actually interact*. If only one pair exists, $\sigma = 0$ and no pairs are flagged.
+> The quasi-independence model is fit over the observed interaction support:
+>
+> - rows are reviewers with at least one qualifying review
+> - columns are authors with at least one qualifying received review
+> - only reviewer-author pairs with at least one observed qualifying review enter the fitted support
+> - explicit zero-valued cells are treated the same as absent pairs and do not enter the fitted support
+> - unobserved reviewer-author pairs are excluded because the dataset does not record whether they were genuine review opportunities
+>
+> Authors whose PRs received zero qualifying reviews do not enter this model because their column margin is zero and they cannot contribute to a positive flag.
 >
 > **Gini coefficient (full matrix including zeros)**
 >

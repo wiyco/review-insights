@@ -1,13 +1,16 @@
 import { UNKNOWN_USER } from "../collect/normalizer";
 import type { BiasResult, PullRequestRecord, ReviewMatrix } from "../types";
 
+const IPF_MAX_ITERATIONS = 10_000;
+const IPF_RELATIVE_TOLERANCE = 1e-8;
+
 /**
  * Computes the Gini coefficient (0 = equal, 1 = maximally unequal).
  *
  * @param nonZeroValues - The non-zero cell values from the matrix.
  * @param totalCells - The total number of cells in the full matrix (including
  *   structural zeros). When greater than `nonZeroValues.length`, the difference
- *   is treated as zero-valued cells without materializing them — only the
+ *   is treated as zero-valued cells without materializing them - only the
  *   non-zero values are sorted, and their rank indices are offset by the
  *   implicit leading zeros.
  */
@@ -51,20 +54,206 @@ function countStructurallyExcludedDiagonalCells(
   return excludedDiagonals;
 }
 
+function getRelativeMarginDiff(fitted: number, observed: number): number {
+  return Math.abs(fitted - observed) / Math.max(1, Math.abs(observed));
+}
+
+export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
+  expectedCount: (reviewer: string, author: string) => number;
+} {
+  const authors: Array<{
+    author: string;
+    columnTotal: number;
+    reviewerPositions: number[];
+  }> = [];
+  const authorIndex = new Map<string, number>();
+  const reviewers: Array<{
+    reviewer: string;
+    rowTotal: number;
+    authorPositions: number[];
+  }> = [];
+
+  for (const [reviewer, row] of matrix) {
+    const reviewerPosition = reviewers.length;
+    let rowTotal = 0;
+    const authorPositions: number[] = [];
+
+    for (const [author, count] of row) {
+      if (count < 0) {
+        throw new Error(
+          `Review matrix contains a negative count for reviewer "${reviewer}" and author "${author}": ${count}`,
+        );
+      }
+      if (count === 0) {
+        continue;
+      }
+
+      rowTotal += count;
+
+      let authorPosition = authorIndex.get(author);
+      if (authorPosition == null) {
+        authorPosition = authors.length;
+        authorIndex.set(author, authorPosition);
+        authors.push({
+          author,
+          columnTotal: 0,
+          reviewerPositions: [],
+        });
+      }
+
+      authorPositions.push(authorPosition);
+      authors[authorPosition].columnTotal += count;
+      authors[authorPosition].reviewerPositions.push(reviewerPosition);
+    }
+
+    if (authorPositions.length === 0) {
+      continue;
+    }
+
+    reviewers.push({
+      reviewer,
+      rowTotal,
+      authorPositions,
+    });
+  }
+
+  if (reviewers.length === 0) {
+    throw new Error(
+      "Bias model requires at least one positive reviewer-author count.",
+    );
+  }
+
+  const reviewerFactors = reviewers.map(() => 1);
+  const authorFactors = authors.map(() => 1);
+  const reviewerIndex = new Map(
+    reviewers.map(({ reviewer }, index) => [
+      reviewer,
+      index,
+    ]),
+  );
+  const reviewerSupportSets = reviewers.map(
+    ({ authorPositions }) => new Set(authorPositions),
+  );
+  const authorIndexByName = new Map(
+    authors.map(({ author }, index) => [
+      author,
+      index,
+    ]),
+  );
+
+  function getReviewerSupportMass(reviewerPosition: number): number {
+    return reviewers[reviewerPosition].authorPositions.reduce(
+      (sum, authorPosition) => {
+        return sum + authorFactors[authorPosition];
+      },
+      0,
+    );
+  }
+
+  function getAuthorSupportMass(authorPosition: number): number {
+    return authors[authorPosition].reviewerPositions.reduce(
+      (sum, reviewerPosition) => {
+        return sum + reviewerFactors[reviewerPosition];
+      },
+      0,
+    );
+  }
+
+  for (let iteration = 0; iteration < IPF_MAX_ITERATIONS; iteration++) {
+    for (
+      let reviewerPosition = 0;
+      reviewerPosition < reviewers.length;
+      reviewerPosition++
+    ) {
+      const { rowTotal } = reviewers[reviewerPosition];
+      const supportMass = getReviewerSupportMass(reviewerPosition);
+      const fittedRowTotal = reviewerFactors[reviewerPosition] * supportMass;
+      reviewerFactors[reviewerPosition] *= rowTotal / fittedRowTotal;
+    }
+
+    for (
+      let authorPosition = 0;
+      authorPosition < authors.length;
+      authorPosition++
+    ) {
+      const { columnTotal } = authors[authorPosition];
+      const supportMass = getAuthorSupportMass(authorPosition);
+      const fittedColumnTotal = authorFactors[authorPosition] * supportMass;
+      authorFactors[authorPosition] *= columnTotal / fittedColumnTotal;
+    }
+
+    let maxRelativeDiff = 0;
+
+    for (
+      let reviewerPosition = 0;
+      reviewerPosition < reviewers.length;
+      reviewerPosition++
+    ) {
+      const { rowTotal } = reviewers[reviewerPosition];
+      const fittedRowTotal =
+        reviewerFactors[reviewerPosition] *
+        getReviewerSupportMass(reviewerPosition);
+      maxRelativeDiff = Math.max(
+        maxRelativeDiff,
+        getRelativeMarginDiff(fittedRowTotal, rowTotal),
+      );
+    }
+
+    for (
+      let authorPosition = 0;
+      authorPosition < authors.length;
+      authorPosition++
+    ) {
+      const { columnTotal } = authors[authorPosition];
+      const fittedColumnTotal =
+        authorFactors[authorPosition] * getAuthorSupportMass(authorPosition);
+      maxRelativeDiff = Math.max(
+        maxRelativeDiff,
+        getRelativeMarginDiff(fittedColumnTotal, columnTotal),
+      );
+    }
+
+    if (maxRelativeDiff < IPF_RELATIVE_TOLERANCE) {
+      return {
+        expectedCount(reviewer: string, author: string): number {
+          const reviewerPosition = reviewerIndex.get(reviewer);
+          const authorPosition = authorIndexByName.get(author);
+          if (reviewerPosition == null || authorPosition == null) {
+            return 0;
+          }
+          if (!reviewerSupportSets[reviewerPosition].has(authorPosition)) {
+            return 0;
+          }
+          return (
+            reviewerFactors[reviewerPosition] * authorFactors[authorPosition]
+          );
+        },
+      };
+    }
+  }
+
+  throw new Error(
+    `Bias model did not converge within ${IPF_MAX_ITERATIONS} IPF iterations.`,
+  );
+}
+
 /**
- * Detects reviewer-author bias by building a review matrix, computing z-scores,
- * and flagging pairs that exceed the given threshold.
+ * Detects reviewer-author concentration by comparing observed counts against a
+ * quasi-independence model that conditions on reviewer and author activity.
+ *
+ * When the model cannot be fit numerically, the function returns an
+ * unavailable bias result (no flagged pairs plus a modelFitError) instead of
+ * throwing, so downstream reports can still render descriptive statistics.
  */
 export function detectBias(
   pullRequests: PullRequestRecord[],
   threshold: number,
   includeBots: boolean,
 ): BiasResult {
-  // Build ReviewMatrix
   const matrix: ReviewMatrix = new Map();
 
   // Count every review submission (including multiple reviews on the same PR)
-  // to capture the full frequency of reviewer-author interactions for bias detection.
+  // to capture the full reviewer-author interaction frequency.
   for (const pr of pullRequests) {
     if (!includeBots && pr.authorIsBot) continue;
 
@@ -80,8 +269,9 @@ export function detectBias(
         reviewer !== UNKNOWN_USER &&
         author !== UNKNOWN_USER &&
         reviewer === author
-      )
+      ) {
         continue;
+      }
 
       let reviewerRow = matrix.get(reviewer);
       if (!reviewerRow) {
@@ -92,7 +282,6 @@ export function detectBias(
     }
   }
 
-  // Flatten all matrix cell values
   const allValues: number[] = [];
   for (const row of matrix.values()) {
     for (const count of row.values()) {
@@ -105,38 +294,12 @@ export function detectBias(
       matrix,
       flaggedPairs: [],
       giniCoefficient: 0,
+      modelFitError: null,
     };
   }
 
-  // Compute mean and stddev
-  const n = allValues.length;
-  const mean = allValues.reduce((a, b) => a + b, 0) / n;
-  const variance = allValues.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
-  const stddev = Math.sqrt(variance);
-
-  // Flag pairs exceeding threshold
-  const flaggedPairs: BiasResult["flaggedPairs"] = [];
-
-  if (stddev > 0) {
-    for (const [reviewer, row] of matrix) {
-      for (const [author, count] of row) {
-        const zScore = (count - mean) / stddev;
-        if (count > mean + threshold * stddev) {
-          flaggedPairs.push({
-            reviewer,
-            author,
-            count,
-            zScore,
-          });
-        }
-      }
-    }
-  }
-
-  flaggedPairs.sort((a, b) => b.zScore - a.zScore);
-
   // Build the full matrix dimensions for Gini coefficient.
-  // Reviewers: users with ≥1 qualifying review (from the matrix).
+  // Reviewers: users with >=1 qualifying review (from the matrix).
   // Authors: all PR authors in the filtered set (including those with zero reviews).
   // Genuine self-review diagonal entries (user is both reviewer and author) are excluded.
   // Only genuine identity overlaps shrink the matrix. The shared UNKNOWN_USER
@@ -156,9 +319,40 @@ export function detectBias(
 
   const giniCoefficient = computeGiniCoefficient(allValues, totalCells);
 
-  return {
-    matrix,
-    flaggedPairs,
-    giniCoefficient,
-  };
+  try {
+    const { expectedCount } = fitQuasiIndependenceModel(matrix);
+
+    const flaggedPairs: BiasResult["flaggedPairs"] = [];
+    for (const [reviewer, row] of matrix) {
+      for (const [author, count] of row) {
+        const fittedCount = expectedCount(reviewer, author);
+        const pearsonResidual = (count - fittedCount) / Math.sqrt(fittedCount);
+        if (count > fittedCount && pearsonResidual > threshold) {
+          flaggedPairs.push({
+            reviewer,
+            author,
+            count,
+            expectedCount: fittedCount,
+            pearsonResidual,
+          });
+        }
+      }
+    }
+
+    flaggedPairs.sort((a, b) => b.pearsonResidual - a.pearsonResidual);
+
+    return {
+      matrix,
+      flaggedPairs,
+      giniCoefficient,
+      modelFitError: null,
+    };
+  } catch (err: unknown) {
+    return {
+      matrix,
+      flaggedPairs: [],
+      giniCoefficient,
+      modelFitError: err instanceof Error ? err.message : String(err),
+    };
+  }
 }

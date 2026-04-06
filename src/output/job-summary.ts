@@ -52,7 +52,14 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
   const partialDataWarning = getPartialDataWarning(partialDataReason);
   const reviewFetchLimitWarning = getReviewFetchLimitWarning(filteredPRs);
   const summaryStatusBanner = getSummaryStatusBanner(partialDataReason);
+  const biasModelFitError = bias.modelFitError;
   const biasDetected = bias.flaggedPairs.length > 0;
+  const biasStatus =
+    biasModelFitError != null
+      ? "Unavailable"
+      : biasDetected
+        ? `Yes (${bias.flaggedPairs.length} pairs)`
+        : "No";
 
   // Build heatmap and bar chart SVGs
   const heatmapSvg = renderHeatmap(bias, {
@@ -84,6 +91,12 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
   if (reviewFetchLimitWarning) {
     summary.addRaw(
       `<p><strong>Warning:</strong> ${escapeHtml(reviewFetchLimitWarning)}</p>`,
+    );
+  }
+
+  if (biasModelFitError != null) {
+    summary.addRaw(
+      `<p><strong>Warning:</strong> Bias warnings are unavailable because the reviewer-author quasi-independence model could not be fit: ${escapeHtml(biasModelFitError)}</p>`,
     );
   }
 
@@ -121,7 +134,7 @@ export async function writeJobSummary(analysis: AnalysisResult): Promise<void> {
       ],
       [
         "Bias detected",
-        biasDetected ? `Yes (${bias.flaggedPairs.length} pairs)` : "No",
+        biasStatus,
       ],
       [
         "Gini coefficient",

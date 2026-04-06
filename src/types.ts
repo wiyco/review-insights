@@ -94,7 +94,8 @@ export interface FlaggedPair {
   reviewer: string;
   author: string;
   count: number;
-  zScore: number;
+  expectedCount: number;
+  pearsonResidual: number;
 }
 
 /** Results of the bias detection analysis. */
@@ -102,6 +103,8 @@ export interface BiasResult {
   matrix: ReviewMatrix;
   flaggedPairs: FlaggedPair[];
   giniCoefficient: number;
+  /** Null when the quasi-independence model fit succeeded or was not needed. */
+  modelFitError: string | null;
 }
 
 /** Classification of a PR's AI involvement level. */

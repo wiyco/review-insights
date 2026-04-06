@@ -40,7 +40,7 @@ inputs:
     default: "summary,artifact"
 
   bias-threshold:
-    description: "Standard deviations above mean to flag review imbalance (default: 2.0)."
+    description: "Pearson residual threshold for activity-adjusted reviewer-author imbalance (default: 2.0)."
     required: false
     default: "2.0"
 
@@ -76,7 +76,7 @@ outputs:
     description: "JSON number for the maximum reviewsGiven among users with reviewsGiven > 0, or null if no active reviewers exist"
 
   bias-detected:
-    description: "Whether review imbalance was detected (true/false)"
+    description: "Whether at least one reviewer-author pair was flagged by bias detection (true/false). If the bias model is unavailable, that warning is surfaced in the reports and logs."
 
   partial-data:
     description: "Whether analysis used a capped or partial PR dataset because pagination hit max-prs or the fixed 10-minute collection budget (true/false)"
