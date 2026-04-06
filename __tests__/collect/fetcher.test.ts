@@ -184,6 +184,26 @@ describe("fetchAllPullRequests", () => {
       expect(octokit.graphql).toHaveBeenCalledTimes(1);
     });
 
+    it("marks the dataset as capped when maxPRs is reached exactly and more pages exist", async () => {
+      const octokit = makeOctokit([
+        makePageResponse(
+          fixtureData.repository.pullRequests.nodes.slice(0, 3),
+          true,
+          "cursor-1",
+        ),
+      ]);
+
+      const config = makeConfig({
+        maxPRs: 3,
+      });
+      const result = await fetchAllPullRequests(octokit as never, config);
+
+      expect(result.pullRequests.length).toBe(3);
+      expect(result.partialData).toBe(true);
+      expect(result.partialDataReason).toBe("max-prs-limit-reached");
+      expect(octokit.graphql).toHaveBeenCalledTimes(1);
+    });
+
     it("does not mark the dataset as capped when the extra sentinel PR is outside the date range", async () => {
       const octokit = makeOctokit([
         makePageResponse(
