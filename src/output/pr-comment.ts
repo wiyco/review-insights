@@ -51,12 +51,14 @@ function buildCommentBody(analysis: AnalysisResult): string {
     : pullRequests.filter((pr) => !pr.authorIsBot);
   const totalPRs = filteredPRs.length;
   const topReviewerSummary = computeTopReviewerSummary(userStats);
+  const biasModelFitError = bias.modelFitError;
   const biasDetected = bias.flaggedPairs.length > 0;
-  const biasStatus = bias.modelFitError
-    ? "Unavailable"
-    : biasDetected
-      ? `Yes (${bias.flaggedPairs.length} pairs)`
-      : "No";
+  const biasStatus =
+    biasModelFitError != null
+      ? "Unavailable"
+      : biasDetected
+        ? `Yes (${bias.flaggedPairs.length} pairs)`
+        : "No";
   const dataCompleteness = getDataCompletenessLabel(
     partialData,
     partialDataReason,
@@ -79,17 +81,18 @@ function buildCommentBody(analysis: AnalysisResult): string {
     )
     .join("\n");
 
-  const biasSection = bias.modelFitError
-    ? `### Bias Warnings\n\n> **Warning:** Bias warnings are unavailable because the reviewer-author quasi-independence model could not be fit: ${escapeHtml(bias.modelFitError)}\n\n`
-    : biasDetected
-      ? `### Bias Warnings\n\n| Reviewer | Author | Count | Expected | Residual |\n|----------|--------|-------|----------|----------|\n${bias.flaggedPairs
-          .sort((a, b) => b.pearsonResidual - a.pearsonResidual)
-          .map(
-            (fp) =>
-              `| ${escapeHtml(fp.reviewer)} | ${escapeHtml(fp.author)} | ${fp.count} | ${fp.expectedCount.toFixed(2)} | ${fp.pearsonResidual.toFixed(2)} |`,
-          )
-          .join("\n")}\n`
-      : "";
+  const biasSection =
+    biasModelFitError != null
+      ? `### Bias Warnings\n\n> **Warning:** Bias warnings are unavailable because the reviewer-author quasi-independence model could not be fit: ${escapeHtml(biasModelFitError)}\n\n`
+      : biasDetected
+        ? `### Bias Warnings\n\n| Reviewer | Author | Count | Expected | Residual |\n|----------|--------|-------|----------|----------|\n${bias.flaggedPairs
+            .sort((a, b) => b.pearsonResidual - a.pearsonResidual)
+            .map(
+              (fp) =>
+                `| ${escapeHtml(fp.reviewer)} | ${escapeHtml(fp.author)} | ${fp.count} | ${fp.expectedCount.toFixed(2)} | ${fp.pearsonResidual.toFixed(2)} |`,
+            )
+            .join("\n")}\n`
+        : "";
 
   return `${COMMENT_MARKER}
 ## Review Insights Report
