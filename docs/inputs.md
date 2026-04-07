@@ -8,8 +8,9 @@ These inputs define a historical snapshot in two steps:
 
 1. PRs are included when `since <= pr.createdAt <= until`
 2. For included PRs, reviews and merge/close state are observed only up to `until`
+3. Current-snapshot commit and size fields are not used for PRs not merged at `until`; AI-trailer classification and size tier are treated as unobserved for those PRs
 
-This prevents later review activity from changing the results of the same historical rerun.
+This prevents later review activity or later pushes from changing the results of the same historical rerun.
 
 ### Accepted format
 

@@ -7,6 +7,7 @@ import type { PullRequestRecord, PullRequestState } from "../types";
  * remainder of the dataset a stable historical snapshot by:
  * - dropping reviews created after `until`
  * - censoring PR state/close/merge metadata to what was observable at `until`
+ * - censoring current-snapshot commit/size metadata for PRs not merged at `until`
  */
 export function applyObservationWindow(
   pullRequests: PullRequestRecord[],
@@ -42,6 +43,26 @@ export function applyObservationWindow(
       state = "OPEN";
     }
 
+    const observableSnapshotMetadata =
+      state !== "MERGED"
+        ? {
+            // GitHub exposes these as current PR metadata, not a historical
+            // as-of diff/commit snapshot. Keeping them for unmerged PRs would
+            // let later pushes leak into historical AI/size analyses.
+            commitMessages: null,
+            additions: null,
+            deletions: null,
+            // AI-authored is determined from the stable author login. The
+            // other categories depend on commit trailers, so they are unknown.
+            aiCategory: pr.aiCategory === "ai-authored" ? pr.aiCategory : null,
+          }
+        : {
+            commitMessages: pr.commitMessages,
+            additions: pr.additions,
+            deletions: pr.deletions,
+            aiCategory: pr.aiCategory,
+          };
+
     return {
       ...pr,
       state,
@@ -49,6 +70,7 @@ export function applyObservationWindow(
       closedAt,
       mergedBy,
       reviews,
+      ...observableSnapshotMetadata,
     };
   });
 }

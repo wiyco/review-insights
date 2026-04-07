@@ -10,6 +10,10 @@ import type {
   ReviewRecord,
 } from "../types";
 
+type ClassifiedPullRequestRecord = PullRequestRecord & {
+  aiCategory: AICategory;
+};
+
 /**
  * Computes a percentile from a **sorted** numeric array using linear interpolation.
  * Equivalent to NumPy's `percentile(..., interpolation='linear')` default.
@@ -110,12 +114,17 @@ function computeReviewRoundCount(
  * Returns the PRs that are eligible for AI-vs-human burden comparison.
  * Traditional bot-authored PRs are excluded because they do not represent
  * human-authored or AI-assisted development work. AI tool accounts remain
- * eligible because normalization already marks them as non-bots.
+ * eligible because normalization already marks them as non-bots. PRs with
+ * unobservable AI classification are also excluded to avoid future metadata
+ * leakage into historical windows.
  */
 function getHumanReviewBurdenCohort(
   pullRequests: PullRequestRecord[],
-): PullRequestRecord[] {
-  return pullRequests.filter((pr) => !pr.authorIsBot);
+): ClassifiedPullRequestRecord[] {
+  return pullRequests.filter(
+    (pr): pr is ClassifiedPullRequestRecord =>
+      !pr.authorIsBot && pr.aiCategory != null,
+  );
 }
 
 /** Minimum PRs in a size-tier cell to report metrics. */
@@ -246,7 +255,7 @@ function computeHumanReviewBurden(
   const comparisonPRs = getHumanReviewBurdenCohort(pullRequests);
 
   // Group PRs by AI category
-  const byCategory: Record<AICategory, PullRequestRecord[]> = {
+  const byCategory: Record<AICategory, ClassifiedPullRequestRecord[]> = {
     "ai-authored": [],
     "ai-assisted": [],
     "human-only": [],
@@ -265,7 +274,10 @@ function computeHumanReviewBurden(
   for (const tier of ALL_SIZE_TIERS) {
     const forTier = (cat: AICategory): HumanReviewBurdenGroup | null => {
       const prs = byCategory[cat].filter(
-        (pr) => assignSizeTier(pr.additions, pr.deletions) === tier,
+        (pr) =>
+          pr.additions != null &&
+          pr.deletions != null &&
+          assignSizeTier(pr.additions, pr.deletions) === tier,
       );
       return prs.length >= MIN_STRATIFIED_SAMPLE
         ? computeBurdenGroup(prs)
@@ -315,7 +327,7 @@ export function analyzeAIPatterns(
   let aiCoAuthoredPRs = 0;
 
   for (const pr of pullRequests) {
-    if (hasAICoAuthor(pr.commitMessages)) {
+    if (pr.commitMessages != null && hasAICoAuthor(pr.commitMessages)) {
       aiCoAuthoredPRs++;
     }
   }

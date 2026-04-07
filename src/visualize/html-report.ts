@@ -116,10 +116,18 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
     aiPatterns.humanReviewBurden.aiAuthored.prCount +
     aiPatterns.humanReviewBurden.aiAssisted.prCount +
     aiPatterns.humanReviewBurden.humanOnly.prCount;
-  const excludedTraditionalBotPRs = Math.max(
-    0,
-    aiPatterns.totalPRs - burdenPRTotal,
-  );
+  const excludedTraditionalBotPRs = pullRequests.filter(
+    (pr) => pr.authorIsBot,
+  ).length;
+  const unclassifiedAIMetadataPRs = pullRequests.filter(
+    (pr) => !pr.authorIsBot && pr.aiCategory == null,
+  ).length;
+  const unobservableSizePRs = pullRequests.filter(
+    (pr) =>
+      !pr.authorIsBot &&
+      pr.aiCategory != null &&
+      (pr.additions == null || pr.deletions == null),
+  ).length;
   const biasModelFitError = bias.modelFitError;
   const biasWarningUnavailable = biasModelFitError != null;
   const biasUnavailableNotice =
@@ -298,7 +306,17 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
     <p class="note" style="margin-bottom:12px;">Compares the review workload humans bear for AI-authored, AI-assisted, and human-only PRs. Lower values indicate less human effort required.</p>
     ${
       excludedTraditionalBotPRs > 0
-        ? `<p class="note" style="margin-bottom:12px;">Traditional bot-authored PRs are excluded from this comparison cohort (${excludedTraditionalBotPRs} PR${excludedTraditionalBotPRs === 1 ? "" : "s"}), even when \`include-bots\` is enabled.</p>`
+        ? `<p class="note" style="margin-bottom:12px;">Traditional bot-authored PRs are excluded from this comparison cohort (${excludedTraditionalBotPRs} PR${excludedTraditionalBotPRs === 1 ? "" : "s"}).</p>`
+        : ""
+    }
+    ${
+      unclassifiedAIMetadataPRs > 0
+        ? `<p class="note" style="margin-bottom:12px;">PRs with AI classification that is not observable at the cutoff are excluded from this comparison cohort (${unclassifiedAIMetadataPRs} PR${unclassifiedAIMetadataPRs === 1 ? "" : "s"}). This avoids using commit metadata that may have changed after the analysis window.</p>`
+        : ""
+    }
+    ${
+      burdenPRTotal > 0 && unobservableSizePRs > 0
+        ? `<p class="note" style="margin-bottom:12px;">Size-stratified cells exclude PRs whose size at the cutoff is not observable (${unobservableSizePRs} PR${unobservableSizePRs === 1 ? "" : "s"}).</p>`
         : ""
     }
     ${renderBurdenSection(aiPatterns.humanReviewBurden)}

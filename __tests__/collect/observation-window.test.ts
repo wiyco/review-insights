@@ -121,6 +121,56 @@ describe("applyObservationWindow", () => {
     expect(result[0].mergedBy).toBeNull();
   });
 
+  it("censors current AI and size metadata for PRs still open at the cutoff", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        state: "MERGED",
+        mergedAt: "2025-06-05T00:00:00Z",
+        closedAt: "2025-06-05T00:00:00Z",
+        commitMessages: [
+          "feat: later work\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+        ],
+        additions: 500,
+        deletions: 200,
+        aiCategory: "ai-assisted",
+      }),
+    ];
+
+    const result = applyObservationWindow(prs, "2025-06-04T00:00:00Z");
+
+    expect(result[0].state).toBe("OPEN");
+    expect(result[0].commitMessages).toBeNull();
+    expect(result[0].additions).toBeNull();
+    expect(result[0].deletions).toBeNull();
+    expect(result[0].aiCategory).toBeNull();
+  });
+
+  it("keeps stable AI-authored classification while censoring open-at-cutoff current metadata", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "openclaw-codex",
+        state: "OPEN",
+        commitMessages: [
+          "feat: generated change\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+        ],
+        additions: 500,
+        deletions: 200,
+        aiCategory: "ai-authored",
+      }),
+    ];
+
+    const result = applyObservationWindow(prs, "2025-06-04T00:00:00Z");
+
+    expect(result[0].state).toBe("OPEN");
+    expect(result[0].commitMessages).toBeNull();
+    expect(result[0].additions).toBeNull();
+    expect(result[0].deletions).toBeNull();
+    expect(result[0].aiCategory).toBe("ai-authored");
+  });
+
   it("preserves merged state when the merge happened on or before until", () => {
     const prs: PullRequestRecord[] = [
       makePR({
@@ -130,6 +180,12 @@ describe("applyObservationWindow", () => {
         mergedAt: "2025-06-03T00:00:00Z",
         closedAt: "2025-06-03T00:00:00Z",
         mergedBy: "bob",
+        commitMessages: [
+          "feat: merged work\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+        ],
+        additions: 500,
+        deletions: 200,
+        aiCategory: "ai-assisted",
       }),
     ];
 
@@ -139,6 +195,12 @@ describe("applyObservationWindow", () => {
     expect(result[0].mergedAt).toBe("2025-06-03T00:00:00Z");
     expect(result[0].closedAt).toBe("2025-06-03T00:00:00Z");
     expect(result[0].mergedBy).toBe("bob");
+    expect(result[0].commitMessages).toEqual([
+      "feat: merged work\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+    ]);
+    expect(result[0].additions).toBe(500);
+    expect(result[0].deletions).toBe(200);
+    expect(result[0].aiCategory).toBe("ai-assisted");
   });
 
   it("uses mergedAt as the observed close time when close metadata lags the merge", () => {
@@ -184,6 +246,12 @@ describe("applyObservationWindow", () => {
         author: "alice",
         state: "CLOSED",
         closedAt: "2025-06-03T00:00:00Z",
+        commitMessages: [
+          "feat: later work\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+        ],
+        additions: 500,
+        deletions: 200,
+        aiCategory: "ai-assisted",
       }),
     ];
 
@@ -191,5 +259,9 @@ describe("applyObservationWindow", () => {
 
     expect(result[0].state).toBe("CLOSED");
     expect(result[0].closedAt).toBe("2025-06-03T00:00:00Z");
+    expect(result[0].commitMessages).toBeNull();
+    expect(result[0].additions).toBeNull();
+    expect(result[0].deletions).toBeNull();
+    expect(result[0].aiCategory).toBeNull();
   });
 });

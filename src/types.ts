@@ -48,10 +48,14 @@ export interface PullRequestRecord {
   reviewLimitReached: boolean;
   reviews: ReviewRecord[];
   reviewRequests: string[];
-  commitMessages: string[];
-  additions: number;
-  deletions: number;
-  aiCategory: AICategory;
+  /** Commit messages, or null when current-snapshot data is not observable at the analysis cutoff. */
+  commitMessages: string[] | null;
+  /** Added lines, or null when current-snapshot size data is not observable at the analysis cutoff. */
+  additions: number | null;
+  /** Deleted lines, or null when current-snapshot size data is not observable at the analysis cutoff. */
+  deletions: number | null;
+  /** AI classification, or null when commit-trailer-dependent classification is not observable at the cutoff. */
+  aiCategory: AICategory | null;
 }
 
 /** Aggregated review statistics for a single user. */
