@@ -48,7 +48,7 @@ $$R = \{u \mid \text{reviewsGiven}(u) > 0\}$$
 
 The output `top-reviewers` is the full argmax set:
 
-$$\operatorname{ArgMax}_{u \in R}\ \text{reviewsGiven}(u)$$
+$$\mathrm{ArgMax}_{u \in R}\ \text{reviewsGiven}(u)$$
 
 This avoids collapsing ties into an arbitrary single login. When $R = \emptyset$, the argmax set is undefined, so the serialized outputs are `[]` and `null`.
 
