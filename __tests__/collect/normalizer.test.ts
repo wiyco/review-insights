@@ -205,6 +205,62 @@ describe("hasAICoAuthor", () => {
     ).toBe(false);
   });
 
+  it("does not consume later trailer lines as the co-author email", () => {
+    expect(
+      hasAICoAuthor([
+        "feat: pair programming\n\nCo-authored-by: Alice\n\nReviewed-by: Claude <noreply@anthropic.com>",
+      ]),
+    ).toBe(false);
+  });
+
+  it("does not consume CRLF-separated later trailer lines as the co-author email", () => {
+    expect(
+      hasAICoAuthor([
+        "feat: pair programming\r\n\r\nCo-authored-by: Alice\r\n\r\nReviewed-by: Claude <noreply@anthropic.com>",
+      ]),
+    ).toBe(false);
+  });
+
+  it("does not match malformed co-author lines with trailing text", () => {
+    expect(
+      hasAICoAuthor([
+        "feat: pair programming\n\nCo-authored-by: Claude <noreply@anthropic.com> Reviewed-by: Bob <bob@example.com>",
+      ]),
+    ).toBe(false);
+  });
+
+  it("requires a non-empty co-author name before the email", () => {
+    expect(
+      hasAICoAuthor([
+        "feat: pair programming\n\nCo-authored-by: <noreply@anthropic.com>",
+      ]),
+    ).toBe(false);
+  });
+
+  it("requires a non-whitespace co-author name before the email", () => {
+    expect(
+      hasAICoAuthor([
+        "feat: pair programming\n\nCo-authored-by:   <noreply@anthropic.com>",
+      ]),
+    ).toBe(false);
+  });
+
+  it("requires a whitespace separator between the co-author name and email", () => {
+    expect(
+      hasAICoAuthor([
+        "feat: pair programming\n\nCo-authored-by: Claude<noreply@anthropic.com>",
+      ]),
+    ).toBe(false);
+  });
+
+  it("does not trim whitespace inside the co-author email", () => {
+    expect(
+      hasAICoAuthor([
+        "feat: pair programming\n\nCo-authored-by: Claude <noreply@anthropic.com >",
+      ]),
+    ).toBe(false);
+  });
+
   it("returns false for empty commit messages", () => {
     expect(hasAICoAuthor([])).toBe(false);
   });
@@ -567,6 +623,24 @@ describe("normalizePullRequests", () => {
       }),
     ]);
     expect(result[0].aiCategory).toBe("ai-assisted");
+  });
+
+  it("does not classify an AI reviewer trailer as ai-assisted", () => {
+    const result = normalizePullRequests([
+      makeRawNode({
+        commits: {
+          nodes: [
+            {
+              commit: {
+                message:
+                  "feat: pair programming\n\nCo-authored-by: Alice\n\nReviewed-by: Claude <noreply@anthropic.com>",
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+    expect(result[0].aiCategory).toBe("human-only");
   });
 
   it("classifies regular PR as human-only", () => {

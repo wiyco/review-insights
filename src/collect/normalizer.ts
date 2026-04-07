@@ -107,10 +107,11 @@ function isTraditionalBotAccount(
 /**
  * Checks whether any commit message contains an AI co-author trailer.
  * Matches `Co-authored-by: <name> <email>` where email matches a known
- * AI tool pattern.
+ * AI tool pattern. Matching is constrained to a single trailer line.
  */
 export function hasAICoAuthor(commitMessages: string[]): boolean {
-  const pattern = /co-authored-by:\s*[^<]*<([^>]+)>/gi;
+  const pattern =
+    /^co-authored-by:[^\S\r\n]*[^\s\r\n<][^\r\n<]*[^\S\r\n]+<([^\s\r\n>]+)>[^\S\r\n]*$/gim;
   for (const msg of commitMessages) {
     pattern.lastIndex = 0;
     for (
