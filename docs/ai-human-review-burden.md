@@ -61,7 +61,9 @@ where the `<email>` matches any of:
 | `*+Copilot@users.noreply.github.com` | GitHub Copilot |
 | `*+devin-ai-integration[bot]@users.noreply.github.com` | Devin AI |
 
-The name field is not checked — only the email address determines a match. This avoids brittleness from model name changes (e.g., "Claude" vs "Claude Opus 4.6").
+The name text is not compared against a known-name allowlist, but it must be present and separated from the email by whitespace. Only the email address determines whether a well-formed co-author trailer is attributed to an AI tool. This avoids brittleness from model name changes (e.g., "Claude" vs "Claude Opus 4.6").
+
+Detection is limited to a single well-formed `Co-authored-by:` line. The name and email capture do not cross line breaks, and whitespace is not allowed inside the email. A malformed `Co-authored-by:` line followed by another trailer such as `Reviewed-by: Claude <noreply@anthropic.com>` is not counted as an AI co-author trailer.
 
 Detection is applied to **all observable commit messages** in `PullRequestRecord.commitMessages`. Note that the GraphQL query currently fetches only the last commit per PR (`commits(last: 1)`), so this remains a **lower-bound estimate**. For PRs not merged at a historical `until`, commit messages are treated as unobserved (`null`) because GitHub exposes them as current-snapshot metadata, not a historical as-of commit list.
 

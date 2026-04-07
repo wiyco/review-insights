@@ -118,6 +118,21 @@ describe("analyzeAIPatterns", () => {
     expect(result.totalPRs).toBe(3);
   });
 
+  it("does not count AI review trailers as AI co-authored PRs", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        commitMessages: [
+          "feat: pair programming\n\nCo-authored-by: Alice\n\nReviewed-by: Claude <noreply@anthropic.com>",
+        ],
+      }),
+    ];
+
+    const result = analyzeAIPatterns(prs);
+    expect(result.aiCoAuthoredPRs).toBe(0);
+  });
+
   it("calculates botReviewPercentage correctly", () => {
     const prs: PullRequestRecord[] = [
       makePR({
