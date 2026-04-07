@@ -1,4 +1,5 @@
 import { hasAICoAuthor, UNKNOWN_USER } from "../collect/normalizer";
+import { MIN_STRATIFIED_SAMPLE } from "../constants";
 import type {
   AICategory,
   AIPatternResult,
@@ -126,9 +127,6 @@ function getHumanReviewBurdenCohort(
       !pr.authorIsBot && pr.aiCategory != null,
   );
 }
-
-/** Minimum PRs in a size-tier cell to report metrics. */
-const MIN_STRATIFIED_SAMPLE = 3;
 
 function nullMetricBurdenGroup(prCount: number): HumanReviewBurdenGroup {
   return {

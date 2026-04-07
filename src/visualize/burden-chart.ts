@@ -1,3 +1,4 @@
+import { MIN_STRATIFIED_SAMPLE } from "../constants";
 import type {
   HumanReviewBurden,
   HumanReviewBurdenGroup,
@@ -28,8 +29,6 @@ const CATEGORIES: CategoryKey[] = [
   "aiAssisted",
   "humanOnly",
 ];
-
-const MIN_STRATIFIED_SAMPLE = 3;
 
 interface MetricDef {
   key: string;
@@ -465,7 +464,7 @@ function renderStratifiedTable(burden: HumanReviewBurden): string {
     '<h3 style="font-size:15px;font-weight:600;margin:20px 0 8px;color:#1e293b;">Size-Stratified Comparison</h3>',
   );
   rows.push(
-    '<p class="note" style="margin-bottom:8px;">Groups PRs by observed size tier to avoid direct cross-tier comparisons. Interpret differences as descriptive within-tier associations, not causal effects of AI involvement. Cells with fewer than 3 PRs show "—" while retaining n.</p>',
+    `<p class="note" style="margin-bottom:8px;">Groups PRs by observed size tier to avoid direct cross-tier comparisons. Interpret differences as descriptive within-tier associations, not causal effects of AI involvement. Cells with fewer than ${MIN_STRATIFIED_SAMPLE} PRs show "—" while retaining n.</p>`,
   );
 
   rows.push("<table>");
