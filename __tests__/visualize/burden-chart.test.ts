@@ -138,7 +138,7 @@ describe("renderBurdenSection", () => {
     const html = renderBurdenSection(makeBurden());
     expect(html).toContain("median");
     expect(html).toContain("p90");
-    expect(html).toContain("worst-case");
+    expect(html).toContain("90th-percentile upper-tail burden");
     expect(html).toContain("distinct reviewed revisions observed");
     expect(html).toContain("submitted at or after PR creation");
     expect(html).toContain("missing a commit SHA");

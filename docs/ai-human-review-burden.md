@@ -163,7 +163,7 @@ All three return `null` when $|PR_g| = 0$.
 >
 > **Rationale**
 >
-> Review counts follow a right-skewed distribution. The median captures typical burden, p90 captures worst-case burden, and the mean is provided for backward compatibility but should not be used alone for comparison.
+> Review counts follow a right-skewed distribution. The median captures typical burden, p90 captures upper-tail burden at the 90th percentile (not the maximum), and the mean is provided for backward compatibility but should not be used alone for comparison.
 
 #### Percentile computation
 

@@ -286,7 +286,7 @@ Traditional bot-authored PRs and PRs whose AI classification is unobservable at 
 ### Design rationale
 
 - **Median over mean** — Review counts and latencies follow right-skewed distributions. The median represents typical burden; the mean is inflated by outliers.
-- **P90 whiskers** — Show worst-case burden without requiring box plots.
+- **P90 whiskers** — Show upper-tail burden at the 90th percentile without requiring box plots; they do not show the maximum or worst case.
 - **Sample sizes everywhere** — Small-n comparisons are misleading; displaying n= lets readers judge statistical reliability.
 - **Unreviewed Rate alongside latency** — Latency is only computed for PRs that received reviews. A high unreviewed rate means the latency metric suffers from survivorship bias.
 - **Size stratification** — PR size can confound review burden. The table compares categories within the same coarse size tier (S/M/L/Empty), which avoids direct cross-tier comparisons but does not isolate AI causality or adjust for other confounders.

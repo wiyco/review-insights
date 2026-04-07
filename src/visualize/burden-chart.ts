@@ -335,7 +335,7 @@ export function renderBurdenSection(burden: HumanReviewBurden): string {
   );
   if (charts.length > 0) {
     parts.push(
-      '<p class="note" style="margin:12px 0 4px;">Bars show <strong>median</strong> (typical burden). Whisker lines extend to <strong>p90</strong> where available (worst-case burden). Change Request Rate shows median only. Higher values = more human effort.</p>',
+      '<p class="note" style="margin:12px 0 4px;">Bars show <strong>median</strong> (typical burden). Whisker lines extend to <strong>p90</strong> where available (90th-percentile upper-tail burden, not the maximum). Change Request Rate shows median only. Higher values = more human effort.</p>',
     );
     parts.push(
       '<p class="note" style="margin:0 0 12px;">"Review Rounds" counts the number of distinct reviewed revisions observed from qualifying human reviews submitted at or after PR creation, using the commit SHA attached to each review. Multiple reviewers on the same reviewed revision count as one round. PRs are excluded from this metric when an observed review is missing a commit SHA or when the per-PR review list is truncated.</p>',
