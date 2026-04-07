@@ -112,10 +112,6 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
         `<tr><td>${escapeHtml(b.login)}</td><td>${b.reviewCount}</td></tr>`,
     )
     .join("\n");
-  const burdenPRTotal =
-    aiPatterns.humanReviewBurden.aiAuthored.prCount +
-    aiPatterns.humanReviewBurden.aiAssisted.prCount +
-    aiPatterns.humanReviewBurden.humanOnly.prCount;
   const excludedTraditionalBotPRs = pullRequests.filter(
     (pr) => pr.authorIsBot,
   ).length;
@@ -315,7 +311,7 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
         : ""
     }
     ${
-      burdenPRTotal > 0 && unobservableSizePRs > 0
+      unobservableSizePRs > 0
         ? `<p class="note" style="margin-bottom:12px;">Size-stratified cells exclude PRs whose size at the cutoff is not observable (${unobservableSizePRs} PR${unobservableSizePRs === 1 ? "" : "s"}).</p>`
         : ""
     }

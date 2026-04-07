@@ -6,7 +6,7 @@ The comparison cohort excludes **traditional bot-authored PRs** (`authorIsBot ==
 
 ## PR classification
 
-Every pull request is classified into exactly one of three mutually exclusive groups during normalization and stored on the `PullRequestRecord`.
+During normalization, every pull request is initially classified into exactly one of three mutually exclusive groups and stored as `aiCategory` on the `PullRequestRecord`. Historical snapshot censoring may later set `aiCategory` to `null` when commit-trailer-dependent classification is not observable at `until`.
 
 | Group | Label | Condition (evaluated in order) |
 |---|---|---|
