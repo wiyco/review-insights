@@ -5,7 +5,7 @@ GitHub Action that analyzes PR review statistics per user and generates visual r
 ## Use Cases
 
 - Detect review workload imbalance (who reviews whom)
-- Track how AI / bot adoption affects merge and review counts
+- Track associations between AI / bot adoption and merge/review counts
 - Visualize review activity trends over time
 - Identify zero-review merges and review bottlenecks
 
