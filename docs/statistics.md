@@ -243,7 +243,7 @@ Source: `html-report.ts`
 | KPI | Definition |
 |---|---|
 | Pull Requests | `filteredPRs.length` - total PRs after author bot filtering |
-| Unique PR Reviews | $\sum_u \text{reviewsGiven}(u)$ - sum of unique PRs reviewed per user from `userStats`; uses the per-user qualifying-review filters, including reviewer bot filtering when `include-bots` is `false`, and always excluding PENDING and self-reviews |
+| Unique PR Reviews | $\sum_u \text{reviewsGiven}(u)$ - sum of unique PRs reviewed per user from `userStats`; uses the per-user qualifying-review filters. When `include-bots` is `false`, bot-authored PRs are skipped entirely and bot reviewer reviews are excluded. PENDING reviews are always excluded; self-reviews are excluded when both identities are known, with the shared `ghost`/`UNKNOWN_USER` placeholder exempt. |
 | Active Reviewers | Count of users in `userStats` with `reviewsGiven > 0`; uses the same qualifying-review filters as Unique PR Reviews |
 | PR Authors | Count of distinct `pr.author` values in `filteredPRs`, after author bot filtering |
 | Avg Reviewers/PR | Unique PR Reviews $\div$ Pull Requests; numerator is `userStats`-derived, denominator is `filteredPRs`-derived |

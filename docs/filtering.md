@@ -28,7 +28,7 @@ No additional `include-bots` filtering is applied in modules that honor the flag
 | merge-correlation | Yes | Yes | Bot reviews excluded from review counts on merged PRs |
 | ai-patterns | Mixed | Mixed | Top-level bot observability metrics include all activity, but `humanReviewBurden` always excludes traditional bot-authored PRs and bot reviews from the comparison metrics |
 | html-report KPIs: Pull Requests, PR Authors | Yes | N/A | Uses the author-filtered PR list; reviewer identities are not part of these counts |
-| html-report KPIs: Unique PR Reviews, Active Reviewers | Yes | Yes | Derived from `userStats`, so bot reviewers are excluded when `include-bots` is `false`; PENDING and self-reviews are always excluded |
+| html-report KPIs: Unique PR Reviews, Active Reviewers | Yes | Yes | Derived from `userStats`; when `include-bots` is `false`, bot-authored PRs are skipped entirely and bot reviewer reviews are excluded. PENDING reviews are always excluded; self-reviews are excluded only when both identities are known (`ghost` is exempt). |
 | html-report KPI: Avg Reviewers/PR | Mixed | Mixed | Numerator is Unique PR Reviews from `userStats`; denominator is Pull Requests from the author-filtered PR list |
 | html-report KPI: Gini Coefficient | Yes | Yes | Derived from `bias-detector` |
 | html-report KPI: Data Completeness | N/A | N/A | Reports collection completeness, not a post-filtering count |
