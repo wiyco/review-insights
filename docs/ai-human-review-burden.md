@@ -171,7 +171,7 @@ For a sorted array $x_1 \leq x_2 \leq \cdots \leq x_n$ and a percentile $p \in [
 
 1. Compute the rank: $r = \frac{p}{100} \times (n - 1)$
 2. Let $\lfloor r \rfloor = k$ and the fractional part $f = r - k$
-3. Result: $x_{k+1} + f \times (x_{k+2} - x_{k+1})$
+3. If $k + 1 < n$, result: $x_{k+1} + f \times (x_{k+2} - x_{k+1})$; otherwise result: $x_n$ (the $p = 100$ boundary)
 
 This is linear interpolation between the two nearest ranks (equivalent to NumPy's `percentile(..., interpolation='linear')` default).
 
