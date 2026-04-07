@@ -427,7 +427,7 @@ function renderMetricsTable(burden: HumanReviewBurden): string {
 }
 
 /**
- * Renders a size-stratified breakdown table controlling for PR size confounding.
+ * Renders a size-stratified breakdown table grouped by observed PR size tier.
  * Only shows size tiers that have data in at least one category.
  */
 function renderStratifiedTable(burden: HumanReviewBurden): string {
@@ -463,7 +463,7 @@ function renderStratifiedTable(burden: HumanReviewBurden): string {
     '<h3 style="font-size:15px;font-weight:600;margin:20px 0 8px;color:#1e293b;">Size-Stratified Comparison</h3>',
   );
   rows.push(
-    '<p class="note" style="margin-bottom:8px;">Controls for PR size confounding. Compare values <em>within</em> the same size tier to isolate the effect of AI involvement. Cells with fewer than 3 PRs show "—".</p>',
+    '<p class="note" style="margin-bottom:8px;">Groups PRs by observed size tier to avoid direct cross-tier comparisons. Interpret differences as descriptive within-tier associations, not causal effects of AI involvement. Cells with fewer than 3 PRs show "—".</p>',
   );
 
   rows.push("<table>");

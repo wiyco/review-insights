@@ -178,6 +178,8 @@ describe("renderBurdenSection", () => {
   it("renders size-stratified table", () => {
     const html = renderBurdenSection(makeBurden());
     expect(html).toContain("Size-Stratified Comparison");
+    expect(html).toContain("descriptive within-tier associations");
+    expect(html).not.toContain("isolate the effect of AI involvement");
     expect(html).toContain("Small (1\u201350)");
     expect(html).toContain("Medium (51\u2013300)");
     expect(html).toContain("Large (301+)");

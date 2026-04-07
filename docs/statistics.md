@@ -289,4 +289,4 @@ Traditional bot-authored PRs and PRs whose AI classification is unobservable at 
 - **P90 whiskers** — Show worst-case burden without requiring box plots.
 - **Sample sizes everywhere** — Small-n comparisons are misleading; displaying n= lets readers judge statistical reliability.
 - **Unreviewed Rate alongside latency** — Latency is only computed for PRs that received reviews. A high unreviewed rate means the latency metric suffers from survivorship bias.
-- **Size stratification** — PR size confounds review burden. Comparing within the same size tier (S/M/L) isolates the effect of AI involvement.
+- **Size stratification** — PR size can confound review burden. The table compares categories within the same coarse size tier (S/M/L/Empty), which avoids direct cross-tier comparisons but does not isolate AI causality or adjust for other confounders.
