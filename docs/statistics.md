@@ -242,12 +242,13 @@ Source: `html-report.ts`
 
 | KPI | Definition |
 |---|---|
-| Pull Requests | `filteredPRs.length` — total PRs after bot filtering |
-| Unique PR Reviews | $\sum_u \text{reviewsGiven}(u)$ — sum of unique PRs reviewed per user (double-counts PRs reviewed by multiple people) |
-| Active Reviewers | Count of users with `reviewsGiven > 0` |
-| PR Authors | Count of distinct `pr.author` values in filtered PRs |
-| Avg Reviewers/PR | Unique PR Reviews $\div$ Pull Requests |
-| Gini Coefficient | From bias detection (see above) |
+| Pull Requests | `filteredPRs.length` - total PRs after author bot filtering |
+| Unique PR Reviews | $\sum_u \text{reviewsGiven}(u)$ - sum of unique PRs reviewed per user from `userStats`; uses the per-user qualifying-review filters. When `include-bots` is `false`, bot-authored PRs are skipped entirely and bot reviewer reviews are excluded. PENDING reviews are always excluded; self-reviews are excluded when both identities are known, with the shared `ghost`/`UNKNOWN_USER` placeholder exempt. |
+| Active Reviewers | Count of users in `userStats` with `reviewsGiven > 0`; uses the same qualifying-review filters as Unique PR Reviews |
+| PR Authors | Count of distinct `pr.author` values in `filteredPRs`, after author bot filtering |
+| Avg Reviewers/PR | Unique PR Reviews $\div$ Pull Requests; numerator is `userStats`-derived, denominator is `filteredPRs`-derived |
+| Gini Coefficient | From bias detection; uses the `bias-detector` qualifying-review filters |
+| Data Completeness | Collection completeness label, not a post-filtering count |
 
 ## HTML report: Reviewer Ranking card
 

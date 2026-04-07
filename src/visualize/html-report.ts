@@ -30,9 +30,9 @@ export function generateHtmlReport(analysis: AnalysisResult): string {
     partialDataReason,
   } = analysis;
 
-  // Filter out bot-authored PRs for KPIs and time-series (author filter only).
-  // Reviewer filtering is NOT applied here — time-series shows full review
-  // activity including bots, consistent with filtering.md ("N/A" for reviewer filter).
+  // Build the PR population used by PR-level KPIs, truncation warnings, and
+  // the time series. Reviewer-derived KPIs use userStats instead; userStats
+  // already applies the qualifying-review rules for per-user metrics.
   const filteredPRs = includeBots
     ? pullRequests
     : pullRequests.filter((pr) => !pr.authorIsBot);
