@@ -301,7 +301,7 @@ describe("getConfig", () => {
       });
 
       expect(() => getConfig()).toThrow(
-        'Invalid bias-threshold: "abc" must be a positive number',
+        'Invalid bias-threshold: "abc" must be a finite positive number',
       );
     });
 
@@ -311,7 +311,7 @@ describe("getConfig", () => {
       });
 
       expect(() => getConfig()).toThrow(
-        'Invalid bias-threshold: "-1" must be a positive number',
+        'Invalid bias-threshold: "-1" must be a finite positive number',
       );
     });
 
@@ -531,7 +531,7 @@ describe("getConfig", () => {
       });
 
       expect(() => getConfig()).toThrow(
-        'Invalid bias-threshold: "0" must be a positive number',
+        'Invalid bias-threshold: "0" must be a finite positive number',
       );
     });
 
@@ -541,18 +541,18 @@ describe("getConfig", () => {
       });
 
       expect(() => getConfig()).toThrow(
-        'Invalid bias-threshold: "NaN" must be a positive number',
+        'Invalid bias-threshold: "NaN" must be a finite positive number',
       );
     });
 
-    it("clamps Infinity to maximum", () => {
+    it("throws for Infinity", () => {
       mockDefaults({
         "bias-threshold": "Infinity",
       });
 
-      const config = getConfig();
-
-      expect(config.biasThreshold).toBe(10.0);
+      expect(() => getConfig()).toThrow(
+        'Invalid bias-threshold: "Infinity" must be a finite positive number',
+      );
     });
 
     it("accepts exact minimum 0.5", () => {

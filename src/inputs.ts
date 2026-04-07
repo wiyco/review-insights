@@ -151,9 +151,9 @@ function parseOutputModes(raw: string): OutputMode[] {
 /** Parses the bias threshold, clamping it to the allowed range. */
 function parseBiasThreshold(raw: string): number {
   const value = Number(raw);
-  if (Number.isNaN(value) || value <= 0) {
+  if (!Number.isFinite(value) || value <= 0) {
     throw new Error(
-      `Invalid bias-threshold: "${raw}" must be a positive number.`,
+      `Invalid bias-threshold: "${raw}" must be a finite positive number.`,
     );
   }
   return Math.min(Math.max(value, MIN_BIAS_THRESHOLD), MAX_BIAS_THRESHOLD);
