@@ -73,7 +73,7 @@ The GitHub token provided through the `github-token` input is:
 
 ## Bot Filtering
 
-With `include-bots` set to `false` (the default), bot-authored PRs and bot reviews are excluded from the statistical output. The AI/bot pattern analysis module still processes the unfiltered dataset for observability, but its results appear only in the dedicated bot-activity section of the report.
+With `include-bots` set to `false` (the default), bot-authored PRs and bot reviews are excluded from most statistical outputs. The AI/bot pattern analysis module still receives the unfiltered collected dataset for bot observability; `aiCoAuthoredPRs` is limited to PRs with observable commit metadata, and `humanReviewBurden` excludes traditional bot-authored PRs as well as PRs whose AI classification is unobservable at the cutoff (`aiCategory === null`) from its comparison cohort.
 
 ## Data Minimization
 

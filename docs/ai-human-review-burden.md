@@ -2,11 +2,11 @@
 
 This document specifies the analysis of how AI involvement affects human review workload. The module quantifies differences in review burden between AI-involved PRs and human-only PRs.
 
-The comparison cohort excludes **traditional bot-authored PRs** (`authorIsBot === true`). Those PRs remain visible in top-level bot observability metrics, but they are not part of the AI-vs-human burden comparison because they are neither human-authored development work nor AI-authored coding-agent work.
+The comparison cohort excludes **traditional bot-authored PRs** (`authorIsBot === true`) and PRs whose AI classification is not observable at the analysis cutoff. Those PRs remain visible in top-level bot observability metrics, but they are not part of the AI-vs-human burden comparison because they are either not human-authored/AI-authored coding-agent work or cannot be classified without using future commit metadata.
 
 ## PR classification
 
-Every pull request is classified into exactly one of three mutually exclusive groups. Classification is determined at normalization time and stored on the `PullRequestRecord`.
+During normalization, every pull request is initially classified into exactly one of three mutually exclusive groups and stored as `aiCategory` on the `PullRequestRecord`. Historical snapshot censoring may later set `aiCategory` to `null` when commit-trailer-dependent classification is not observable at `until`.
 
 | Group | Label | Condition (evaluated in order) |
 |---|---|---|
@@ -17,6 +17,8 @@ Every pull request is classified into exactly one of three mutually exclusive gr
 A PR that is both AI-authored and has AI co-author trailers is classified as `ai-authored` (the first matching rule wins).
 
 For `humanReviewBurden`, the grouped comparison is computed only on PRs with `authorIsBot === false`. Traditional bot-authored PRs may still carry `aiCategory === "human-only"` on the normalized record, but they are excluded before burden metrics are grouped.
+
+After `applyObservationWindow()` censors a historical snapshot, `aiCategory` may be `null` for PRs that were not merged at `until` and whose classification would depend on current commit trailers. Those PRs are also excluded from `humanReviewBurden`. `ai-authored` remains observable for unmerged-at-cutoff PRs because it is determined from the PR author, not from mutable commit metadata.
 
 ### AI tool account detection
 
@@ -61,7 +63,7 @@ where the `<email>` matches any of:
 
 The name field is not checked — only the email address determines a match. This avoids brittleness from model name changes (e.g., "Claude" vs "Claude Opus 4.6").
 
-Detection is applied to **all commit messages** in `PullRequestRecord.commitMessages`. Note that the GraphQL query currently fetches only the last commit per PR (`commits(last: 1)`), so this remains a **lower-bound estimate**. This limitation is documented but not changed by this specification.
+Detection is applied to **all observable commit messages** in `PullRequestRecord.commitMessages`. Note that the GraphQL query currently fetches only the last commit per PR (`commits(last: 1)`), so this remains a **lower-bound estimate**. For PRs not merged at a historical `until`, commit messages are treated as unobserved (`null`) because GitHub exposes them as current-snapshot metadata, not a historical as-of commit list.
 
 ### Interaction with `include-bots`
 
@@ -69,13 +71,13 @@ The `include-bots` flag controls traditional bot filtering only. AI classificati
 
 | `include-bots` | Traditional bots (Dependabot, etc.) | AI tool accounts (OpenClaw) | AI-assisted PRs |
 |---|---|---|---|
-| `false` | Excluded from per-user-stats, bias, merge-correlation, and `humanReviewBurden` | **Included** (not bots) | Included |
-| `true` | Included in per-user-stats, bias, and merge-correlation; still excluded from `humanReviewBurden` | Included | Included |
+| `false` | Excluded from per-user-stats, bias, merge-correlation, and `humanReviewBurden` | **Included** (not bots) | Included when AI classification is observable |
+| `true` | Included in per-user-stats, bias, and merge-correlation; still excluded from `humanReviewBurden` | Included | Included when AI classification is observable |
 
 Within `ai-patterns`, the split is intentional:
 
-- Bot observability metrics (`botReviewers`, `botReviewPercentage`, `aiCoAuthoredPRs`, `totalPRs`) operate on the full dataset.
-- `humanReviewBurden` always excludes traditional bot-authored PRs from the comparison cohort, regardless of `include-bots`.
+- Bot observability metrics (`botReviewers`, `botReviewPercentage`, `aiCoAuthoredPRs`, `totalPRs`) ignore `include-bots` and operate on the full dataset; `aiCoAuthoredPRs` only counts PRs with observable commit metadata.
+- `humanReviewBurden` always excludes traditional bot-authored PRs and PRs whose AI classification is not observable at the cutoff from the comparison cohort, regardless of `include-bots`.
 
 ## PR size data
 
@@ -104,6 +106,8 @@ These are stored on normalized records as:
 - `PullRequestRecord.deletions`
 - `ReviewRecord.commitOid`
 
+After the observation window is applied, `additions` and `deletions` may be `null` for PRs that were not merged at `until`, because the fetched GraphQL values describe the current PR diff and can include later pushes.
+
 ### PR size tiers
 
 Each PR is assigned a size tier based on total changed lines (`additions + deletions`):
@@ -115,7 +119,7 @@ Each PR is assigned a size tier based on total changed lines (`additions + delet
 | Large | `L` | 301+ lines |
 | Empty | `Empty` | 0 lines (no changes) |
 
-Size tiers are used for stratified analysis to control for the confounding effect of PR size on review burden.
+Size tiers are used for stratified analysis to control for the confounding effect of PR size on review burden. PRs with `additions === null` or `deletions === null` are excluded from size-stratified cells, but they can still contribute to unstratified burden metrics when their AI category is observable.
 
 ## Human review burden metrics
 
@@ -135,7 +139,7 @@ This definition is used consistently across all metrics below.
 
 Let the comparison cohort be:
 
-$$C = \{pr \mid \neg pr.\text{authorIsBot}\}$$
+$$C = \{pr \mid \neg pr.\text{authorIsBot} \land pr.\text{aiCategory} \ne \text{null}\}$$
 
 For each group $g \in \{\text{ai-authored},\; \text{ai-assisted},\; \text{human-only}\}$, let $PR_g$ be the set of PRs in group $g$ within that cohort:
 
@@ -267,7 +271,7 @@ All per-group metrics above are computed **twice**:
 1. **Unstratified** — across all PRs in each AI category group.
 2. **Stratified by PR size tier** — for each combination of (AI category × size tier), producing a matrix of metrics.
 
-The stratified view controls for the confounding effect of PR size. Comparing AI-authored vs human-only PRs **within the same size tier** isolates the effect of AI involvement from the effect of PR size.
+The stratified view controls for the confounding effect of PR size. Comparing AI-authored vs human-only PRs **within the same size tier** isolates the effect of AI involvement from the effect of PR size. PRs whose size is unobservable at the cutoff are omitted from the stratified cells because assigning them to a size tier would use future data.
 
 > [!TIP]
 >
@@ -301,9 +305,10 @@ interface ReviewRecord {
 
 interface PullRequestRecord {
   // ... existing fields ...
-  additions: number;
-  deletions: number;
-  aiCategory: AICategory;
+  commitMessages: string[] | null;
+  additions: number | null;
+  deletions: number | null;
+  aiCategory: AICategory | null;
 }
 ```
 
@@ -356,6 +361,7 @@ interface AIPatternResult {
 |---|---|
 | No PRs in a group | All metrics for that group return `null`; `prCount` is `0` |
 | PR author is a traditional bot | Excluded from `humanReviewBurden` entirely, regardless of `include-bots` |
+| `aiCategory === null` | Excluded from `humanReviewBurden`, because the AI classification is not observable at the cutoff |
 | PR has reviews but all are bot/PENDING/self | Treated as zero human reviews; included in `humanReviewsPerPR` distribution (as 0) but excluded from latency, changeRequestRate, and reviewRounds |
 | `review.createdAt < pr.createdAt` | Review excluded from first-review latency and `reviewRounds`. A PR whose qualifying human reviews **all** predate `pr.createdAt` is treated as unreviewed for latency, `changeRequestRate`, and `reviewRounds` (it contributes no datapoint to $P_g$ / $Q_g$) |
 | Any qualifying post-creation human review has `commitOid === null` | The PR is excluded from `reviewRounds` only, because the reviewed revision cannot be identified exactly |
@@ -363,6 +369,7 @@ interface AIPatternResult {
 | Division by zero | Always returns `null`, never `NaN` or `Infinity` |
 | AI tool account reviews its own PR | Excluded by self-review rule (reviewer === author) |
 | Size tier group has fewer than 3 PRs | Stratified metrics for that cell return `null` |
+| `additions === null` or `deletions === null` | Excluded from size-stratified cells, because the PR size tier is not observable at the cutoff |
 | PR with `additions === 0 && deletions === 0` | Assigned size tier `Empty` |
 | PR author or reviewer is a deleted/unknown user (`ghost` placeholder) | Self-review exclusion is skipped — the review is retained as a qualifying human review. When GraphQL returns `null` for an author, the normalizer substitutes the shared placeholder `ghost`. Without this guard, two unrelated deleted users would collide on the same login and be incorrectly excluded as a self-review. |
 
@@ -373,6 +380,7 @@ interface AIPatternResult {
 | AI tool account detection | `src/collect/normalizer.ts` — new `isAIToolAccount()` function |
 | AI co-author detection | `src/collect/normalizer.ts` — new `hasAICoAuthor()` function |
 | `aiCategory` assignment | `src/collect/normalizer.ts` — within `normalizePullRequests()` |
+| Historical AI/size metadata censoring | `src/collect/observation-window.ts` — within `applyObservationWindow()` |
 | AI co-authored PR counting | `src/analyze/ai-patterns.ts` — within `analyzeAIPatterns()` via `hasAICoAuthor()` |
 | PR size tier assignment | `src/analyze/ai-patterns.ts` — helper function |
 | Percentile computation | `src/analyze/ai-patterns.ts` — pure helper function |

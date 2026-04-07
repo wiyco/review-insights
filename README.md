@@ -45,7 +45,7 @@ jobs:
 
 For full descriptions and validation rules, see [docs/inputs.md](docs/inputs.md).
 
-The date range selects PRs by `createdAt`. For those PRs, review activity and merge/close state are observed only through `until`, so rerunning the same historical window produces a stable snapshot instead of drifting as later reviews arrive.
+The date range selects PRs by `createdAt`. For those PRs, review activity, merge/close state, and AI/size metadata are observed only through `until`, so rerunning the same historical window produces a stable snapshot instead of drifting as later reviews or pushes arrive. GitHub exposes commit messages and PR size as current-snapshot fields; when a PR is not merged at `until`, those fields are treated as unobserved for AI/size-dependent metrics rather than using future data.
 
 > [!NOTE]
 >
@@ -88,7 +88,7 @@ The HTML report includes the same capped/partial-dataset warnings and per-PR rev
 - **Review Heatmap** — Reviewer × Author matrix showing who reviews whom. Flagged pairs highlighted.
 - **Bar Charts** — Per-user reviews given and reviews received.
 - **Time Series** — Weekly/monthly review activity and PR volume trends.
-- **Human Review Burden** — Grouped bar charts comparing median review workload (with p90 whiskers) across AI-authored, AI-assisted, and human-only PRs, excluding traditional bot-authored PRs from the comparison cohort. Includes a detailed metrics table and size-stratified breakdown.
+- **Human Review Burden** — Grouped bar charts comparing median review workload (with p90 whiskers) across AI-authored, AI-assisted, and human-only PRs, excluding traditional bot-authored PRs and PRs whose AI classification is not observable at the cutoff. Includes a detailed metrics table and size-stratified breakdown.
 
 ## Analysis Features
 
@@ -96,7 +96,7 @@ The HTML report includes the same capped/partial-dataset warnings and per-PR rev
 - **Merge correlation** — PRs authored vs merged, zero-review merges
 - **Bias detection** — Activity-adjusted reviewer-author concentration via Pearson residuals and Gini coefficient
 - **AI/Bot patterns** — Bot review percentage and AI co-authored PR detection using the same [AI tool email patterns](docs/ai-human-review-burden.md#ai-co-author-detection) that define `ai-assisted`
-- **Human review burden** — Compares review workload (review counts, latency, change-request rate, review rounds) across AI-authored, AI-assisted, and human-only PRs after excluding traditional bot-authored PRs from the comparison cohort, with size-stratified breakdowns
+- **Human review burden** — Compares review workload (review counts, latency, change-request rate, review rounds) across AI-authored, AI-assisted, and human-only PRs after excluding traditional bot-authored PRs and PRs whose AI classification is not observable at the cutoff, with size-stratified breakdowns
 
 For detailed metric definitions, see [docs/statistics.md](docs/statistics.md).
 For filtering behavior, see [docs/filtering.md](docs/filtering.md).
@@ -128,7 +128,7 @@ permissions:
 
 ## Known Limitations
 
-- **AI co-authored detection is approximate.** Only the last commit of each PR is fetched from the GraphQL API (`commits(last: 1)`). This means AI co-author trailers on earlier commits are not inspected, and the result varies by merge strategy: merge commits typically do not carry the trailer, squash merges may or may not preserve it depending on the repository's settings, and rebase merges only expose the final commit. The `aiCoAuthoredPRs` metric should be treated as a lower-bound estimate.
+- **AI co-authored detection is approximate.** Only the last commit of each PR is fetched from the GraphQL API (`commits(last: 1)`). This means AI co-author trailers on earlier commits are not inspected, and the result varies by merge strategy: merge commits typically do not carry the trailer, squash merges may or may not preserve it depending on the repository's settings, and rebase merges only expose the final commit. For PRs not merged at a historical `until`, current commit metadata is treated as unobserved to avoid future leakage. The `aiCoAuthoredPRs` metric should be treated as a lower-bound estimate.
 - **Review fetches are capped at 100 per PR.** The GitHub GraphQL query requests at most 100 nested reviews per PR. When a PR hits that fetch limit, its review data may be truncated and a warning is surfaced in the job summary, HTML report, and PR comment.
 - **PR collection may complete with capped or partial data.** Pagination runs within a fixed 10-minute wall-clock collection budget and may also be bounded by `max-prs`. If the action finds additional PRs within the requested date range after reaching `max-prs`, it marks the dataset as `Capped`; if the wall-clock budget is exhausted, it marks the dataset as `Partial`. In both cases the action still succeeds, sets `partial-data` to `true`, and surfaces a warning in the job summary, PR comment, and HTML report. Counts and derived metrics then reflect only the collected subset rather than the full date-range population.
 - **Large repositories may cause long execution times.** When the GitHub API rate limit is exhausted during pagination, the action waits up to 5 minutes per reset cycle. For very active repositories with high `max-prs` values, this can result in extended run times. Set `timeout-minutes` in your workflow job to guard against this (e.g. `timeout-minutes: 15`), and consider using a shorter date range or lower `max-prs` value.

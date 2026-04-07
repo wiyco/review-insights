@@ -9,8 +9,9 @@ The analysis dataset is a censored snapshot:
 - A PR is included when `since <= pr.createdAt <= until`
 - For included PRs, reviews with `review.createdAt > until` are excluded
 - PR merge/close state is evaluated as of `until`; a PR merged or closed after `until` is treated as still open
+- Current-snapshot commit and PR size fields (`commitMessages`, `additions`, `deletions`) are treated as unobserved for PRs not merged at `until`; commit-trailer-dependent `aiCategory` is also unobserved for those PRs. `ai-authored` is retained because it is determined from the PR author, not from mutable commit metadata.
 
-This makes historical reruns stable instead of letting later review activity leak into an older window.
+This makes historical reruns stable instead of letting later review activity or later pushes leak into an older window.
 
 ## Per-user statistics
 
@@ -210,8 +211,8 @@ Source: `ai-patterns.ts`
 
 This module splits into two populations:
 
-- Bot observability metrics (`botReviewers`, `botReviewPercentage`, `aiCoAuthoredPRs`, `totalPRs`) ignore `include-bots` and operate on the full unfiltered dataset.
-- `humanReviewBurden` uses a comparison cohort that excludes traditional bot-authored PRs (`authorIsBot === true`) regardless of `include-bots`.
+- Bot observability metrics (`botReviewers`, `botReviewPercentage`, `aiCoAuthoredPRs`, `totalPRs`) ignore `include-bots` and operate on the full unfiltered dataset. `aiCoAuthoredPRs` only counts PRs with observable commit metadata, so it remains a lower-bound estimate when commit metadata is censored by the observation window.
+- `humanReviewBurden` uses a comparison cohort that excludes traditional bot-authored PRs (`authorIsBot === true`) and PRs whose `aiCategory` is unobservable at the cutoff, regardless of `include-bots`.
 
 ### botReviewPercentage
 
@@ -227,14 +228,14 @@ where totalReviews includes all reviews (including PENDING and bot reviews) acro
 
 ### aiCoAuthoredPRs
 
-Count of PRs where any commit message contains an AI co-author trailer as defined in [ai-human-review-burden.md](ai-human-review-burden.md#ai-co-author-detection). Only the last commit per PR is inspected (GraphQL limitation), so this is a lower-bound estimate.
+Count of PRs where any observable commit message contains an AI co-author trailer as defined in [ai-human-review-burden.md](ai-human-review-burden.md#ai-co-author-detection). Only the last commit per PR is inspected (GraphQL limitation), and PRs with observation-window-censored commit metadata are not counted, so this is a lower-bound estimate.
 
 ### Human review burden (per AI category)
 
 `reviewRounds` counts distinct reviewed revisions per PR from qualifying human reviews observed at or after PR creation, using the commit SHA attached to each review. PRs are excluded from this metric when an observed review is missing a commit SHA or when the per-PR review list is truncated.
 
 
-See [ai-human-review-burden.md](ai-human-review-burden.md) for the full specification of PR classification (`ai-authored` / `ai-assisted` / `human-only`) and per-group human review burden metrics (`humanReviewsPerPR`, `firstReviewLatencyMs`, `unreviewedRate`, `changeRequestRate`, `reviewRounds`) — each reported as distribution statistics (median, p90, mean) rather than a single average. These metrics are computed only on the comparison cohort of non-traditional-bot PRs.
+See [ai-human-review-burden.md](ai-human-review-burden.md) for the full specification of PR classification (`ai-authored` / `ai-assisted` / `human-only`) and per-group human review burden metrics (`humanReviewsPerPR`, `firstReviewLatencyMs`, `unreviewedRate`, `changeRequestRate`, `reviewRounds`) — each reported as distribution statistics (median, p90, mean) rather than a single average. These metrics are computed only on the comparison cohort of non-traditional-bot PRs whose AI category is observable at the cutoff.
 
 ## HTML report KPIs
 
@@ -271,7 +272,7 @@ Source: `burden-chart.ts`, rendered in `html-report.ts`
 
 This section visualizes the human review burden metrics from [ai-human-review-burden.md](ai-human-review-burden.md). It appears after the AI & Bot Patterns card.
 
-Traditional bot-authored PRs are excluded from this comparison section even when `include-bots` is `true`. The report notes the excluded count when the burden cohort is smaller than `aiPatterns.totalPRs`.
+Traditional bot-authored PRs and PRs whose AI classification is unobservable at the cutoff are excluded from this comparison section even when `include-bots` is `true`. The report notes those excluded counts when present. Size-stratified cells also exclude PRs whose size at the cutoff is unobservable.
 
 ### Components
 

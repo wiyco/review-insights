@@ -280,6 +280,21 @@ describe("analyzeAIPatterns", () => {
     const result = analyzeAIPatterns(prs);
     expect(result.aiCoAuthoredPRs).toBe(0);
   });
+
+  it("does not count unobservable commit metadata as AI co-authored", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        commitMessages: null,
+      }),
+    ];
+
+    const result = analyzeAIPatterns(prs);
+    expect(result.aiCoAuthoredPRs).toBe(0);
+    expect(result.totalPRs).toBe(1);
+  });
+
   it("excludes traditional bot-authored PRs from burden comparison groups", () => {
     const prs: PullRequestRecord[] = [
       makePR({
@@ -464,6 +479,42 @@ describe("humanReviewBurden", () => {
     expect(burden.humanOnly.prCount).toBe(0);
     expect(burden.humanOnly.humanReviewsPerPR.median).toBeNull();
     expect(burden.humanOnly.unreviewedRate).toBeNull();
+  });
+
+  it("excludes PRs with unobservable AI classification from burden comparison groups", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        aiCategory: null,
+        reviews: [
+          makeReview({
+            reviewer: "bob",
+            author: "alice",
+            prNumber: 1,
+          }),
+        ],
+      }),
+      makePR({
+        number: 2,
+        author: "carol",
+        aiCategory: "human-only",
+        reviews: [
+          makeReview({
+            reviewer: "dave",
+            author: "carol",
+            prNumber: 2,
+          }),
+        ],
+      }),
+    ];
+
+    const burden = analyzeAIPatterns(prs).humanReviewBurden;
+
+    expect(burden.humanOnly.prCount).toBe(1);
+    expect(burden.humanOnly.humanReviewsPerPR.median).toBe(1);
+    expect(burden.aiAssisted.prCount).toBe(0);
+    expect(burden.aiAuthored.prCount).toBe(0);
   });
 
   it("groups PRs by aiCategory and computes per-group metrics", () => {
@@ -827,6 +878,38 @@ describe("humanReviewBurden", () => {
     expect(cell).not.toBeNull();
     expect(cell?.prCount).toBe(4);
     expect(cell?.humanReviewsPerPR.median).toBe(1);
+  });
+
+  it("excludes PRs with unobservable size from size-stratified cells", () => {
+    const prs: PullRequestRecord[] = Array.from(
+      {
+        length: 4,
+      },
+      (_, i) =>
+        makePR({
+          number: i + 1,
+          author: `user-${i}`,
+          aiCategory: "human-only",
+          additions: null,
+          deletions: null,
+          reviews: [
+            makeReview({
+              reviewer: "reviewer-x",
+              author: `user-${i}`,
+              prNumber: i + 1,
+            }),
+          ],
+        }),
+    );
+
+    const burden = analyzeAIPatterns(prs).humanReviewBurden;
+
+    expect(burden.humanOnly.prCount).toBe(4);
+    expect(burden.humanOnly.humanReviewsPerPR.median).toBe(1);
+    expect(burden.stratifiedBySize.S.humanOnly).toBeNull();
+    expect(burden.stratifiedBySize.M.humanOnly).toBeNull();
+    expect(burden.stratifiedBySize.L.humanOnly).toBeNull();
+    expect(burden.stratifiedBySize.Empty.humanOnly).toBeNull();
   });
 
   it("uses macro average for changeRequestRate (each PR weighted equally)", () => {

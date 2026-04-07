@@ -17,7 +17,7 @@ Both filters must pass for a review to be counted. A human review on a bot-autho
 
 ### When `include-bots` is `true`
 
-No additional `include-bots` filtering is applied in modules that honor the flag. The `ai-patterns` module keeps its documented split: bot observability metrics use the full dataset, while `humanReviewBurden` still excludes traditional bot-authored PRs from the comparison cohort.
+No additional `include-bots` filtering is applied in modules that honor the flag. The `ai-patterns` module keeps its documented split: bot observability metrics ignore `include-bots` and use the full dataset, with `aiCoAuthoredPRs` limited to PRs with observable commit metadata; `humanReviewBurden` still excludes traditional bot-authored PRs and PRs whose AI classification is not observable at the cutoff from the comparison cohort.
 
 ### Per-module behavior
 
@@ -26,7 +26,7 @@ No additional `include-bots` filtering is applied in modules that honor the flag
 | per-user-stats | Yes | Yes | Skips entire PR if author is bot; skips individual bot reviews |
 | bias-detector | Yes | Yes | Same as per-user-stats |
 | merge-correlation | Yes | Yes | Bot reviews excluded from review counts on merged PRs |
-| ai-patterns | Mixed | Mixed | Top-level bot observability metrics include all activity, but `humanReviewBurden` always excludes traditional bot-authored PRs and bot reviews from the comparison metrics |
+| ai-patterns | Mixed | Mixed | Top-level bot observability metrics ignore `include-bots` and use the full dataset; only `aiCoAuthoredPRs` is limited to PRs with observable commit metadata. `humanReviewBurden` always excludes traditional bot-authored PRs, PRs whose AI classification is not observable at the cutoff, and bot reviews from the comparison metrics |
 | html-report KPIs: Pull Requests, PR Authors | Yes | N/A | Uses the author-filtered PR list; reviewer identities are not part of these counts |
 | html-report KPIs: Unique PR Reviews, Active Reviewers | Yes | Yes | Derived from `userStats`; when `include-bots` is `false`, bot-authored PRs are skipped entirely and bot reviewer reviews are excluded. PENDING reviews are always excluded; self-reviews are excluded only when both identities are known (`ghost` is exempt). |
 | html-report KPI: Avg Reviewers/PR | Mixed | Mixed | Numerator is Unique PR Reviews from `userStats`; denominator is Pull Requests from the author-filtered PR list |
@@ -34,7 +34,7 @@ No additional `include-bots` filtering is applied in modules that honor the flag
 | html-report KPI: Data Completeness | N/A | N/A | Reports collection completeness, not a post-filtering count |
 | time-series | Yes | N/A | Receives the pre-filtered PR list from html-report. When `include-bots` is `false`, bot-authored PRs are excluded there; when `true`, all PRs are included. Bot reviews and self-reviews are **not** excluded, so the review count reflects all non-PENDING review activity on that input list. |
 
-For `ai-patterns`, this split is intentional: bot observability (`botReviewers`, `botReviewPercentage`, `aiCoAuthoredPRs`, `totalPRs`) uses the full dataset, while `humanReviewBurden` uses a comparison cohort that excludes traditional bot-authored PRs regardless of `include-bots`.
+For `ai-patterns`, this split is intentional: bot observability (`botReviewers`, `botReviewPercentage`, `aiCoAuthoredPRs`, `totalPRs`) ignores `include-bots` and uses the full dataset, while `aiCoAuthoredPRs` only counts PRs with observable commit metadata. `humanReviewBurden` uses a comparison cohort that excludes traditional bot-authored PRs regardless of `include-bots` and excludes PRs whose AI classification is not observable at the cutoff.
 
 ### Rationale
 
@@ -42,7 +42,7 @@ Bot-authored PRs (e.g., Dependabot) are excluded entirely because:
 
 - They do not reflect human team review workload.
 - Including human reviews on bot PRs would inflate reviewer counts and distort bias detection.
-- The `ai-patterns` module separately tracks bot activity for observability while excluding traditional bot-authored PRs from the AI-vs-human burden comparison.
+- The `ai-patterns` module separately tracks bot activity for observability while excluding traditional bot-authored PRs and unobservable AI classifications from the AI-vs-human burden comparison.
 
 ## Additional filters (always applied)
 

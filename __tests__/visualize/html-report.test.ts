@@ -378,11 +378,176 @@ describe("generateHtmlReport", () => {
             },
           },
         },
+        pullRequests: [
+          makePR({
+            number: 1,
+            author: "author-a",
+          }),
+          makePR({
+            number: 2,
+            author: "author-b",
+          }),
+          makePR({
+            number: 3,
+            author: "dependabot[bot]",
+            authorIsBot: true,
+          }),
+        ],
       }),
     );
 
     expect(html).toContain(
-      "Traditional bot-authored PRs are excluded from this comparison cohort (1 PR)",
+      "Traditional bot-authored PRs are excluded from this comparison cohort (1 PR).",
+    );
+    expect(html).not.toContain("even when `include-bots` is enabled");
+  });
+
+  it("pluralizes the traditional bot-authored PR exclusion note", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        aiPatterns: {
+          botReviewers: [],
+          aiCoAuthoredPRs: 0,
+          totalPRs: 4,
+          botReviewPercentage: 0,
+          humanReviewBurden: {
+            ...EMPTY_BURDEN,
+            humanOnly: {
+              ...EMPTY_BURDEN.humanOnly,
+              prCount: 2,
+            },
+          },
+        },
+        pullRequests: [
+          makePR({
+            number: 1,
+            author: "author-a",
+          }),
+          makePR({
+            number: 2,
+            author: "author-b",
+          }),
+          makePR({
+            number: 3,
+            author: "dependabot[bot]",
+            authorIsBot: true,
+          }),
+          makePR({
+            number: 4,
+            author: "renovate[bot]",
+            authorIsBot: true,
+          }),
+        ],
+      }),
+    );
+
+    expect(html).toContain(
+      "Traditional bot-authored PRs are excluded from this comparison cohort (2 PRs).",
+    );
+    expect(html).not.toContain("even when `include-bots` is enabled");
+  });
+
+  it("notes when one PR has unobservable AI classification and one PR has unobservable size", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        aiPatterns: {
+          botReviewers: [],
+          aiCoAuthoredPRs: 0,
+          totalPRs: 3,
+          botReviewPercentage: 0,
+          humanReviewBurden: {
+            ...EMPTY_BURDEN,
+            humanOnly: {
+              ...EMPTY_BURDEN.humanOnly,
+              prCount: 2,
+            },
+          },
+        },
+        pullRequests: [
+          makePR({
+            number: 1,
+            author: "author-a",
+            aiCategory: null,
+          }),
+          makePR({
+            number: 2,
+            author: "author-b",
+            additions: null,
+            deletions: null,
+            aiCategory: "human-only",
+          }),
+          makePR({
+            number: 3,
+            author: "author-c",
+            aiCategory: "human-only",
+          }),
+        ],
+      }),
+    );
+
+    expect(html).toContain(
+      "PRs with AI classification that is not observable at the cutoff are excluded from this comparison cohort (1 PR)",
+    );
+    expect(html).toContain(
+      "Size-stratified cells exclude PRs whose size at the cutoff is not observable (1 PR).",
+    );
+  });
+
+  it("pluralizes unobservable AI classification and size notes", () => {
+    const html = generateHtmlReport(
+      makeAnalysis({
+        aiPatterns: {
+          botReviewers: [],
+          aiCoAuthoredPRs: 0,
+          totalPRs: 5,
+          botReviewPercentage: 0,
+          humanReviewBurden: {
+            ...EMPTY_BURDEN,
+            humanOnly: {
+              ...EMPTY_BURDEN.humanOnly,
+              prCount: 3,
+            },
+          },
+        },
+        pullRequests: [
+          makePR({
+            number: 1,
+            author: "author-a",
+            aiCategory: null,
+          }),
+          makePR({
+            number: 2,
+            author: "author-b",
+            aiCategory: null,
+          }),
+          makePR({
+            number: 3,
+            author: "author-c",
+            additions: null,
+            deletions: null,
+            aiCategory: "human-only",
+          }),
+          makePR({
+            number: 4,
+            author: "author-d",
+            additions: null,
+            deletions: null,
+            aiCategory: "human-only",
+          }),
+          makePR({
+            number: 5,
+            author: "author-e",
+            aiCategory: "human-only",
+          }),
+        ],
+      }),
+    );
+
+    expect(html).toContain(
+      "PRs with AI classification that is not observable at the cutoff are excluded from this comparison cohort (2 PRs)",
+    );
+    expect(html).toContain(
+      "Size-stratified cells exclude PRs whose size at the cutoff is not observable (2 PRs).",
     );
   });
 
