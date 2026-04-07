@@ -17,7 +17,7 @@ Both filters must pass for a review to be counted. A human review on a bot-autho
 
 ### When `include-bots` is `true`
 
-No additional `include-bots` filtering is applied in modules that honor the flag. The `ai-patterns` module keeps its documented split: bot observability metrics use the full dataset, while `humanReviewBurden` still excludes traditional bot-authored PRs and PRs whose AI classification is not observable at the cutoff from the comparison cohort.
+No additional `include-bots` filtering is applied in modules that honor the flag. The `ai-patterns` module keeps its documented split: bot observability metrics ignore `include-bots` and use the full dataset, with `aiCoAuthoredPRs` limited to PRs with observable commit metadata; `humanReviewBurden` still excludes traditional bot-authored PRs and PRs whose AI classification is not observable at the cutoff from the comparison cohort.
 
 ### Per-module behavior
 

@@ -76,7 +76,7 @@ The `include-bots` flag controls traditional bot filtering only. AI classificati
 
 Within `ai-patterns`, the split is intentional:
 
-- Bot observability metrics (`botReviewers`, `botReviewPercentage`, `aiCoAuthoredPRs`, `totalPRs`) operate on the full dataset.
+- Bot observability metrics (`botReviewers`, `botReviewPercentage`, `aiCoAuthoredPRs`, `totalPRs`) ignore `include-bots` and operate on the full dataset; `aiCoAuthoredPRs` only counts PRs with observable commit metadata.
 - `humanReviewBurden` always excludes traditional bot-authored PRs and PRs whose AI classification is not observable at the cutoff from the comparison cohort, regardless of `include-bots`.
 
 ## PR size data
