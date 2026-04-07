@@ -1,4 +1,5 @@
 import { hasAICoAuthor, UNKNOWN_USER } from "../collect/normalizer";
+import { MIN_STRATIFIED_SAMPLE } from "../constants";
 import type {
   AICategory,
   AIPatternResult,
@@ -127,8 +128,31 @@ function getHumanReviewBurdenCohort(
   );
 }
 
-/** Minimum PRs in a size-tier cell to report metrics. */
-const MIN_STRATIFIED_SAMPLE = 3;
+function nullMetricBurdenGroup(prCount: number): HumanReviewBurdenGroup {
+  return {
+    prCount,
+    humanReviewsPerPR: {
+      median: null,
+      p90: null,
+      mean: null,
+    },
+    firstReviewLatencyMs: {
+      median: null,
+      p90: null,
+      mean: null,
+    },
+    unreviewedRate: null,
+    changeRequestRate: {
+      median: null,
+      mean: null,
+    },
+    reviewRounds: {
+      median: null,
+      p90: null,
+      mean: null,
+    },
+  };
+}
 
 /**
  * Computes human review burden metrics for a set of PRs.
@@ -136,29 +160,7 @@ const MIN_STRATIFIED_SAMPLE = 3;
 function computeBurdenGroup(prs: PullRequestRecord[]): HumanReviewBurdenGroup {
   const prCount = prs.length;
   if (prCount === 0) {
-    return {
-      prCount: 0,
-      humanReviewsPerPR: {
-        median: null,
-        p90: null,
-        mean: null,
-      },
-      firstReviewLatencyMs: {
-        median: null,
-        p90: null,
-        mean: null,
-      },
-      unreviewedRate: null,
-      changeRequestRate: {
-        median: null,
-        mean: null,
-      },
-      reviewRounds: {
-        median: null,
-        p90: null,
-        mean: null,
-      },
-    };
+    return nullMetricBurdenGroup(0);
   }
 
   // Per-PR human review counts (includes 0 for unreviewed PRs)
@@ -279,9 +281,10 @@ function computeHumanReviewBurden(
           pr.deletions != null &&
           assignSizeTier(pr.additions, pr.deletions) === tier,
       );
+      if (prs.length === 0) return null;
       return prs.length >= MIN_STRATIFIED_SAMPLE
         ? computeBurdenGroup(prs)
-        : null;
+        : nullMetricBurdenGroup(prs.length);
     };
     stratifiedBySize[tier] = {
       aiAuthored: forTier("ai-authored"),

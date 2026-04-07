@@ -851,7 +851,7 @@ describe("humanReviewBurden", () => {
     expect(burden.humanOnly.reviewRounds.median).toBeNull();
   });
 
-  it("returns null for stratified cells with fewer than 3 PRs", () => {
+  it("retains sample size but suppresses stratified metrics with fewer than 3 PRs", () => {
     const prs: PullRequestRecord[] = [
       makePR({
         number: 1,
@@ -863,7 +863,14 @@ describe("humanReviewBurden", () => {
 
     const burden = analyzeAIPatterns(prs).humanReviewBurden;
     // Only 1 human-only S PR — below threshold of 3
-    expect(burden.stratifiedBySize.S.humanOnly).toBeNull();
+    const cell = burden.stratifiedBySize.S.humanOnly;
+    expect(cell).not.toBeNull();
+    expect(cell?.prCount).toBe(1);
+    expect(cell?.humanReviewsPerPR.median).toBeNull();
+    expect(cell?.firstReviewLatencyMs.median).toBeNull();
+    expect(cell?.unreviewedRate).toBeNull();
+    expect(cell?.changeRequestRate.median).toBeNull();
+    expect(cell?.reviewRounds.median).toBeNull();
   });
 
   it("computes stratified metrics when sample is sufficient", () => {

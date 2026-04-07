@@ -39,7 +39,7 @@ jobs:
 | `since` | Start date for the PR creation window (ISO 8601, e.g. `2025-01-01`) | 90 days ago |
 | `until` | End date for the snapshot. Reviews and merge/close state after this timestamp are ignored. | Now |
 | `output-mode` | Output targets: `summary`, `comment`, `artifact` (comma-separated) | `summary,artifact` |
-| `bias-threshold` | Pearson residual threshold for activity-adjusted review imbalance (0.5–10.0) | `2.0` |
+| `bias-threshold` | Finite Pearson residual threshold for activity-adjusted review imbalance (0.5–10.0) | `2.0` |
 | `include-bots` | Include bot accounts in statistics ([details](docs/filtering.md)) | `false` |
 | `max-prs` | Maximum PRs to analyze (1–5000) | `500` |
 

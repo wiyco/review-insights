@@ -35,6 +35,32 @@ function makeBurdenGroup(
   };
 }
 
+function makeSuppressedBurdenGroup(prCount: number): HumanReviewBurdenGroup {
+  return makeBurdenGroup({
+    prCount,
+    humanReviewsPerPR: {
+      median: null,
+      p90: null,
+      mean: null,
+    },
+    firstReviewLatencyMs: {
+      median: null,
+      p90: null,
+      mean: null,
+    },
+    unreviewedRate: null,
+    changeRequestRate: {
+      median: null,
+      mean: null,
+    },
+    reviewRounds: {
+      median: null,
+      p90: null,
+      mean: null,
+    },
+  });
+}
+
 function makeBurden(overrides?: Partial<HumanReviewBurden>): HumanReviewBurden {
   return {
     aiAuthored: makeBurdenGroup({
@@ -189,12 +215,53 @@ describe("renderBurdenSection", () => {
     const html = renderBurdenSection(makeBurden());
     // aiAssisted is null for S tier
     expect(html).toContain("—");
+    expect(html).toContain(
+      '— <span style="font-size:10px;color:#94a3b8;">(n=0)</span>',
+    );
   });
 
   it("shows sample size in stratified cells", () => {
     const html = renderBurdenSection(makeBurden());
     expect(html).toContain("(n=5)");
     expect(html).toContain("(n=12)");
+  });
+
+  it("renders tiers where every category has only suppressed small-n data", () => {
+    const html = renderBurdenSection(
+      makeBurden({
+        stratifiedBySize: {
+          S: {
+            aiAuthored: makeSuppressedBurdenGroup(1),
+            aiAssisted: makeSuppressedBurdenGroup(2),
+            humanOnly: makeSuppressedBurdenGroup(1),
+          },
+          M: {
+            aiAuthored: null,
+            aiAssisted: null,
+            humanOnly: null,
+          },
+          L: {
+            aiAuthored: null,
+            aiAssisted: null,
+            humanOnly: null,
+          },
+          Empty: {
+            aiAuthored: null,
+            aiAssisted: null,
+            humanOnly: null,
+          },
+        },
+      }),
+    );
+
+    expect(html).toContain("Small (1\u201350)");
+    expect(html).toContain(
+      '— <span style="font-size:10px;color:#94a3b8;">(n=1)</span>',
+    );
+    expect(html).toContain(
+      '— <span style="font-size:10px;color:#94a3b8;">(n=2)</span>',
+    );
+    expect(html).not.toContain("No size-stratified data available");
   });
 
   it("omits size tiers with no data in any category", () => {

@@ -1,3 +1,4 @@
+import { MIN_STRATIFIED_SAMPLE } from "../constants";
 import type {
   HumanReviewBurden,
   HumanReviewBurdenGroup,
@@ -428,7 +429,7 @@ function renderMetricsTable(burden: HumanReviewBurden): string {
 
 /**
  * Renders a size-stratified breakdown table grouped by observed PR size tier.
- * Only shows size tiers that have data in at least one category.
+ * Only shows size tiers that have at least one observed PR in any category.
  */
 function renderStratifiedTable(burden: HumanReviewBurden): string {
   const sizeTiers: PRSizeTier[] = [
@@ -444,7 +445,7 @@ function renderStratifiedTable(burden: HumanReviewBurden): string {
     Empty: "Empty (0)",
   };
 
-  // Only include tiers with data in at least one category
+  // Only include tiers with at least one observed PR in any category.
   const activeTiers = sizeTiers.filter((tier) => {
     const cell = burden.stratifiedBySize[tier];
     return (
@@ -455,7 +456,7 @@ function renderStratifiedTable(burden: HumanReviewBurden): string {
   });
 
   if (activeTiers.length === 0) {
-    return '<p class="note" style="margin-top:16px;">No size-stratified data available (fewer than 3 PRs per size tier).</p>';
+    return '<p class="note" style="margin-top:16px;">No size-stratified data available (no PRs with observable size).</p>';
   }
 
   const rows: string[] = [];
@@ -463,7 +464,7 @@ function renderStratifiedTable(burden: HumanReviewBurden): string {
     '<h3 style="font-size:15px;font-weight:600;margin:20px 0 8px;color:#1e293b;">Size-Stratified Comparison</h3>',
   );
   rows.push(
-    '<p class="note" style="margin-bottom:8px;">Groups PRs by observed size tier to avoid direct cross-tier comparisons. Interpret differences as descriptive within-tier associations, not causal effects of AI involvement. Cells with fewer than 3 PRs show "—".</p>',
+    `<p class="note" style="margin-bottom:8px;">Groups PRs by observed size tier to avoid direct cross-tier comparisons. Interpret differences as descriptive within-tier associations, not causal effects of AI involvement. Cells with fewer than ${MIN_STRATIFIED_SAMPLE} PRs show "—" while retaining n.</p>`,
   );
 
   rows.push("<table>");
@@ -516,12 +517,16 @@ function renderStratifiedTable(burden: HumanReviewBurden): string {
       for (const cat of CATEGORIES) {
         const grp = cell[cat];
         if (grp == null) {
-          rows.push('<td style="text-align:center;color:#cbd5e1;">—</td>');
+          rows.push(
+            '<td style="text-align:center;color:#cbd5e1;">— <span style="font-size:10px;color:#94a3b8;">(n=0)</span></td>',
+          );
         } else {
           const val = m.extract(grp);
           const n = grp.prCount;
+          const display =
+            n < MIN_STRATIFIED_SAMPLE ? "—" : formatValue(val, m.unit);
           rows.push(
-            `<td style="text-align:center;">${formatValue(val, m.unit)} <span style="font-size:10px;color:#94a3b8;">(n=${n})</span></td>`,
+            `<td style="text-align:center;">${display} <span style="font-size:10px;color:#94a3b8;">(n=${n})</span></td>`,
           );
         }
       }
