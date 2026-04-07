@@ -4,6 +4,7 @@
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
+    "lineEnding": "lf",
     "lineWidth": 80,
     "expand": "always"
   },
