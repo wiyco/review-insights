@@ -1,6 +1,6 @@
-# AI Impact on Human Review Burden
+# AI Involvement and Human Review Burden
 
-This document specifies the analysis of how AI involvement affects human review workload. The module quantifies differences in review burden between AI-involved PRs and human-only PRs.
+This document specifies a descriptive analysis of how human review workload differs across AI-involvement categories. The module quantifies review burden metrics for AI-involved PRs and human-only PRs; it does not estimate causal impact.
 
 The comparison cohort excludes **traditional bot-authored PRs** (`authorIsBot === true`) and PRs whose AI classification is not observable at the analysis cutoff. Those PRs remain visible in top-level bot observability metrics, but they are not part of the AI-vs-human burden comparison because they are either not human-authored/AI-authored coding-agent work or cannot be classified without using future commit metadata.
 
@@ -119,7 +119,7 @@ Each PR is assigned a size tier based on total changed lines (`additions + delet
 | Large | `L` | 301+ lines |
 | Empty | `Empty` | 0 lines (no changes) |
 
-Size tiers are used for stratified analysis to control for the confounding effect of PR size on review burden. PRs with `additions === null` or `deletions === null` are excluded from size-stratified cells, but they can still contribute to unstratified burden metrics when their AI category is observable.
+Size tiers are used for stratified analysis to show review burden within coarse PR-size groups. This avoids direct comparisons across different observed size tiers, but it is not a causal adjustment and does not control for within-tier size variation or other confounders. PRs with `additions === null` or `deletions === null` are excluded from size-stratified cells, but they can still contribute to unstratified burden metrics when their AI category is observable.
 
 ## Human review burden metrics
 
@@ -205,7 +205,7 @@ Returns `null` when $|PR_g| = 0$.
 >
 > **Interpretation**
 >
-> If `unreviewedRate` is significantly higher for AI-authored PRs than human-only PRs, the latency comparison is incomplete — the "missing" PRs may represent the hardest-to-review work. A high `unreviewedRate` is itself an indicator of review burden (avoidance).
+> If `unreviewedRate` is higher for AI-authored PRs than human-only PRs, the latency comparison is incomplete: the "missing" PRs may represent harder-to-review work. Treat `unreviewedRate` as a companion descriptive metric, not as proof of review avoidance.
 
 #### changeRequestRate — Per-PR macro average
 
@@ -271,13 +271,13 @@ All per-group metrics above are computed **twice**:
 1. **Unstratified** — across all PRs in each AI category group.
 2. **Stratified by PR size tier** — for each combination of (AI category × size tier), producing a matrix of metrics.
 
-The stratified view controls for the confounding effect of PR size. Comparing AI-authored vs human-only PRs **within the same size tier** isolates the effect of AI involvement from the effect of PR size. PRs whose size is unobservable at the cutoff are omitted from the stratified cells because assigning them to a size tier would use future data.
+The stratified view reports descriptive metrics within each observed PR size tier. Comparing AI-authored vs human-only PRs **within the same size tier** reduces variation due to the coarse size tier being displayed, but it does not isolate the causal effect of AI involvement or adjust for within-tier size differences, project, author, reviewer, timing, complexity, or other confounders. PRs whose size is unobservable at the cutoff are omitted from the stratified cells because assigning them to a size tier would use future data.
 
 > [!TIP]
 >
 > **Example**
 >
-> If AI-authored Large PRs have a median `reviewRounds` of 3 while human-only Large PRs have a median of 2, the difference is more likely attributable to AI involvement than to PR size.
+> If AI-authored Large PRs have a median `reviewRounds` of 3 while human-only Large PRs have a median of 2, the table shows a within-Large-tier association. It should not be interpreted as evidence that AI involvement caused the difference without additional causal modeling or statistical testing.
 
 Groups with fewer than 3 PRs in a given size tier report `null` for all metrics in that cell to avoid misleading statistics from tiny samples.
 
