@@ -281,7 +281,7 @@ The stratified view reports descriptive metrics within each observed PR size tie
 >
 > If AI-authored Large PRs have a median `reviewRounds` of 3 while human-only Large PRs have a median of 2, the table shows a within-Large-tier association. It should not be interpreted as evidence that AI involvement caused the difference without additional causal modeling or statistical testing.
 
-Groups with fewer than 3 PRs in a given size tier report `null` for all metrics in that cell to avoid misleading statistics from tiny samples.
+Groups with fewer than 3 PRs in a given size tier retain the cell `prCount` but report `null` for all metrics in that cell to avoid misleading statistics from tiny samples. A `null` cell means there were no comparison-eligible PRs with observable size in that `(AI category × size tier)` cell.
 
 ### Summary counts
 
@@ -370,7 +370,7 @@ interface AIPatternResult {
 | GitHub reports additional review pages beyond the first fetched review page | The PR is excluded from `reviewRounds` only, because the observed review set is truncated |
 | Division by zero | Always returns `null`, never `NaN` or `Infinity` |
 | AI tool account reviews its own PR | Excluded by self-review rule (reviewer === author) |
-| Size tier group has fewer than 3 PRs | Stratified metrics for that cell return `null` |
+| Size tier group has fewer than 3 PRs | Cell `prCount` is reported; stratified metrics for that cell return `null` |
 | `additions === null` or `deletions === null` | Excluded from size-stratified cells, because the PR size tier is not observable at the cutoff |
 | PR with `additions === 0 && deletions === 0` | Assigned size tier `Empty` |
 | PR author or reviewer is a deleted/unknown user (`ghost` placeholder) | Self-review exclusion is skipped — the review is retained as a qualifying human review. When GraphQL returns `null` for an author, the normalizer substitutes the shared placeholder `ghost`. Without this guard, two unrelated deleted users would collide on the same login and be incorrectly excluded as a self-review. |

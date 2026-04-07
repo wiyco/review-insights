@@ -149,6 +149,7 @@ export interface HumanReviewBurden {
   aiAuthored: HumanReviewBurdenGroup;
   aiAssisted: HumanReviewBurdenGroup;
   humanOnly: HumanReviewBurdenGroup;
+  /** Null cells have no observed PRs; small-n cells retain prCount with null metrics. */
   stratifiedBySize: Record<
     PRSizeTier,
     {

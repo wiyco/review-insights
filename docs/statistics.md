@@ -281,7 +281,7 @@ Traditional bot-authored PRs and PRs whose AI classification is unobservable at 
 | PR count cards | Sample size (n) and percentage for each AI category (ai-authored, ai-assisted, human-only) |
 | Grouped bar charts | One chart per metric — bars show **median**, whisker lines extend to **p90** (where available). Metrics: Reviews/PR, Time to 1st Review, Change Request Rate (median-only, no p90 — see [rationale](ai-human-review-burden.md#changerequestrate--per-pr-macro-average)), Review Rounds |
 | Detailed metrics table | Median and p90 columns per category, plus Unreviewed Rate (highlighted in red when > 20%) |
-| Size-stratified table | Median values per (AI category × size tier) cell, with sample sizes. Cells with < 3 PRs show "—" |
+| Size-stratified table | Median values per (AI category × size tier) cell, with sample sizes. Cells with < 3 PRs show "—" while retaining `n` |
 
 ### Design rationale
 
