@@ -287,15 +287,15 @@ ${x}
         <td class="${e.zeroReviewMerges>0?`warn`:``}">${e.zeroReviewMerges}</td>
       </tr>`).join(`
 `),M=i.botReviewers.sort((e,t)=>t.reviewCount-e.reviewCount).map(e=>`<tr><td>${so(e.login)}</td><td>${e.reviewCount}</td></tr>`).join(`
-`),N=i.humanReviewBurden.aiAuthored.prCount+i.humanReviewBurden.aiAssisted.prCount+i.humanReviewBurden.humanOnly.prCount,P=a.filter(e=>e.authorIsBot).length,F=a.filter(e=>!e.authorIsBot&&e.aiCategory==null).length,I=a.filter(e=>!e.authorIsBot&&e.aiCategory!=null&&(e.additions==null||e.deletions==null)).length,L=r.modelFitError,R=L!=null,z=L==null?``:`<p class="warn">Bias warnings unavailable: ${so(L)}</p>
-           <p class="note">The review matrix and Gini coefficient are still reported because they do not depend on a successful quasi-independence fit.</p>`,ee=r.flaggedPairs.sort((e,t)=>t.pearsonResidual-e.pearsonResidual).map(e=>`<tr>
+`),N=a.filter(e=>e.authorIsBot).length,P=a.filter(e=>!e.authorIsBot&&e.aiCategory==null).length,F=a.filter(e=>!e.authorIsBot&&e.aiCategory!=null&&(e.additions==null||e.deletions==null)).length,I=r.modelFitError,L=I!=null,R=I==null?``:`<p class="warn">Bias warnings unavailable: ${so(I)}</p>
+           <p class="note">The review matrix and Gini coefficient are still reported because they do not depend on a successful quasi-independence fit.</p>`,z=r.flaggedPairs.sort((e,t)=>t.pearsonResidual-e.pearsonResidual).map(e=>`<tr>
           <td>${so(e.reviewer)}</td>
           <td>${so(e.author)}</td>
           <td>${e.count}</td>
           <td>${e.expectedCount.toFixed(2)}</td>
           <td>${e.pearsonResidual.toFixed(2)}</td>
         </tr>`).join(`
-`),B=`
+`),ee=`
     <p class="note">Bias is detected using a <strong>Pearson residual</strong> from a reviewer-author quasi-independence model on the observed interaction graph. The model matches each reviewer's total outgoing reviews and each author's total incoming reviews, so high-volume people are not flagged merely for being active.</p>
     <p class="note">Pairs are flagged when their observed review count exceeds the model's expected count by more than <strong>${s.toFixed(1)}</strong> residual units (i.e. Residual &gt; ${s.toFixed(1)}). This is an exploratory diagnostic, not a multiplicity-adjusted significance test.</p>
   `;return`<!DOCTYPE html>
@@ -430,19 +430,19 @@ ${x}
   <div class="card">
     <h2>Human Review Burden by AI Involvement</h2>
     <p class="note" style="margin-bottom:12px;">Compares the review workload humans bear for AI-authored, AI-assisted, and human-only PRs. Lower values indicate less human effort required.</p>
-    ${P>0?`<p class="note" style="margin-bottom:12px;">Traditional bot-authored PRs are excluded from this comparison cohort (${P} PR${P===1?``:`s`}).</p>`:``}
-    ${F>0?`<p class="note" style="margin-bottom:12px;">PRs with AI classification that is not observable at the cutoff are excluded from this comparison cohort (${F} PR${F===1?``:`s`}). This avoids using commit metadata that may have changed after the analysis window.</p>`:``}
-    ${N>0&&I>0?`<p class="note" style="margin-bottom:12px;">Size-stratified cells exclude PRs whose size at the cutoff is not observable (${I} PR${I===1?``:`s`}).</p>`:``}
+    ${N>0?`<p class="note" style="margin-bottom:12px;">Traditional bot-authored PRs are excluded from this comparison cohort (${N} PR${N===1?``:`s`}).</p>`:``}
+    ${P>0?`<p class="note" style="margin-bottom:12px;">PRs with AI classification that is not observable at the cutoff are excluded from this comparison cohort (${P} PR${P===1?``:`s`}). This avoids using commit metadata that may have changed after the analysis window.</p>`:``}
+    ${F>0?`<p class="note" style="margin-bottom:12px;">Size-stratified cells exclude PRs whose size at the cutoff is not observable (${F} PR${F===1?``:`s`}).</p>`:``}
     ${wj(i.humanReviewBurden)}
   </div>
 
   <!-- Bias Warnings -->
   <div class="card">
     <h2>Bias Warnings</h2>
-    ${R?z:r.flaggedPairs.length>0?`<p class="note">Pairs whose observed review frequency materially exceeds the activity-adjusted expectation:</p>
-           <table style="margin-top:12px"><thead><tr><th>Reviewer</th><th>Author</th><th>Count</th><th>Expected</th><th>Residual</th></tr></thead><tbody>${ee}</tbody></table>`:`<p class="note">No reviewer-author pair exceeds the configured activity-adjusted bias threshold.</p>`}
+    ${L?R:r.flaggedPairs.length>0?`<p class="note">Pairs whose observed review frequency materially exceeds the activity-adjusted expectation:</p>
+           <table style="margin-top:12px"><thead><tr><th>Reviewer</th><th>Author</th><th>Count</th><th>Expected</th><th>Residual</th></tr></thead><tbody>${z}</tbody></table>`:`<p class="note">No reviewer-author pair exceeds the configured activity-adjusted bias threshold.</p>`}
     <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 8px;">
-      ${B}
+      ${ee}
     </div>
   </div>
 
