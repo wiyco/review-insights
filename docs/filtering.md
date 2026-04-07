@@ -27,7 +27,11 @@ No additional `include-bots` filtering is applied in modules that honor the flag
 | bias-detector | Yes | Yes | Same as per-user-stats |
 | merge-correlation | Yes | Yes | Bot reviews excluded from review counts on merged PRs |
 | ai-patterns | Mixed | Mixed | Top-level bot observability metrics include all activity, but `humanReviewBurden` always excludes traditional bot-authored PRs and bot reviews from the comparison metrics |
-| html-report (KPIs) | Yes | N/A | Uses pre-filtered PR list for totals (PR count, unique authors) |
+| html-report KPIs: Pull Requests, PR Authors | Yes | N/A | Uses the author-filtered PR list; reviewer identities are not part of these counts |
+| html-report KPIs: Unique PR Reviews, Active Reviewers | Yes | Yes | Derived from `userStats`, so bot reviewers are excluded when `include-bots` is `false`; PENDING and self-reviews are always excluded |
+| html-report KPI: Avg Reviewers/PR | Mixed | Mixed | Numerator is Unique PR Reviews from `userStats`; denominator is Pull Requests from the author-filtered PR list |
+| html-report KPI: Gini Coefficient | Yes | Yes | Derived from `bias-detector` |
+| html-report KPI: Data Completeness | N/A | N/A | Reports collection completeness, not a post-filtering count |
 | time-series | Yes | N/A | Receives the pre-filtered PR list from html-report. When `include-bots` is `false`, bot-authored PRs are excluded there; when `true`, all PRs are included. Bot reviews and self-reviews are **not** excluded, so the review count reflects all non-PENDING review activity on that input list. |
 
 For `ai-patterns`, this split is intentional: bot observability (`botReviewers`, `botReviewPercentage`, `aiCoAuthoredPRs`, `totalPRs`) uses the full dataset, while `humanReviewBurden` uses a comparison cohort that excludes traditional bot-authored PRs regardless of `include-bots`.
