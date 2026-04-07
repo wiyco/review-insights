@@ -33,7 +33,7 @@ Each time the Action runs it queries GitHub-operated services with the token sup
 
 All data is processed **entirely within the GitHub Actions runner** for the duration of the workflow job. The Action:
 
-- Aggregates per-user review statistics (counts, approval rates, time to first review)
+- Aggregates per-user review statistics (counts, approval counts, time to first review)
 - Computes statistical metrics (Z-scores, Gini coefficients, merge correlations)
 - Renders self-contained HTML/SVG reports with no external dependencies
 

@@ -92,7 +92,7 @@ The HTML report includes the same capped/partial-dataset warnings and per-PR rev
 
 ## Analysis Features
 
-- **Per-user stats** — Reviews given/received, approval rate, avg time to first review
+- **Per-user stats** — Reviews given/received, approval counts, avg time to first review
 - **Merge correlation** — PRs authored vs merged, zero-review merges
 - **Bias detection** — Activity-adjusted reviewer-author concentration via Pearson residuals and Gini coefficient
 - **AI/Bot patterns** — Bot review percentage and AI co-authored PR detection using the same [AI tool email patterns](docs/ai-human-review-burden.md#ai-co-author-detection) that define `ai-assisted`
