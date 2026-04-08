@@ -88,7 +88,7 @@ The HTML report includes the same capped/partial-dataset warnings and per-PR rev
 - **Review Heatmap** — Reviewer × Author matrix showing who reviews whom. Flagged pairs highlighted.
 - **Bar Charts** — Per-user reviews given and reviews received.
 - **Time Series** — Weekly/monthly review activity and PR volume trends.
-- **Human Review Burden** — Grouped bar charts comparing median review workload (with p90 whiskers) across AI-authored, AI-assisted, and human-only PRs, excluding traditional bot-authored PRs and PRs whose AI classification is not observable at the cutoff. Includes a detailed metrics table and size-stratified breakdown.
+- **Human Review Burden** — Grouped bar charts comparing median review workload across AI-authored, AI-assisted, and human-only PRs, with p90 whiskers where available, excluding traditional bot-authored PRs and PRs whose AI classification is not observable at the cutoff. Includes a detailed metrics table and size-stratified breakdown.
 
 ## Analysis Features
 
@@ -100,7 +100,7 @@ The HTML report includes the same capped/partial-dataset warnings and per-PR rev
 
 For detailed metric definitions, see [docs/statistics.md](docs/statistics.md).
 For filtering behavior, see [docs/filtering.md](docs/filtering.md).
-For the AI impact on human review burden methodology, see [docs/ai-human-review-burden.md](docs/ai-human-review-burden.md).
+For the human review burden methodology across AI-involvement categories, see [docs/ai-human-review-burden.md](docs/ai-human-review-burden.md).
 
 ## Permissions
 
