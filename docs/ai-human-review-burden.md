@@ -211,7 +211,7 @@ Returns `null` when $|PR_g| = 0$.
 
 #### changeRequestRate — Per-PR macro average
 
-To avoid a single high-churn PR dominating the group rate (Simpson's paradox), the change-request rate is computed as a **macro average** over PRs, not a micro average over reviews.
+To avoid a micro average over reviews that can let a single high-churn PR dominate the group rate, the change-request rate is computed as a **macro average** over PRs.
 
 For each PR $pr_i \in Q_g$ (PRs with at least one qualifying human review where `review.createdAt >= pr.createdAt`):
 

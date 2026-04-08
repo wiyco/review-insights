@@ -235,7 +235,7 @@ Count of PRs where any observable commit message contains an AI co-author traile
 `reviewRounds` counts distinct reviewed revisions per PR from qualifying human reviews observed at or after PR creation, using the commit SHA attached to each review. PRs are excluded from this metric when an observed review is missing a commit SHA or when the per-PR review list is truncated.
 
 
-See [ai-human-review-burden.md](ai-human-review-burden.md) for the full specification of PR classification (`ai-authored` / `ai-assisted` / `human-only`) and per-group human review burden metrics (`humanReviewsPerPR`, `firstReviewLatencyMs`, `unreviewedRate`, `changeRequestRate`, `reviewRounds`) — each reported as distribution statistics (median, p90, mean) rather than a single average. These metrics are computed only on the comparison cohort of non-traditional-bot PRs whose AI category is observable at the cutoff.
+See [ai-human-review-burden.md](ai-human-review-burden.md) for the full specification of PR classification (`ai-authored` / `ai-assisted` / `human-only`) and per-group human review burden metrics: `humanReviewsPerPR`, `firstReviewLatencyMs`, and `reviewRounds` are reported as distribution statistics (`median`, `p90`, `mean`); `unreviewedRate` is a single per-group rate; and `changeRequestRate` is reported as per-PR macro-average statistics (`median`, `mean`). These metrics are computed only on the comparison cohort of non-traditional-bot PRs whose AI category is observable at the cutoff.
 
 ## HTML report KPIs
 

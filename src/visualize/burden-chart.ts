@@ -294,8 +294,8 @@ function renderMetricChart(
  * Renders the complete burden comparison visualization as an HTML string.
  * Includes:
  * 1. PR count cards per AI category
- * 2. Grouped bar charts for each burden metric (median + p90 whisker)
- * 3. Detailed metrics table with median, p90, and sample sizes
+ * 2. Grouped bar charts for each burden metric (median + p90 whisker where available)
+ * 3. Detailed metrics table with median, p90 where available, and sample sizes
  * 4. Size-stratified breakdown table
  *
  * Returns a no-data note if all categories have zero PRs.
@@ -361,7 +361,7 @@ export function renderBurdenSection(burden: HumanReviewBurden): string {
 
 /**
  * Renders a detailed comparison table of all burden metrics across categories.
- * Shows median, p90, and unreviewedRate side by side with sample sizes.
+ * Shows median, p90 where available, and unreviewedRate side by side with sample sizes.
  */
 function renderMetricsTable(burden: HumanReviewBurden): string {
   const rows: string[] = [];
