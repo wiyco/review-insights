@@ -1,5 +1,8 @@
 # Review Insights
 
+[![Coverage](docs/assets/coverage.svg)](docs/assets/coverage.svg)
+[![Code to Test Ratio](docs/assets/code-to-test-ratio.svg)](docs/assets/code-to-test-ratio.svg)
+
 GitHub Action that analyzes PR review statistics per user and generates visual reports — heatmaps, bar charts, and time-series graphs.
 
 ## Use Cases

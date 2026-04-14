@@ -13,17 +13,6 @@ codeToTestRatio:
     - "__tests__/**/*.test.ts"
   badge:
     path: docs/assets/code-to-test-ratio.svg
-testExecutionTime:
-  if: true
-diff:
-  datastores:
-    - artifact://${GITHUB_REPOSITORY}
-comment:
-  if: is_pull_request
-  deletePrevious: true
-report:
+push:
   if: is_default_branch
-  datastores:
-    - artifact://${GITHUB_REPOSITORY}
-summary:
-  if: true
+  message: "chore: update metric badges [skip ci]"
