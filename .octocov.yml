@@ -14,16 +14,20 @@ codeToTestRatio:
   badge:
     path: docs/assets/code-to-test-ratio.svg
 testExecutionTime:
-  if: true
+  if: "env.OCTOCOV_RUN_MODE == 'check'"
 diff:
+  if: "env.OCTOCOV_RUN_MODE == 'check'"
   datastores:
     - artifact://${GITHUB_REPOSITORY}
 comment:
-  if: is_pull_request
+  if: "env.OCTOCOV_RUN_MODE == 'check' && is_pull_request"
   deletePrevious: true
 report:
-  if: is_default_branch
+  if: "env.OCTOCOV_RUN_MODE == 'check' && is_default_branch"
   datastores:
     - artifact://${GITHUB_REPOSITORY}
 summary:
-  if: true
+  if: "env.OCTOCOV_RUN_MODE == 'check'"
+push:
+  if: "env.OCTOCOV_RUN_MODE == 'badge' && is_default_branch"
+  message: "chore: update metric badges [skip ci]"
