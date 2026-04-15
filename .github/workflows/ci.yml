@@ -27,6 +27,13 @@ jobs:
           name: coverage-report
           path: coverage/lcov-report/
           retention-days: 15
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-data
+          path: coverage/lcov.info
+          retention-days: 15
+          if-no-files-found: error
       - name: Prepare octocov config
         id: prepare-octocov-config
         env:
@@ -100,19 +107,25 @@ jobs:
     needs: check
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: "24"
-          cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run test:coverage
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage-data
+          path: coverage
+      - uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        id: badge-publisher-token
+        with:
+          client-id: ${{ secrets.BADGE_PUBLISHER_CLIENT_ID }}
+          private-key: ${{ secrets.BADGE_PUBLISHER_PRIVATE_KEY }}
+          permission-contents: write
       - uses: k1LoW/octocov-action@73d561f65d59e66899ed5c87e4621a913b5d5c20 # v1.5.0
         env:
           OCTOCOV_RUN_MODE: badge
         with:
+          github-token: ${{ steps.badge-publisher-token.outputs.token }}
           config: .octocov.yml
           work-dir: ${{ github.workspace }}
