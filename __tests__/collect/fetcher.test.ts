@@ -205,12 +205,17 @@ describe("fetchAllPullRequests", () => {
     });
 
     it("does not mark the dataset as capped when the extra sentinel PR is outside the date range", async () => {
+      const sentinel = fixtureData.repository.pullRequests.nodes[3];
+      if (sentinel === undefined) {
+        throw new Error("Missing sentinel PR fixture");
+      }
+
       const octokit = makeOctokit([
         makePageResponse(
           [
             ...fixtureData.repository.pullRequests.nodes.slice(0, 3),
             {
-              ...fixtureData.repository.pullRequests.nodes[3],
+              ...sentinel,
               createdAt: "2025-04-01T00:00:00Z",
             },
           ],
@@ -414,9 +419,14 @@ describe("fetchAllPullRequests", () => {
 
   describe("date boundary", () => {
     it("skips PRs created after config.until", async () => {
+      const futurePr = fixtureData.repository.pullRequests.nodes[0];
+      if (futurePr === undefined) {
+        throw new Error("Missing future PR fixture");
+      }
+
       const nodesWithFuturePR = [
         {
-          ...fixtureData.repository.pullRequests.nodes[0],
+          ...futurePr,
           createdAt: "2025-08-01T00:00:00Z",
         },
         ...fixtureData.repository.pullRequests.nodes.slice(1, 3),
@@ -436,10 +446,15 @@ describe("fetchAllPullRequests", () => {
     });
 
     it("stops when PR createdAt is before config.since", async () => {
+      const oldPr = fixtureData.repository.pullRequests.nodes[2];
+      if (oldPr === undefined) {
+        throw new Error("Missing old PR fixture");
+      }
+
       const nodesWithOldPR = [
         ...fixtureData.repository.pullRequests.nodes.slice(0, 2),
         {
-          ...fixtureData.repository.pullRequests.nodes[2],
+          ...oldPr,
           createdAt: "2025-04-01T00:00:00Z",
         },
       ];

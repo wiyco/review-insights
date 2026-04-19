@@ -215,8 +215,7 @@ function renderMetricChart(
   }
 
   // Bars
-  for (let i = 0; i < data.length; i++) {
-    const d = data[i];
+  for (const [i, d] of data.entries()) {
     const y = paddingTop + i * (barHeight + barGap);
     const color = CATEGORY_COLORS[d.cat];
 
@@ -504,8 +503,7 @@ function renderStratifiedTable(burden: HumanReviewBurden): string {
       },
     ];
 
-    for (let mi = 0; mi < metricsToShow.length; mi++) {
-      const m = metricsToShow[mi];
+    for (const [mi, m] of metricsToShow.entries()) {
       rows.push("<tr>");
       if (mi === 0) {
         rows.push(

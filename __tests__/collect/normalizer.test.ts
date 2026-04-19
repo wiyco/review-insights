@@ -410,11 +410,11 @@ describe("normalizePullRequests", () => {
       authorIsBot: false,
       mergedBy: "merger",
     });
-    expect(result[0].reviews).toHaveLength(1);
-    expect(result[0].commitMessages).toEqual([
+    expect(result[0]?.reviews).toHaveLength(1);
+    expect(result[0]?.commitMessages).toEqual([
       "fix: something",
     ]);
-    expect(result[0].reviews[0].commitOid).toBe("commit-1");
+    expect(result[0]?.reviews[0]?.commitOid).toBe("commit-1");
   });
 
   it("uses 'ghost' when PR author is null", () => {
@@ -423,8 +423,8 @@ describe("normalizePullRequests", () => {
         author: null,
       }),
     ]);
-    expect(result[0].author).toBe("ghost");
-    expect(result[0].authorIsBot).toBe(false);
+    expect(result[0]?.author).toBe("ghost");
+    expect(result[0]?.authorIsBot).toBe(false);
   });
 
   it("detects bot PR author", () => {
@@ -436,7 +436,7 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
-    expect(result[0].authorIsBot).toBe(true);
+    expect(result[0]?.authorIsBot).toBe(true);
   });
 
   it("returns null mergedBy when not merged", () => {
@@ -447,7 +447,7 @@ describe("normalizePullRequests", () => {
         state: "OPEN",
       }),
     ]);
-    expect(result[0].mergedBy).toBeNull();
+    expect(result[0]?.mergedBy).toBeNull();
   });
 
   it("warns when the review connection has an additional page", () => {
@@ -468,7 +468,7 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
-    expect(result[0].reviewLimitReached).toBe(true);
+    expect(result[0]?.reviewLimitReached).toBe(true);
     expect(logger.warning).toHaveBeenCalledWith(
       expect.stringContaining("PR #42"),
     );
@@ -494,7 +494,7 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
-    expect(result[0].reviewLimitReached).toBe(false);
+    expect(result[0]?.reviewLimitReached).toBe(false);
     expect(logger.warning).not.toHaveBeenCalled();
   });
 
@@ -502,7 +502,7 @@ describe("normalizePullRequests", () => {
     const result = normalizePullRequests([
       makeRawNode(),
     ]);
-    expect(result[0].reviewLimitReached).toBe(false);
+    expect(result[0]?.reviewLimitReached).toBe(false);
     expect(logger.warning).not.toHaveBeenCalled();
   });
 
@@ -520,7 +520,7 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
-    expect(result[0].reviewRequests).toEqual([
+    expect(result[0]?.reviewRequests).toEqual([
       "alice",
     ]);
   });
@@ -539,7 +539,7 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
-    expect(result[0].reviewRequests).toEqual([
+    expect(result[0]?.reviewRequests).toEqual([
       "core-team",
     ]);
   });
@@ -556,7 +556,7 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
-    expect(result[0].reviewRequests).toEqual([]);
+    expect(result[0]?.reviewRequests).toEqual([]);
   });
 
   it("normalizes multiple PRs", () => {
@@ -591,8 +591,8 @@ describe("normalizePullRequests", () => {
         deletions: 25,
       }),
     ]);
-    expect(result[0].additions).toBe(100);
-    expect(result[0].deletions).toBe(25);
+    expect(result[0]?.additions).toBe(100);
+    expect(result[0]?.deletions).toBe(25);
   });
 
   it("classifies AI tool account author as ai-authored", () => {
@@ -604,7 +604,7 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
-    expect(result[0].aiCategory).toBe("ai-authored");
+    expect(result[0]?.aiCategory).toBe("ai-authored");
   });
 
   it("classifies PR with AI co-author as ai-assisted", () => {
@@ -622,7 +622,7 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
-    expect(result[0].aiCategory).toBe("ai-assisted");
+    expect(result[0]?.aiCategory).toBe("ai-assisted");
   });
 
   it("does not classify an AI reviewer trailer as ai-assisted", () => {
@@ -640,14 +640,14 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
-    expect(result[0].aiCategory).toBe("human-only");
+    expect(result[0]?.aiCategory).toBe("human-only");
   });
 
   it("classifies regular PR as human-only", () => {
     const result = normalizePullRequests([
       makeRawNode(),
     ]);
-    expect(result[0].aiCategory).toBe("human-only");
+    expect(result[0]?.aiCategory).toBe("human-only");
   });
 
   it("classifies Devin AI as ai-authored with authorIsBot false", () => {
@@ -659,8 +659,8 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
-    expect(result[0].aiCategory).toBe("ai-authored");
-    expect(result[0].authorIsBot).toBe(false);
+    expect(result[0]?.aiCategory).toBe("ai-authored");
+    expect(result[0]?.authorIsBot).toBe(false);
   });
 
   it("classifies Copilot coding agent as ai-authored with authorIsBot false", () => {
@@ -672,8 +672,8 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
-    expect(result[0].aiCategory).toBe("ai-authored");
-    expect(result[0].authorIsBot).toBe(false);
+    expect(result[0]?.aiCategory).toBe("ai-authored");
+    expect(result[0]?.authorIsBot).toBe(false);
   });
 
   it("ai-authored takes precedence over ai-assisted", () => {
@@ -695,6 +695,6 @@ describe("normalizePullRequests", () => {
         },
       }),
     ]);
-    expect(result[0].aiCategory).toBe("ai-authored");
+    expect(result[0]?.aiCategory).toBe("ai-authored");
   });
 });

@@ -211,12 +211,12 @@ describe("renderHeatmap", () => {
         "user-e",
         "user-f",
       ];
-      for (let i = 0; i < users.length; i++) {
-        for (let j = 0; j < users.length; j++) {
+      for (const [i, reviewer] of users.entries()) {
+        for (const [j, author] of users.entries()) {
           if (i !== j) {
             entries.push([
-              users[i],
-              users[j],
+              reviewer,
+              author,
               (i + 1) * (j + 1),
             ]);
           }

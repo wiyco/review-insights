@@ -587,8 +587,13 @@ describe("computeUserStats", () => {
     it("sorts results by reviewsGiven descending", () => {
       const stats = computeUserStats(fixturePRs, true);
       for (let i = 1; i < stats.length; i++) {
-        expect(stats[i - 1].reviewsGiven).toBeGreaterThanOrEqual(
-          stats[i].reviewsGiven,
+        const previous = stats[i - 1];
+        const current = stats[i];
+        if (previous === undefined || current === undefined) {
+          throw new Error(`Missing user stats at index ${i}`);
+        }
+        expect(previous.reviewsGiven).toBeGreaterThanOrEqual(
+          current.reviewsGiven,
         );
       }
     });

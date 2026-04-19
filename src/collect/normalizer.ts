@@ -13,13 +13,13 @@ export const UNKNOWN_USER = "ghost";
 const BOT_LOGIN_SUFFIXES = [
   "[bot]",
   "-bot",
-] as const;
+];
 
 const AI_TOOL_PREFIXES = [
   "openclaw-",
   "devin-ai-integration",
   "copilot-swe-agent",
-] as const;
+];
 
 /**
  * Email patterns for AI co-author detection in commit trailers.
@@ -31,18 +31,22 @@ const AI_COAUTHOR_EMAIL_PATTERNS = [
   "cursoragent@cursor.com",
   "+copilot@users.noreply.github.com",
   "+devin-ai-integration[bot]@users.noreply.github.com",
-] as const;
+] satisfies readonly string[];
 
-const VALID_REVIEW_STATES: ReadonlySet<ReviewState> = new Set<ReviewState>([
+const AI_COAUTHOR_TRAILER_PATTERN =
+  /^co-authored-by:[^\S\r\n]*[^\s\r\n<][^\r\n<]*[^\S\r\n]+<([^\s\r\n>]+)>[^\S\r\n]*$/gim;
+
+const VALID_REVIEW_STATES: ReadonlySet<string> = new Set<string>([
   "APPROVED",
   "CHANGES_REQUESTED",
   "COMMENTED",
   "DISMISSED",
   "PENDING",
-]);
+] satisfies readonly ReviewState[]);
+const DEFAULT_REVIEW_STATE: ReviewState = "COMMENTED";
 
 function isValidReviewState(value: string): value is ReviewState {
-  return VALID_REVIEW_STATES.has(value as ReviewState);
+  return VALID_REVIEW_STATES.has(value);
 }
 
 /**
@@ -110,19 +114,21 @@ function isTraditionalBotAccount(
  * AI tool pattern. Matching is constrained to a single trailer line.
  */
 export function hasAICoAuthor(commitMessages: string[]): boolean {
-  const pattern =
-    /^co-authored-by:[^\S\r\n]*[^\s\r\n<][^\r\n<]*[^\S\r\n]+<([^\s\r\n>]+)>[^\S\r\n]*$/gim;
   for (const msg of commitMessages) {
-    pattern.lastIndex = 0;
+    AI_COAUTHOR_TRAILER_PATTERN.lastIndex = 0;
     for (
-      let match = pattern.exec(msg);
+      let match = AI_COAUTHOR_TRAILER_PATTERN.exec(msg);
       match !== null;
-      match = pattern.exec(msg)
+      match = AI_COAUTHOR_TRAILER_PATTERN.exec(msg)
     ) {
-      const email = match[1].toLowerCase();
+      const email = match[1];
+      const normalizedEmail = email?.toLowerCase();
       if (
+        normalizedEmail !== undefined &&
         AI_COAUTHOR_EMAIL_PATTERNS.some((p) =>
-          p.startsWith("+") ? email.endsWith(p) : email === p,
+          p.startsWith("+")
+            ? normalizedEmail.endsWith(p)
+            : normalizedEmail === p,
         )
       ) {
         return true;
@@ -156,13 +162,13 @@ export function normalizeReview(
   prNumber: number,
   prAuthor: string,
 ): ReviewRecord {
-  const state = isValidReviewState(rawReview.state)
+  const state: ReviewState = isValidReviewState(rawReview.state)
     ? rawReview.state
     : (() => {
         logger.warning(
           `Unknown review state "${rawReview.state}" on PR #${prNumber}; treating as COMMENTED.`,
         );
-        return "COMMENTED" as const;
+        return DEFAULT_REVIEW_STATE;
       })();
 
   return {

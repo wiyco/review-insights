@@ -2,14 +2,14 @@ import * as core from "@actions/core";
 import type { ActionConfig, OutputMode } from "./types";
 import { validateRepositoryFormat } from "./utils/sanitize";
 
-const VALID_OUTPUT_MODES: ReadonlySet<OutputMode> = new Set<OutputMode>([
+const VALID_OUTPUT_MODES: ReadonlySet<string> = new Set<string>([
   "summary",
   "comment",
   "artifact",
-]);
+] satisfies readonly OutputMode[]);
 
 function isValidOutputMode(value: string): value is OutputMode {
-  return VALID_OUTPUT_MODES.has(value as OutputMode);
+  return VALID_OUTPUT_MODES.has(value);
 }
 
 const MIN_DATE = "2008-01-01T00:00:00Z";
@@ -191,7 +191,7 @@ export function getConfig(): ActionConfig {
       `Invalid repository format: "${repository}". Expected "owner/repo".`,
     );
   }
-  const [owner, repo] = repository.split("/");
+  const [owner = "", repo = ""] = repository.split("/");
 
   const now = new Date();
   const defaultSince = new Date(

@@ -1,22 +1,17 @@
-const HTML_ESCAPE_MAP: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
-  // Backticks can act as attribute delimiters in legacy IE parsers.
-  // Not exploitable in current usage (element content only), but included
-  // as defense-in-depth in case escapeHtml is later used in attribute context.
-  "`": "&#96;",
-};
-
 const HTML_ESCAPE_PATTERN = /[&<>"'`]/g;
 
 /**
  * Escapes HTML special characters to prevent XSS in generated output.
  */
 export function escapeHtml(str: string): string {
-  return str.replace(HTML_ESCAPE_PATTERN, (char) => HTML_ESCAPE_MAP[char]);
+  return str.replace(HTML_ESCAPE_PATTERN, (char) => {
+    if (char === "&") return "&amp;";
+    if (char === "<") return "&lt;";
+    if (char === ">") return "&gt;";
+    if (char === '"') return "&quot;";
+    if (char === "'") return "&#39;";
+    return "&#96;";
+  });
 }
 
 /**

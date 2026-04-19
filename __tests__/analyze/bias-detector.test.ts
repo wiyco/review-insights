@@ -588,15 +588,19 @@ describe("detectBias", () => {
         "grace",
         "heidi",
       ];
-      for (let i = 0; i < others.length; i++) {
+      for (const [i, author] of others.entries()) {
+        const reviewer = others[(i + 1) % others.length];
+        if (reviewer === undefined) {
+          throw new Error(`Missing reviewer for index ${i}`);
+        }
         prs.push(
           makePR({
             number: 101 + i,
-            author: others[i],
+            author,
             reviews: [
               makeReview({
-                reviewer: others[(i + 1) % others.length],
-                author: others[i],
+                reviewer,
+                author,
                 prNumber: 101 + i,
               }),
             ],
@@ -1063,9 +1067,14 @@ describe("detectBias", () => {
       const result = detectBias(prs, 0.5, false);
       expect(result.flaggedPairs).toHaveLength(4);
       for (let i = 1; i < result.flaggedPairs.length; i++) {
-        expect(
-          result.flaggedPairs[i - 1].pearsonResidual,
-        ).toBeGreaterThanOrEqual(result.flaggedPairs[i].pearsonResidual);
+        const previous = result.flaggedPairs[i - 1];
+        const current = result.flaggedPairs[i];
+        if (previous === undefined || current === undefined) {
+          throw new Error(`Missing flagged pair at index ${i}`);
+        }
+        expect(previous.pearsonResidual).toBeGreaterThanOrEqual(
+          current.pearsonResidual,
+        );
       }
     });
   });

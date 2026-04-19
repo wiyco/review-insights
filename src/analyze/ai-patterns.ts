@@ -10,6 +10,12 @@ import type {
   PullRequestRecord,
   ReviewRecord,
 } from "../types";
+import {
+  arithmeticMean,
+  assertFiniteDenseNumbers,
+  interpolateLinear,
+  readFiniteDenseNumber,
+} from "../utils/statistics";
 
 type ClassifiedPullRequestRecord = PullRequestRecord & {
   aiCategory: AICategory;
@@ -20,17 +26,37 @@ type ClassifiedPullRequestRecord = PullRequestRecord & {
  * Equivalent to NumPy's `percentile(..., interpolation='linear')` default.
  */
 export function percentile(sorted: number[], p: number): number | null {
-  if (p < 0 || p > 100) {
+  return percentileFromSorted(sorted, p, true);
+}
+
+function percentileFromSorted(
+  sorted: readonly number[],
+  p: number,
+  validateInput: boolean,
+): number | null {
+  if (!Number.isFinite(p) || p < 0 || p > 100) {
     throw new RangeError(`Percentile p must be in [0, 100], got ${String(p)}`);
   }
   const n = sorted.length;
   if (n === 0) return null;
-  if (n === 1) return sorted[0];
   const rank = (p / 100) * (n - 1);
   const k = Math.floor(rank);
   const f = rank - k;
-  if (k + 1 >= n) return sorted[n - 1];
-  return sorted[k] + f * (sorted[k + 1] - sorted[k]);
+  const lower = readFiniteDenseNumber(sorted, k, "Percentile");
+
+  if (f === 0) {
+    if (validateInput) {
+      assertFiniteDenseNumbers(sorted, "Percentile");
+    }
+    return lower;
+  }
+
+  const upper = readFiniteDenseNumber(sorted, k + 1, "Percentile");
+  if (validateInput) {
+    assertFiniteDenseNumbers(sorted, "Percentile");
+  }
+
+  return interpolateLinear(lower, upper, f);
 }
 
 /**
@@ -47,11 +73,11 @@ function distributionStats(values: number[]): DistributionStats {
   const sorted = [
     ...values,
   ].sort((a, b) => a - b);
-  const sum = sorted.reduce((acc, v) => acc + v, 0);
+  const mean = arithmeticMean(sorted, "Distribution");
   return {
-    median: percentile(sorted, 50),
-    p90: percentile(sorted, 90),
-    mean: sum / sorted.length,
+    median: percentileFromSorted(sorted, 50, false),
+    p90: percentileFromSorted(sorted, 90, false),
+    mean,
   };
 }
 
@@ -240,13 +266,6 @@ function computeBurdenGroup(prs: PullRequestRecord[]): HumanReviewBurdenGroup {
   };
 }
 
-const ALL_SIZE_TIERS: PRSizeTier[] = [
-  "S",
-  "M",
-  "L",
-  "Empty",
-];
-
 /**
  * Computes human review burden analysis grouped by AI category and
  * stratified by PR size tier.
@@ -271,10 +290,9 @@ function computeHumanReviewBurden(
   const aiAssisted = computeBurdenGroup(byCategory["ai-assisted"]);
   const humanOnly = computeBurdenGroup(byCategory["human-only"]);
 
-  // Stratified by size tier
-  const stratifiedBySize = {} as HumanReviewBurden["stratifiedBySize"];
-  for (const tier of ALL_SIZE_TIERS) {
-    const forTier = (cat: AICategory): HumanReviewBurdenGroup | null => {
+  const forTier =
+    (tier: PRSizeTier) =>
+    (cat: AICategory): HumanReviewBurdenGroup | null => {
       const prs = byCategory[cat].filter(
         (pr) =>
           pr.additions != null &&
@@ -286,12 +304,24 @@ function computeHumanReviewBurden(
         ? computeBurdenGroup(prs)
         : nullMetricBurdenGroup(prs.length);
     };
-    stratifiedBySize[tier] = {
-      aiAuthored: forTier("ai-authored"),
-      aiAssisted: forTier("ai-assisted"),
-      humanOnly: forTier("human-only"),
+
+  const buildSizeTierGroup = (
+    tier: PRSizeTier,
+  ): HumanReviewBurden["stratifiedBySize"][PRSizeTier] => {
+    const forCurrentTier = forTier(tier);
+    return {
+      aiAuthored: forCurrentTier("ai-authored"),
+      aiAssisted: forCurrentTier("ai-assisted"),
+      humanOnly: forCurrentTier("human-only"),
     };
-  }
+  };
+
+  const stratifiedBySize: HumanReviewBurden["stratifiedBySize"] = {
+    S: buildSizeTierGroup("S"),
+    M: buildSizeTierGroup("M"),
+    L: buildSizeTierGroup("L"),
+    Empty: buildSizeTierGroup("Empty"),
+  };
 
   return {
     aiAuthored,

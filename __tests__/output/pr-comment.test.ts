@@ -2,6 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { postPRComment } from "../../src/output/pr-comment";
 import type { AnalysisResult } from "../../src/types";
 import { EMPTY_BURDEN } from "../fixtures/empty-burden";
+import { userStatsAt } from "../helpers/analysis";
+
+interface CreateCommentPayload {
+  body: string;
+}
 
 vi.mock("../../src/utils/logger", () => ({
   logger: {
@@ -45,7 +50,7 @@ function makeOctokit(
     authenticatedAppError?: unknown;
   } = {},
 ) {
-  const createComment = vi.fn();
+  const createComment = vi.fn((_: CreateCommentPayload) => undefined);
   const updateComment = vi.fn();
   const paginate = vi.fn().mockResolvedValue(existingComments);
   const getAuthenticatedUser = options.authenticatedUserError
@@ -93,6 +98,16 @@ function makeOctokit(
       },
     },
   };
+}
+
+function createdCommentBody(
+  mock: ReturnType<typeof makeOctokit>["mock"],
+): string {
+  const call = mock.createComment.mock.calls[0];
+  if (call === undefined) {
+    throw new Error("Expected createComment to be called");
+  }
+  return call[0].body;
 }
 
 function makeAnalysis(): AnalysisResult {
@@ -527,7 +542,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("<!-- review-insights-report -->");
   });
 
@@ -537,7 +552,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("alice");
     expect(body).toContain("bob");
   });
@@ -548,7 +563,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("2025-01-01T00:00:00Z");
     expect(body).toContain("2025-06-01T00:00:00Z");
   });
@@ -559,7 +574,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("0.30");
   });
 
@@ -653,7 +668,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain(", ...");
   });
 
@@ -697,7 +712,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("Warning:");
     expect(body).toContain("#42");
     expect(body).toContain("truncated data");
@@ -739,7 +754,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("Warning:");
     expect(body).toContain("#42");
     expect(body).toContain("truncated data");
@@ -772,7 +787,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     const highIdx = body.indexOf("high");
     const lowIdx = body.indexOf("low");
     expect(highIdx).toBeLessThan(lowIdx);
@@ -798,7 +813,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("Bias Warnings");
     expect(body).toContain("alice");
     expect(body).toContain("4.29");
@@ -817,7 +832,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("| Bias detected | Unavailable |");
     expect(body).toContain("Bias warnings are unavailable");
     expect(body).toContain(
@@ -837,7 +852,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("| Bias detected | Unavailable |");
     expect(body).toContain("Bias warnings are unavailable");
   });
@@ -850,7 +865,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("partial PR data");
     expect(body).toContain("| Data completeness | Partial |");
   });
@@ -863,7 +878,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("configured max-prs limit");
     expect(body).toContain("| Data completeness | Capped |");
   });
@@ -871,11 +886,11 @@ describe("postPRComment", () => {
   it("comment body shows N/A for avgTimeToFirstReviewMs null", async () => {
     const { mock, octokit } = makeOctokit([]);
     const analysis = makeAnalysis();
-    analysis.userStats[0].avgTimeToFirstReviewMs = null;
+    userStatsAt(analysis, 0).avgTimeToFirstReviewMs = null;
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("N/A");
   });
 
@@ -884,7 +899,7 @@ describe("postPRComment", () => {
     const analysis = makeAnalysis();
     analysis.userStats = [
       {
-        ...analysis.userStats[0],
+        ...userStatsAt(analysis, 0),
         avgTimeToFirstReviewMs: 3600000,
         medianTimeToFirstReviewMs: 7200000,
       },
@@ -892,7 +907,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("Median 1st Review");
     // avg=1.0h then median=2.0h in the same row, pipe-separated
     expect(body).toMatch(/1\.0h \| 2\.0h/);
@@ -903,7 +918,7 @@ describe("postPRComment", () => {
     const analysis = makeAnalysis();
     analysis.userStats = [
       {
-        ...analysis.userStats[0],
+        ...userStatsAt(analysis, 0),
         avgTimeToFirstReviewMs: null,
         medianTimeToFirstReviewMs: null,
       },
@@ -911,7 +926,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("Median 1st Review");
     // Both avg and median null → row contains two N/A values
     expect(body).toMatch(/N\/A \| N\/A/);
@@ -962,7 +977,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("| Total PRs analyzed | 1 |");
   });
 
@@ -1011,7 +1026,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("| Total PRs analyzed | 2 |");
   });
 
@@ -1042,7 +1057,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).not.toContain("Warning:");
   });
 
@@ -1065,7 +1080,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("| Top reviewers | N/A |");
     expect(body).toContain("| Max reviews given | N/A |");
   });
@@ -1075,12 +1090,12 @@ describe("postPRComment", () => {
     const analysis = makeAnalysis();
     analysis.userStats = [
       {
-        ...analysis.userStats[0],
+        ...userStatsAt(analysis, 0),
         login: "bob",
         reviewsGiven: 10,
       },
       {
-        ...analysis.userStats[1],
+        ...userStatsAt(analysis, 1),
         login: "alice",
         reviewsGiven: 10,
       },
@@ -1099,7 +1114,7 @@ describe("postPRComment", () => {
 
     await postPRComment(octokit as never, "my-org", "my-repo", 1, analysis);
 
-    const body = mock.createComment.mock.calls[0][0].body as string;
+    const body = createdCommentBody(mock);
     expect(body).toContain("| Top reviewers | alice, bob (10 reviews each) |");
     expect(body).toContain("| Max reviews given | 10 |");
   });

@@ -1,4 +1,5 @@
 import type { PullRequestRecord } from "../types";
+import { requiredAt } from "../utils/array";
 import { line, polyline, rect, svgDoc, text } from "./svg-renderer";
 
 /**
@@ -70,6 +71,30 @@ function requireBucketValue(
   return value;
 }
 
+function toAreaPolygonPoints(
+  points: readonly [
+    number,
+    number,
+  ][],
+  baselineY: number,
+): string {
+  let firstX = 0;
+  let lastX = 0;
+  let isFirst = true;
+  const linePoints: string[] = [];
+
+  for (const [px, py] of points) {
+    if (isFirst) {
+      firstX = px;
+      isFirst = false;
+    }
+    lastX = px;
+    linePoints.push(`${px},${py}`);
+  }
+
+  return `${firstX},${baselineY} ${linePoints.join(" ")} ${lastX},${baselineY}`;
+}
+
 /**
  * Renders a time-series line chart showing total reviews and PRs opened over time.
  */
@@ -77,7 +102,8 @@ export function renderTimeSeries(
   pullRequests: PullRequestRecord[],
   interval: "weekly" | "monthly",
 ): string {
-  if (pullRequests.length === 0) {
+  const [firstPullRequest] = pullRequests;
+  if (firstPullRequest == null) {
     return svgDoc(
       600,
       80,
@@ -92,8 +118,8 @@ export function renderTimeSeries(
   const keyFn = interval === "weekly" ? toWeekKey : toMonthKey;
 
   // Determine date range from data
-  let startDate = new Date(pullRequests[0].createdAt);
-  let endDate = new Date(pullRequests[0].createdAt);
+  let startDate = new Date(firstPullRequest.createdAt);
+  let endDate = new Date(firstPullRequest.createdAt);
   for (const pr of pullRequests) {
     const prDate = new Date(pr.createdAt);
     if (prDate < startDate) startDate = prDate;
@@ -213,9 +239,9 @@ export function renderTimeSeries(
   const maxLabels = 20;
   const labelStep = Math.max(1, Math.ceil(periodKeys.length / maxLabels));
   for (let i = 0; i < periodKeys.length; i += labelStep) {
+    const label = requiredAt(periodKeys, i, "time-series label");
     const lx =
       paddingLeft + (i / Math.max(periodKeys.length - 1, 1)) * chartWidth;
-    const label = periodKeys[i];
     parts.push(
       text(lx, paddingTop + chartHeight + 20, label, {
         fontSize: 10,
@@ -228,41 +254,13 @@ export function renderTimeSeries(
 
   // Filled area under review line
   if (reviewPoints.length > 1) {
-    const areaPoints: [
-      number,
-      number,
-    ][] = [
-      [
-        reviewPoints[0][0],
-        paddingTop + chartHeight,
-      ],
-      ...reviewPoints,
-      [
-        reviewPoints[reviewPoints.length - 1][0],
-        paddingTop + chartHeight,
-      ],
-    ];
-    const pts = areaPoints.map(([px, py]) => `${px},${py}`).join(" ");
+    const pts = toAreaPolygonPoints(reviewPoints, paddingTop + chartHeight);
     parts.push(`<polygon points="${pts}" fill="#2563eb" opacity="0.1"/>`);
   }
 
   // Filled area under PR line
   if (prPoints.length > 1) {
-    const areaPoints: [
-      number,
-      number,
-    ][] = [
-      [
-        prPoints[0][0],
-        paddingTop + chartHeight,
-      ],
-      ...prPoints,
-      [
-        prPoints[prPoints.length - 1][0],
-        paddingTop + chartHeight,
-      ],
-    ];
-    const pts = areaPoints.map(([px, py]) => `${px},${py}`).join(" ");
+    const pts = toAreaPolygonPoints(prPoints, paddingTop + chartHeight);
     parts.push(`<polygon points="${pts}" fill="#16a34a" opacity="0.1"/>`);
   }
 

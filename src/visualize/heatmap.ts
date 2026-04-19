@@ -184,11 +184,11 @@ export function renderHeatmap(bias: BiasResult, opts?: HeatmapOpts): string {
   );
 
   // Column (author) labels - rotated 45 degrees
-  for (let c = 0; c < cols; c++) {
+  for (const [c, author] of authorLabels.entries()) {
     const lx = labelPadding + c * cellSize + cellSize / 2;
     const ly = topPadding - 8;
     parts.push(
-      text(lx, ly, truncateLabel(authorLabels[c], labelMaxLen), {
+      text(lx, ly, truncateLabel(author, labelMaxLen), {
         fontSize: 11,
         anchor: "end",
         rotate: -45,
@@ -198,27 +198,20 @@ export function renderHeatmap(bias: BiasResult, opts?: HeatmapOpts): string {
   }
 
   // Row (reviewer) labels
-  for (let r = 0; r < rows; r++) {
+  for (const [r, reviewer] of reviewerLabels.entries()) {
     const ly = topPadding + r * cellSize + cellSize / 2 + 4;
     parts.push(
-      text(
-        labelPadding - 8,
-        ly,
-        truncateLabel(reviewerLabels[r], labelMaxLen),
-        {
-          fontSize: 11,
-          anchor: "end",
-          fill: "#333",
-        },
-      ),
+      text(labelPadding - 8, ly, truncateLabel(reviewer, labelMaxLen), {
+        fontSize: 11,
+        anchor: "end",
+        fill: "#333",
+      }),
     );
   }
 
   // Cells
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const reviewer = reviewerLabels[r];
-      const author = authorLabels[c];
+  for (const [r, reviewer] of reviewerLabels.entries()) {
+    for (const [c, author] of authorLabels.entries()) {
       const val = getCellValue(reviewer, author);
       const cx = labelPadding + c * cellSize;
       const cy = topPadding + r * cellSize;

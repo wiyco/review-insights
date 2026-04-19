@@ -197,6 +197,23 @@ describe("renderTimeSeries", () => {
       expect(svg).toContain("2025-01");
       expect(svg).toContain("2025-03");
     });
+
+    it("limits x-axis labels on long ranges", () => {
+      const prs = [
+        makePR({
+          number: 1,
+          createdAt: "2024-01-15T12:00:00Z",
+        }),
+        makePR({
+          number: 2,
+          createdAt: "2026-12-15T12:00:00Z",
+        }),
+      ];
+
+      const svg = renderTimeSeries(prs, "monthly");
+      expect(svg).toContain("2024-01");
+      expect(svg).not.toContain("2024-02");
+    });
   });
 
   describe("PENDING review exclusion", () => {
