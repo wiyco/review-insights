@@ -213,11 +213,13 @@ Returns `null` when $|PR_g| = 0$.
 
 To avoid a micro average over reviews that can let a single high-churn PR dominate the group rate, the change-request rate is computed as a **macro average** over PRs.
 
-For each PR $pr_i \in Q_g$ (PRs with at least one qualifying human review where `review.createdAt >= pr.createdAt`):
+For each PR $pr_i \in Q_g$ (PRs with at least one qualifying human review where `review.createdAt >= pr.createdAt`), define the observed post-creation review set:
 
-$$cr_i = \frac{|\{r \in R_{\text{human}}(pr_i) \mid r.\text{state} = \text{CHANGES}\_\text{REQUESTED}\}|}{|R_{\text{human}}(pr_i)|}$$
+$$R_{\text{obs}}(pr_i) = \{r \in R_{\text{human}}(pr_i) \mid r.\text{createdAt} \ge pr_i.\text{createdAt}\}$$
 
 Then:
+
+$$cr_i = \frac{|\{r \in R_{\text{obs}}(pr_i) \mid r.\text{state} = \text{CHANGES}\_\text{REQUESTED}\}|}{|R_{\text{obs}}(pr_i)|}$$
 
 | Statistic | Definition |
 |---|---|
@@ -234,7 +236,7 @@ Both return `null` when $|Q_g| = 0$.
 
 #### reviewRounds — Review iteration distribution
 
-For each PR $pr_i \in Q_g$ (PRs with at least one qualifying human review where `review.createdAt >= pr.createdAt`), define the observed post-creation review set:
+For each PR $pr_i \in Q_g$, use the same observed post-creation review set:
 
 $$R_{\text{obs}}(pr_i) = \{r \in R_{\text{human}}(pr_i) \mid r.\text{createdAt} \ge pr_i.\text{createdAt}\}$$
 
@@ -365,7 +367,7 @@ interface AIPatternResult {
 | PR author is a traditional bot | Excluded from `humanReviewBurden` entirely, regardless of `include-bots` |
 | `aiCategory === null` | Excluded from `humanReviewBurden`, because the AI classification is not observable at the cutoff |
 | PR has reviews but all are bot/PENDING/self | Treated as zero human reviews; included in `humanReviewsPerPR` distribution (as 0) but excluded from latency, changeRequestRate, and reviewRounds |
-| `review.createdAt < pr.createdAt` | Review excluded from first-review latency and `reviewRounds`. A PR whose qualifying human reviews **all** predate `pr.createdAt` is treated as unreviewed for latency, `changeRequestRate`, and `reviewRounds` (it contributes no datapoint to $P_g$ / $Q_g$) |
+| `review.createdAt < pr.createdAt` | Review excluded from first-review latency, `changeRequestRate`, and `reviewRounds`. A PR whose qualifying human reviews **all** predate `pr.createdAt` is treated as unreviewed for latency, `changeRequestRate`, and `reviewRounds` (it contributes no datapoint to $P_g$ / $Q_g$) |
 | Any qualifying post-creation human review has `commitOid === null` | The PR is excluded from `reviewRounds` only, because the reviewed revision cannot be identified exactly |
 | GitHub reports additional review pages beyond the first fetched review page | The PR is excluded from `reviewRounds` only, because the observed review set is truncated |
 | Division by zero | Always returns `null`, never `NaN` or `Infinity` |

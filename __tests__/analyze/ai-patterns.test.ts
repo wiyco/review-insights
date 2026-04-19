@@ -883,6 +883,37 @@ describe("humanReviewBurden", () => {
     );
   });
 
+  it("computes changeRequestRate from post-creation observed reviews", () => {
+    const prs: PullRequestRecord[] = [
+      makePR({
+        number: 1,
+        author: "alice",
+        createdAt: "2025-06-01T10:00:00Z",
+        reviews: [
+          makeReview({
+            reviewer: "bob",
+            author: "alice",
+            state: "CHANGES_REQUESTED",
+            createdAt: "2025-06-01T09:00:00Z",
+            prNumber: 1,
+          }),
+          makeReview({
+            reviewer: "carol",
+            author: "alice",
+            state: "APPROVED",
+            createdAt: "2025-06-01T13:00:00Z",
+            prNumber: 1,
+          }),
+        ],
+      }),
+    ];
+
+    const burden = analyzeAIPatterns(prs).humanReviewBurden;
+    // The pre-creation change request is outside the observed review set.
+    expect(burden.humanOnly.changeRequestRate.mean).toBe(0);
+    expect(burden.humanOnly.changeRequestRate.median).toBe(0);
+  });
+
   it("counts PR as unreviewed when all human reviews predate PR creation", () => {
     const prs: PullRequestRecord[] = [
       makePR({
