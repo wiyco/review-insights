@@ -1,8 +1,8 @@
 name: Dogfood
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 0 * * 1"  # Weekly Monday at 00:00 UTC
+  # schedule:
+  #   - cron: "0 0 * * 1"  # Weekly Monday at 00:00 UTC
 jobs:
   analyze:
     runs-on: ubuntu-latest
