@@ -3,7 +3,7 @@
 [![Coverage](docs/assets/coverage.svg)](docs/assets/coverage.svg)
 [![Code to Test Ratio](docs/assets/code-to-test-ratio.svg)](docs/assets/code-to-test-ratio.svg)
 
-GitHub Action that analyzes PR review statistics per user and generates visual reports — heatmaps, bar charts, and time-series graphs.
+GitHub Action that analyzes pull request review workload, merge outcomes, reviewer-author imbalance, and AI involvement, then publishes visual reports with heatmaps, bar charts, time-series trends, and human review burden metrics.
 
 ## Use Cases
 

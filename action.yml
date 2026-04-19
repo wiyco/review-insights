@@ -1,5 +1,5 @@
 name: "Review Insights"
-description: "Analyze PR review statistics per user with matrices, heatmaps, and time-series visualizations"
+description: "Analyze PR review workload, merge outcomes, reviewer-author imbalance, and AI involvement with visual reports"
 author: "review-insights"
 
 branding:
