@@ -193,7 +193,7 @@ function computeBurdenGroup(prs: PullRequestRecord[]): HumanReviewBurdenGroup {
   const reviewCounts: number[] = [];
   // Latencies for PRs that received at least one qualifying review
   const latencies: number[] = [];
-  // Per-PR change request rates (only for PRs with qualifying reviews)
+  // Per-PR change request rates (only for PRs with observed qualifying reviews)
   const crRates: number[] = [];
   // Per-PR distinct reviewed revisions among qualifying post-creation reviews
   const reviewRoundCounts: number[] = [];
@@ -229,10 +229,10 @@ function computeBurdenGroup(prs: PullRequestRecord[]): HumanReviewBurdenGroup {
     latencies.push(earliestObservedReviewMs - prCreated);
 
     // Change request rate (macro: per-PR)
-    const crCount = humanReviews.filter(
+    const crCount = observedHumanReviews.filter(
       (r) => r.state === "CHANGES_REQUESTED",
     ).length;
-    crRates.push(crCount / humanReviews.length);
+    crRates.push(crCount / observedHumanReviews.length);
 
     const reviewRoundCount = computeReviewRoundCount(pr, observedHumanReviews);
     if (reviewRoundCount != null) {
