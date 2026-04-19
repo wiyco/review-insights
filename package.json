@@ -1,8 +1,21 @@
 {
   "name": "review-insights",
-  "version": "1.0.0",
-  "description": "GitHub Action to analyze PR review statistics per user with visualizations",
+  "version": "2.0.0",
+  "description": "GitHub Action to analyze code review patterns, detect workload imbalances, track AI adoption impact, and visualize team dynamics with charts.",
   "main": "dist/index.mjs",
+  "exports": {
+    ".": "./dist/index.mjs"
+  },
+  "files": [
+    "dist",
+    "action.yml",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "PRIVACY.md",
+    "SECURITY.md",
+    "TERMS.md"
+  ],
   "scripts": {
     "typecheck": "tsc -b",
     "build": "tsc -b && rolldown -c rolldown.config.ts",
@@ -20,10 +33,10 @@
     "visualization"
   ],
   "license": "MIT",
-  "packageManager": "pnpm@10.32.1",
   "engines": {
     "node": ">=24"
   },
+  "packageManager": "pnpm@10.33.0",
   "dependencies": {
     "@actions/artifact": "^6.2.1",
     "@actions/core": "^3.0.0",

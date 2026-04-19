@@ -5,6 +5,7 @@
 | Version | Supported |
 | ------- | --------- |
 | v1.x    | ✅        |
+| v2.x    | ✅        |
 
 ## Reporting a Vulnerability
 

@@ -28,7 +28,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: wiyco/review-insights@v1 # or pin to a specific commit SHA for security
+      - uses: wiyco/review-insights@v2 # or pin to a specific commit SHA for security
         with:
           output-mode: "summary,artifact"
 ```

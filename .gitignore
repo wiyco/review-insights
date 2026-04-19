@@ -4,6 +4,8 @@ coverage/
 *.log
 *.js.map
 .DS_Store
+.env*
+!.env.example
 
 # Keep only the ESM bundle used by action.yml
 dist/*
@@ -13,4 +15,5 @@ dist/*
 !.vscode/settings.json
 !.vscode/extensions.json
 
+.codex
 .claude/*.local.json
