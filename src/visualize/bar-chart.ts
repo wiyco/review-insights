@@ -114,8 +114,7 @@ export function renderBarChart(
   );
 
   // Bars
-  for (let i = 0; i < sorted.length; i++) {
-    const user = sorted[i];
+  for (const [i, user] of sorted.entries()) {
     const val = user[metric];
     const by = paddingTop + i * (barHeight + barGap);
     const bw = (val / maxValue) * maxBarWidth;

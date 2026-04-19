@@ -68,8 +68,8 @@ describe("applyObservationWindow", () => {
 
     const result = applyObservationWindow(prs, "2025-06-03T00:00:00Z");
 
-    expect(result[0].reviews).toHaveLength(1);
-    expect(result[0].reviews[0].reviewer).toBe("bob");
+    expect(result[0]?.reviews).toHaveLength(1);
+    expect(result[0]?.reviews[0]?.reviewer).toBe("bob");
   });
 
   it("preserves reviewLimitReached while trimming reviews to the observation window", () => {
@@ -97,8 +97,8 @@ describe("applyObservationWindow", () => {
 
     const result = applyObservationWindow(prs, "2025-06-03T00:00:00Z");
 
-    expect(result[0].reviewLimitReached).toBe(true);
-    expect(result[0].reviews).toHaveLength(1);
+    expect(result[0]?.reviewLimitReached).toBe(true);
+    expect(result[0]?.reviews).toHaveLength(1);
   });
 
   it("treats a PR merged after until as still open at the cutoff", () => {
@@ -115,10 +115,10 @@ describe("applyObservationWindow", () => {
 
     const result = applyObservationWindow(prs, "2025-06-04T00:00:00Z");
 
-    expect(result[0].state).toBe("OPEN");
-    expect(result[0].mergedAt).toBeNull();
-    expect(result[0].closedAt).toBeNull();
-    expect(result[0].mergedBy).toBeNull();
+    expect(result[0]?.state).toBe("OPEN");
+    expect(result[0]?.mergedAt).toBeNull();
+    expect(result[0]?.closedAt).toBeNull();
+    expect(result[0]?.mergedBy).toBeNull();
   });
 
   it("censors current AI and size metadata for PRs still open at the cutoff", () => {
@@ -140,11 +140,11 @@ describe("applyObservationWindow", () => {
 
     const result = applyObservationWindow(prs, "2025-06-04T00:00:00Z");
 
-    expect(result[0].state).toBe("OPEN");
-    expect(result[0].commitMessages).toBeNull();
-    expect(result[0].additions).toBeNull();
-    expect(result[0].deletions).toBeNull();
-    expect(result[0].aiCategory).toBeNull();
+    expect(result[0]?.state).toBe("OPEN");
+    expect(result[0]?.commitMessages).toBeNull();
+    expect(result[0]?.additions).toBeNull();
+    expect(result[0]?.deletions).toBeNull();
+    expect(result[0]?.aiCategory).toBeNull();
   });
 
   it("keeps stable AI-authored classification while censoring open-at-cutoff current metadata", () => {
@@ -164,11 +164,11 @@ describe("applyObservationWindow", () => {
 
     const result = applyObservationWindow(prs, "2025-06-04T00:00:00Z");
 
-    expect(result[0].state).toBe("OPEN");
-    expect(result[0].commitMessages).toBeNull();
-    expect(result[0].additions).toBeNull();
-    expect(result[0].deletions).toBeNull();
-    expect(result[0].aiCategory).toBe("ai-authored");
+    expect(result[0]?.state).toBe("OPEN");
+    expect(result[0]?.commitMessages).toBeNull();
+    expect(result[0]?.additions).toBeNull();
+    expect(result[0]?.deletions).toBeNull();
+    expect(result[0]?.aiCategory).toBe("ai-authored");
   });
 
   it("preserves merged state when the merge happened on or before until", () => {
@@ -191,16 +191,16 @@ describe("applyObservationWindow", () => {
 
     const result = applyObservationWindow(prs, "2025-06-04T00:00:00Z");
 
-    expect(result[0].state).toBe("MERGED");
-    expect(result[0].mergedAt).toBe("2025-06-03T00:00:00Z");
-    expect(result[0].closedAt).toBe("2025-06-03T00:00:00Z");
-    expect(result[0].mergedBy).toBe("bob");
-    expect(result[0].commitMessages).toEqual([
+    expect(result[0]?.state).toBe("MERGED");
+    expect(result[0]?.mergedAt).toBe("2025-06-03T00:00:00Z");
+    expect(result[0]?.closedAt).toBe("2025-06-03T00:00:00Z");
+    expect(result[0]?.mergedBy).toBe("bob");
+    expect(result[0]?.commitMessages).toEqual([
       "feat: merged work\n\nCo-authored-by: Claude <noreply@anthropic.com>",
     ]);
-    expect(result[0].additions).toBe(500);
-    expect(result[0].deletions).toBe(200);
-    expect(result[0].aiCategory).toBe("ai-assisted");
+    expect(result[0]?.additions).toBe(500);
+    expect(result[0]?.deletions).toBe(200);
+    expect(result[0]?.aiCategory).toBe("ai-assisted");
   });
 
   it("uses mergedAt as the observed close time when close metadata lags the merge", () => {
@@ -217,10 +217,10 @@ describe("applyObservationWindow", () => {
 
     const result = applyObservationWindow(prs, "2025-06-04T00:00:00Z");
 
-    expect(result[0].state).toBe("MERGED");
-    expect(result[0].mergedAt).toBe("2025-06-03T00:00:00Z");
-    expect(result[0].closedAt).toBe("2025-06-03T00:00:00Z");
-    expect(result[0].mergedBy).toBe("bob");
+    expect(result[0]?.state).toBe("MERGED");
+    expect(result[0]?.mergedAt).toBe("2025-06-03T00:00:00Z");
+    expect(result[0]?.closedAt).toBe("2025-06-03T00:00:00Z");
+    expect(result[0]?.mergedBy).toBe("bob");
   });
 
   it("treats a PR closed after until as still open at the cutoff", () => {
@@ -235,8 +235,8 @@ describe("applyObservationWindow", () => {
 
     const result = applyObservationWindow(prs, "2025-06-04T00:00:00Z");
 
-    expect(result[0].state).toBe("OPEN");
-    expect(result[0].closedAt).toBeNull();
+    expect(result[0]?.state).toBe("OPEN");
+    expect(result[0]?.closedAt).toBeNull();
   });
 
   it("preserves non-merged closed state when close happened on or before until", () => {
@@ -257,11 +257,11 @@ describe("applyObservationWindow", () => {
 
     const result = applyObservationWindow(prs, "2025-06-04T00:00:00Z");
 
-    expect(result[0].state).toBe("CLOSED");
-    expect(result[0].closedAt).toBe("2025-06-03T00:00:00Z");
-    expect(result[0].commitMessages).toBeNull();
-    expect(result[0].additions).toBeNull();
-    expect(result[0].deletions).toBeNull();
-    expect(result[0].aiCategory).toBeNull();
+    expect(result[0]?.state).toBe("CLOSED");
+    expect(result[0]?.closedAt).toBe("2025-06-03T00:00:00Z");
+    expect(result[0]?.commitMessages).toBeNull();
+    expect(result[0]?.additions).toBeNull();
+    expect(result[0]?.deletions).toBeNull();
+    expect(result[0]?.aiCategory).toBeNull();
   });
 });

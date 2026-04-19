@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalysisResult } from "../../src/types";
 import { EMPTY_BURDEN } from "../fixtures/empty-burden";
+import { userStatsAt } from "../helpers/analysis";
 
 vi.mock("@actions/core", () => {
   const addedContent: string[] = [];
@@ -286,12 +287,12 @@ describe("writeJobSummary", () => {
     const analysis = makeAnalysis();
     analysis.userStats = [
       {
-        ...analysis.userStats[0],
+        ...userStatsAt(analysis, 0),
         login: "bob",
         reviewsGiven: 10,
       },
       {
-        ...analysis.userStats[1],
+        ...userStatsAt(analysis, 1),
         login: "alice",
         reviewsGiven: 10,
       },
@@ -328,7 +329,7 @@ describe("writeJobSummary", () => {
     const analysis = makeAnalysis();
     analysis.userStats = [
       {
-        ...analysis.userStats[0],
+        ...userStatsAt(analysis, 0),
         login: "alice",
         reviewsGiven: 10,
       },
@@ -344,7 +345,7 @@ describe("writeJobSummary", () => {
         medianTimeToFirstReviewMs: 3600000,
       },
       {
-        ...analysis.userStats[1],
+        ...userStatsAt(analysis, 1),
         login: "bob",
         reviewsGiven: 7,
       },
@@ -355,7 +356,7 @@ describe("writeJobSummary", () => {
     const barChartCalls = vi.mocked(renderBarChart).mock.calls;
     expect(barChartCalls[barChartCalls.length - 1]).toEqual([
       [
-        analysis.userStats[0],
+        userStatsAt(analysis, 0),
         analysis.userStats[2],
       ],
       "reviewsGiven",

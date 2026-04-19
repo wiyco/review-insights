@@ -1,3 +1,9 @@
+import {
+  assertFiniteDenseNumbers,
+  midpoint,
+  readFiniteDenseNumber,
+} from "./statistics";
+
 /**
  * Computes the median of an unsorted numeric array.
  *
@@ -11,8 +17,10 @@ export function computeMedian(values: number[]): number | null {
     ...values,
   ].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
+  const lowerIndex = sorted.length % 2 === 0 ? mid - 1 : mid;
+  const lower = readFiniteDenseNumber(sorted, lowerIndex, "Median");
+  const upper = readFiniteDenseNumber(sorted, mid, "Median");
+  assertFiniteDenseNumbers(sorted, "Median");
 
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid];
+  return midpoint(lower, upper);
 }

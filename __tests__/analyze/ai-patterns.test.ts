@@ -245,12 +245,12 @@ describe("analyzeAIPatterns", () => {
     ];
 
     const result = analyzeAIPatterns(prs);
-    expect(result.botReviewers[0].login).toBe("bot-b");
-    expect(result.botReviewers[0].reviewCount).toBe(3);
-    expect(result.botReviewers[1].login).toBe("bot-c");
-    expect(result.botReviewers[1].reviewCount).toBe(2);
-    expect(result.botReviewers[2].login).toBe("bot-a");
-    expect(result.botReviewers[2].reviewCount).toBe(1);
+    expect(result.botReviewers[0]?.login).toBe("bot-b");
+    expect(result.botReviewers[0]?.reviewCount).toBe(3);
+    expect(result.botReviewers[1]?.login).toBe("bot-c");
+    expect(result.botReviewers[1]?.reviewCount).toBe(2);
+    expect(result.botReviewers[2]?.login).toBe("bot-a");
+    expect(result.botReviewers[2]?.reviewCount).toBe(1);
   });
 
   it("counts PENDING reviews in totals (intentionally unfiltered)", () => {
@@ -279,7 +279,7 @@ describe("analyzeAIPatterns", () => {
     const result = analyzeAIPatterns(prs);
     // PENDING bot review should still be counted
     expect(result.botReviewers).toHaveLength(1);
-    expect(result.botReviewers[0].reviewCount).toBe(1);
+    expect(result.botReviewers[0]?.reviewCount).toBe(1);
     expect(result.botReviewPercentage).toBe(50);
   });
 
@@ -357,6 +357,39 @@ describe("percentile", () => {
     expect(percentile([], 50)).toBeNull();
   });
 
+  it("throws for sparse arrays without the percentile value", () => {
+    expect(() => percentile(new Array<number>(1), 50)).toThrow(RangeError);
+  });
+
+  it("throws for sparse arrays without the interpolation value", () => {
+    const values = new Array<number>(2);
+    values[0] = 1;
+
+    expect(() => percentile(values, 90)).toThrow(RangeError);
+  });
+
+  it("throws for sparse arrays even when the percentile value exists", () => {
+    const values = new Array<number>(4);
+    values[0] = 1;
+    values[1] = 2;
+    values[2] = 3;
+
+    expect(() => percentile(values, 50)).toThrow(RangeError);
+  });
+
+  it("throws for non-finite values", () => {
+    expect(() =>
+      percentile(
+        [
+          1,
+          Number.NaN,
+          3,
+        ],
+        50,
+      ),
+    ).toThrow(RangeError);
+  });
+
   it("returns the single value for n=1", () => {
     expect(
       percentile(
@@ -427,6 +460,18 @@ describe("percentile", () => {
     ).toBeCloseTo(9.1);
   });
 
+  it("interpolates extreme finite values without overflowing", () => {
+    expect(
+      percentile(
+        [
+          -Number.MAX_VALUE,
+          Number.MAX_VALUE,
+        ],
+        90,
+      ),
+    ).toBe(Number.MAX_VALUE * 0.8);
+  });
+
   it("returns last element for p100", () => {
     expect(
       percentile(
@@ -449,6 +494,19 @@ describe("percentile", () => {
           3,
         ],
         -1,
+      ),
+    ).toThrow(RangeError);
+  });
+
+  it("throws RangeError for non-finite percentile", () => {
+    expect(() =>
+      percentile(
+        [
+          1,
+          2,
+          3,
+        ],
+        Number.NaN,
       ),
     ).toThrow(RangeError);
   });

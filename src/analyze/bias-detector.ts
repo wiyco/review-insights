@@ -4,6 +4,21 @@ import type { BiasResult, PullRequestRecord, ReviewMatrix } from "../types";
 const IPF_MAX_ITERATIONS = 10_000;
 const IPF_RELATIVE_TOLERANCE = 1e-8;
 
+interface AuthorStats {
+  author: string;
+  columnTotal: number;
+  reviewers: ReviewerStats[];
+  factor: number;
+}
+
+interface ReviewerStats {
+  reviewer: string;
+  rowTotal: number;
+  authors: AuthorStats[];
+  authorSet: Set<AuthorStats>;
+  factor: number;
+}
+
 /**
  * Computes the Gini coefficient (0 = equal, 1 = maximally unequal).
  *
@@ -27,8 +42,8 @@ function computeGiniCoefficient(
   let weightedSum = 0;
   // Zeros occupy ranks 1..zeroCount; their contribution is 0.
   // Non-zero values occupy ranks (zeroCount+1)..(zeroCount+sorted.length).
-  for (let i = 0; i < sorted.length; i++) {
-    weightedSum += (zeroCount + i + 1) * sorted[i];
+  for (const [index, count] of sorted.entries()) {
+    weightedSum += (zeroCount + index + 1) * count;
   }
 
   return Math.max(
@@ -61,22 +76,18 @@ function getRelativeMarginDiff(fitted: number, observed: number): number {
 export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
   expectedCount: (reviewer: string, author: string) => number;
 } {
-  const authors: Array<{
-    author: string;
-    columnTotal: number;
-    reviewerPositions: number[];
-  }> = [];
-  const authorIndex = new Map<string, number>();
-  const reviewers: Array<{
-    reviewer: string;
-    rowTotal: number;
-    authorPositions: number[];
-  }> = [];
+  const authors: AuthorStats[] = [];
+  const authorByName = new Map<string, AuthorStats>();
+  const reviewers: ReviewerStats[] = [];
 
   for (const [reviewer, row] of matrix) {
-    const reviewerPosition = reviewers.length;
-    let rowTotal = 0;
-    const authorPositions: number[] = [];
+    const reviewerStats: ReviewerStats = {
+      reviewer,
+      rowTotal: 0,
+      authors: [],
+      authorSet: new Set(),
+      factor: 1,
+    };
 
     for (const [author, count] of row) {
       if (count < 0) {
@@ -88,33 +99,31 @@ export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
         continue;
       }
 
-      rowTotal += count;
+      reviewerStats.rowTotal += count;
 
-      let authorPosition = authorIndex.get(author);
-      if (authorPosition == null) {
-        authorPosition = authors.length;
-        authorIndex.set(author, authorPosition);
-        authors.push({
+      let authorStats = authorByName.get(author);
+      if (authorStats == null) {
+        authorStats = {
           author,
           columnTotal: 0,
-          reviewerPositions: [],
-        });
+          reviewers: [],
+          factor: 1,
+        };
+        authorByName.set(author, authorStats);
+        authors.push(authorStats);
       }
 
-      authorPositions.push(authorPosition);
-      authors[authorPosition].columnTotal += count;
-      authors[authorPosition].reviewerPositions.push(reviewerPosition);
+      reviewerStats.authors.push(authorStats);
+      reviewerStats.authorSet.add(authorStats);
+      authorStats.columnTotal += count;
+      authorStats.reviewers.push(reviewerStats);
     }
 
-    if (authorPositions.length === 0) {
+    if (reviewerStats.authors.length === 0) {
       continue;
     }
 
-    reviewers.push({
-      reviewer,
-      rowTotal,
-      authorPositions,
-    });
+    reviewers.push(reviewerStats);
   }
 
   if (reviewers.length === 0) {
@@ -123,110 +132,70 @@ export function fitQuasiIndependenceModel(matrix: ReviewMatrix): {
     );
   }
 
-  const reviewerFactors = reviewers.map(() => 1);
-  const authorFactors = authors.map(() => 1);
-  const reviewerIndex = new Map(
-    reviewers.map(({ reviewer }, index) => [
-      reviewer,
-      index,
-    ]),
-  );
-  const reviewerSupportSets = reviewers.map(
-    ({ authorPositions }) => new Set(authorPositions),
-  );
-  const authorIndexByName = new Map(
-    authors.map(({ author }, index) => [
-      author,
-      index,
-    ]),
-  );
+  const reviewerByName = new Map<string, ReviewerStats>();
+  for (const reviewerStats of reviewers) {
+    reviewerByName.set(reviewerStats.reviewer, reviewerStats);
+  }
 
-  function getReviewerSupportMass(reviewerPosition: number): number {
-    return reviewers[reviewerPosition].authorPositions.reduce(
-      (sum, authorPosition) => {
-        return sum + authorFactors[authorPosition];
-      },
+  function getReviewerSupportMass(reviewerStats: ReviewerStats): number {
+    return reviewerStats.authors.reduce(
+      (sum, authorStats) => sum + authorStats.factor,
       0,
     );
   }
 
-  function getAuthorSupportMass(authorPosition: number): number {
-    return authors[authorPosition].reviewerPositions.reduce(
-      (sum, reviewerPosition) => {
-        return sum + reviewerFactors[reviewerPosition];
-      },
+  function getAuthorSupportMass(authorStats: AuthorStats): number {
+    return authorStats.reviewers.reduce(
+      (sum, reviewerStats) => sum + reviewerStats.factor,
       0,
     );
   }
 
   for (let iteration = 0; iteration < IPF_MAX_ITERATIONS; iteration++) {
-    for (
-      let reviewerPosition = 0;
-      reviewerPosition < reviewers.length;
-      reviewerPosition++
-    ) {
-      const { rowTotal } = reviewers[reviewerPosition];
-      const supportMass = getReviewerSupportMass(reviewerPosition);
-      const fittedRowTotal = reviewerFactors[reviewerPosition] * supportMass;
-      reviewerFactors[reviewerPosition] *= rowTotal / fittedRowTotal;
+    for (const reviewerStats of reviewers) {
+      const supportMass = getReviewerSupportMass(reviewerStats);
+      const fittedRowTotal = reviewerStats.factor * supportMass;
+      reviewerStats.factor *= reviewerStats.rowTotal / fittedRowTotal;
     }
 
-    for (
-      let authorPosition = 0;
-      authorPosition < authors.length;
-      authorPosition++
-    ) {
-      const { columnTotal } = authors[authorPosition];
-      const supportMass = getAuthorSupportMass(authorPosition);
-      const fittedColumnTotal = authorFactors[authorPosition] * supportMass;
-      authorFactors[authorPosition] *= columnTotal / fittedColumnTotal;
+    for (const authorStats of authors) {
+      const supportMass = getAuthorSupportMass(authorStats);
+      const fittedColumnTotal = authorStats.factor * supportMass;
+      authorStats.factor *= authorStats.columnTotal / fittedColumnTotal;
     }
 
     let maxRelativeDiff = 0;
 
-    for (
-      let reviewerPosition = 0;
-      reviewerPosition < reviewers.length;
-      reviewerPosition++
-    ) {
-      const { rowTotal } = reviewers[reviewerPosition];
+    for (const reviewerStats of reviewers) {
       const fittedRowTotal =
-        reviewerFactors[reviewerPosition] *
-        getReviewerSupportMass(reviewerPosition);
+        reviewerStats.factor * getReviewerSupportMass(reviewerStats);
       maxRelativeDiff = Math.max(
         maxRelativeDiff,
-        getRelativeMarginDiff(fittedRowTotal, rowTotal),
+        getRelativeMarginDiff(fittedRowTotal, reviewerStats.rowTotal),
       );
     }
 
-    for (
-      let authorPosition = 0;
-      authorPosition < authors.length;
-      authorPosition++
-    ) {
-      const { columnTotal } = authors[authorPosition];
+    for (const authorStats of authors) {
       const fittedColumnTotal =
-        authorFactors[authorPosition] * getAuthorSupportMass(authorPosition);
+        authorStats.factor * getAuthorSupportMass(authorStats);
       maxRelativeDiff = Math.max(
         maxRelativeDiff,
-        getRelativeMarginDiff(fittedColumnTotal, columnTotal),
+        getRelativeMarginDiff(fittedColumnTotal, authorStats.columnTotal),
       );
     }
 
     if (maxRelativeDiff < IPF_RELATIVE_TOLERANCE) {
       return {
         expectedCount(reviewer: string, author: string): number {
-          const reviewerPosition = reviewerIndex.get(reviewer);
-          const authorPosition = authorIndexByName.get(author);
-          if (reviewerPosition == null || authorPosition == null) {
+          const reviewerStats = reviewerByName.get(reviewer);
+          const authorStats = authorByName.get(author);
+          if (reviewerStats == null || authorStats == null) {
             return 0;
           }
-          if (!reviewerSupportSets[reviewerPosition].has(authorPosition)) {
+          if (!reviewerStats.authorSet.has(authorStats)) {
             return 0;
           }
-          return (
-            reviewerFactors[reviewerPosition] * authorFactors[authorPosition]
-          );
+          return reviewerStats.factor * authorStats.factor;
         },
       };
     }

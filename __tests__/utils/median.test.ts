@@ -68,4 +68,42 @@ describe("computeMedian", () => {
       ]),
     ).toBe(3);
   });
+
+  it("throws for sparse arrays without the lower middle value", () => {
+    expect(() => computeMedian(new Array<number>(1))).toThrow(RangeError);
+  });
+
+  it("throws for sparse arrays without the upper middle value", () => {
+    const values = new Array<number>(2);
+    values[0] = 1;
+
+    expect(() => computeMedian(values)).toThrow(RangeError);
+  });
+
+  it("throws for sparse arrays even when the middle values exist", () => {
+    const values = new Array<number>(4);
+    values[0] = 1;
+    values[1] = 2;
+    values[2] = 3;
+
+    expect(() => computeMedian(values)).toThrow(RangeError);
+  });
+
+  it("throws for non-finite values", () => {
+    expect(() =>
+      computeMedian([
+        1,
+        Number.POSITIVE_INFINITY,
+      ]),
+    ).toThrow(RangeError);
+  });
+
+  it("averages extreme finite middle values without overflowing", () => {
+    expect(
+      computeMedian([
+        Number.MAX_VALUE,
+        Number.MAX_VALUE,
+      ]),
+    ).toBe(Number.MAX_VALUE);
+  });
 });

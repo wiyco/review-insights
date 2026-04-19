@@ -242,7 +242,7 @@ describe("computeMergeCorrelations", () => {
 
     const result = computeMergeCorrelations(prs, false);
     expect(result).toHaveLength(1);
-    expect(result[0].login).toBe("alice");
+    expect(result[0]?.login).toBe("alice");
   });
 
   it("includes bot-authored PRs when includeBots is true", () => {
@@ -420,12 +420,12 @@ describe("computeMergeCorrelations", () => {
     ];
 
     const result = computeMergeCorrelations(prs, false);
-    expect(result[0].login).toBe("bob");
-    expect(result[0].prsAuthored).toBe(3);
-    expect(result[1].login).toBe("carol");
-    expect(result[1].prsAuthored).toBe(2);
-    expect(result[2].login).toBe("alice");
-    expect(result[2].prsAuthored).toBe(1);
+    expect(result[0]?.login).toBe("bob");
+    expect(result[0]?.prsAuthored).toBe(3);
+    expect(result[1]?.login).toBe("carol");
+    expect(result[1]?.prsAuthored).toBe(2);
+    expect(result[2]?.login).toBe("alice");
+    expect(result[2]?.prsAuthored).toBe(1);
   });
 
   it("handles tied prsAuthored counts without dropping authors", () => {
