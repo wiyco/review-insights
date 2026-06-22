@@ -1,5 +1,6 @@
 allowBuilds:
   lefthook: true
-  esbuild: false
 overrides:
-  fast-xml-builder@<=1.1.6: 1.1.7
+  esbuild@>=0.27.3 <0.28.1: '>=0.28.1'
+  undici@<6.27.0: '>=6.27.0'
+  vite@>=8.0.0 <=8.0.15: '>=8.0.16'
