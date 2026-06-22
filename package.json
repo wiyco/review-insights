@@ -1,6 +1,6 @@
 {
   "name": "review-insights",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "GitHub Action to analyze code review patterns, detect workload imbalances, track AI adoption impact, and visualize team dynamics with charts.",
   "main": "dist/index.mjs",
   "exports": {
